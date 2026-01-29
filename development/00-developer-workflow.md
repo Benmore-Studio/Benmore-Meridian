@@ -44,7 +44,11 @@ as a software developer. For each requirement, explain:
 Be specific, technical, and actionable.
 
 [PASTE TRANSCRIPT HERE]
+
+ SUMMARIZE KEY ACTION PLANS from a technical perspective, I gave you bullet points, use subagents and build me a  very detailed technical plan with files to modify and bullet pointed lists along with key snippets from the transcripts
+
 ```
+![Transcript on Portal](./assets/transcript.png)
 
 
 *Example*
@@ -66,6 +70,8 @@ Be specific, technical, and actionable.
 
 
 3. Review Gemini's analysis and save the output
+**gemini image**
+![Gemini Image](./assets/gemini_result.png)
 
 ---
 
@@ -107,6 +113,29 @@ Verify your development environment is fully operational before planning.
    - Use `superpowers:writing-plans` for structured implementation
    - Use `superpowers:test-driven-development` for test coverage
    - Use `agent-browser` to navigate and test the application during development
+
+
+### Example prompt
+
+![Switching Model](./assets/opus_switch.png)
+
+Paste the gemini result and the transcript (again) here.
+```bash
+Pasted text #1 +142 lines] I want a detailed action plan including:
+       - Fine-grained ASCII flow diagrams
+       - API endpoint specifications
+       - Database schema changes (if needed)
+  Read the CLAUDE.md, understand the todos, here is the transcript: [Pasted text #2 +1484 lines]
+
+  Generate a detailed plan with the necessary skills you need to evoke in the plan. Here is the list of skills, you
+  need to break everything down into subplans, use double shot latte to keep running, have acceptance criteria,
+  detailed plans with business and technical plans, have within the plan information to copy nuances into the
+  CLAUDE.md, add docs in the API endpoints and add tests, use subagents, the plan should have these prompts after
+  each feature is done.
+```
+
+![Claude prompt](./assets/opus_prompt.png)
+Hit shift+tab to switch to plan mode. **Ensure you have taken a screenshot of skills which you can install from skills.sh and /plugins**
 
 
 ---
