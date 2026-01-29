@@ -135,8 +135,19 @@ Pasted text #1 +142 lines] I want a detailed action plan including:
 ```
 
 ![Claude prompt](./assets/opus_prompt.png)
-Hit shift+tab to switch to plan mode. **Ensure you have taken a screenshot of skills which you can install from skills.sh and /plugins**
+#### Hit shift+tab to switch to plan mode. **Ensure you have taken a screenshot of skills which you can install from skills.sh and /plugins**
 
+#### Once done you might have to prompt claude during plan mode ![Update](./assets/update_prompt.png)
+
+```bash
+npm install -g agent-browser
+agent-browser install  # Download Chromium
+```
+
+![Install Agent Browser And Playwright](./assets/installations.png)
+
+
+### Copy Plan ![COPY](./assets/copy_plan.png)
 
 ---
 ## 🔗 Related Guides
