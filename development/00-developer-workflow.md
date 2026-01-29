@@ -147,7 +147,7 @@ agent-browser install  # Download Chromium
 ![Install Agent Browser And Playwright](./assets/installations.png)
 
 
-### Copy Plan ![COPY](./assets/copy_plan.png)
+### Copy Plan ![COPY](./assets/copy_plan.png) and run it ![Copy](./assets/run_plan.png)
 
 ---
 ## 🔗 Related Guides
