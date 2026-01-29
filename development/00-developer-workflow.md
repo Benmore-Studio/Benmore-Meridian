@@ -149,6 +149,14 @@ agent-browser install  # Download Chromium
 
 ### Copy Plan ![COPY](./assets/copy_plan.png) and run it ![Copy](./assets/run_plan.png)
 
+## Navigating Claude Code
+### Approve Plan and use superpowers execute plan with custom prompt
+![Execute Plan](./assets/execute_plan1.png)
+
+### Keep telling it to document changes ![Continued Planning](./assets/execute_plan2.png)
+
+### Run Multiple Agents ![Running Agents](./assets/running_agents.png)
+
 ---
 ## 🔗 Related Guides
 
