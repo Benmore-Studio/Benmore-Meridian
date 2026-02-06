@@ -1,19 +1,42 @@
-# PR Review & Project Management
+# Development Guides
 
-Master the workflow for collaborative development, GitHub project management, and AI-assisted code reviews.
+Master the full development workflow — from meeting notes to CI/CD automation to AI-powered tools.
 
 ---
 
 ## 📋 Guide Contents
 
+**[00-developer-workflow.md](./00-developer-workflow.md)**
+
+End-to-end developer workflow:
+- ✅ Accessing client meeting transcripts
+- ✅ Extracting requirements with Gemini
+- ✅ Building implementation plans with Claude Code
+- ✅ Executing plans with skills & subagents
+
 **[01-pr-review-workflow.md](./01-pr-review-workflow.md)**
 
-Complete workflow covering:
+PR review & project management:
 - ✅ GitHub integration setup
 - ✅ Project management with GitHub Projects
 - ✅ AI-assisted PR review process
 - ✅ Automated checks and verification
-- ✅ Checklist for each phase
+
+**[02-ci-cd-bots-setup.md](./02-ci-cd-bots-setup.md)**
+
+CI/CD bots & automated checks:
+- ✅ Sentry Bot — runtime error tracking
+- ✅ Vercel Bot — preview deployments
+- ✅ GitHub Actions — lints, formatting, tests
+- ✅ Claude Bot — AI-powered code review (`/install-github-app`)
+
+**[03-claude-code-ecosystem.md](./03-claude-code-ecosystem.md)**
+
+Claude Code tools & ecosystem:
+- ✅ MCP Servers (Context7, Hyperbrowser, Agent Browser)
+- ✅ Plugins & Marketplaces (Superpowers, Double Shot Latte)
+- ✅ Skills (skills.sh, Superpowers skills, custom skills)
+- ✅ Subagents & Agent Teams
 
 ---
 
@@ -102,4 +125,8 @@ Visual guides for each phase:
 
 ---
 
-**Start with the workflow → [01-pr-review-workflow.md](./01-pr-review-workflow.md) 🔍**
+**New developer?** Start here:
+1. [Developer Workflow](./00-developer-workflow.md) — How we build features
+2. [CI/CD Bots](./02-ci-cd-bots-setup.md) — Set up your repo's automated checks
+3. [Claude Code Ecosystem](./03-claude-code-ecosystem.md) — Set up your AI tools
+4. [PR Review Workflow](./01-pr-review-workflow.md) — How to review PRs

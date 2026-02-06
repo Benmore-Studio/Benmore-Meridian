@@ -17,7 +17,19 @@ Guides for productionizing Django applications with modern tooling and best prac
 
 ---
 
-### 2. **PR Review & Project Management** 🔍
+### 2. **Development Workflow & CI/CD** 🔧
+Guides for the full development lifecycle — from meeting notes to automated checks.
+
+- Developer workflow: transcripts → requirements → plans → execution
+- **CI/CD Bots**: Sentry, Vercel, GitHub Actions, Claude Bot setup
+- **Claude Code Ecosystem**: MCP tools, plugins, skills, subagents
+- PR review workflow with AI
+
+**Location:** `development/`
+
+---
+
+### 3. **PR Review & Project Management** 🔍
 Workflow for setting up GitHub, managing projects, and performing AI-assisted PR reviews.
 
 - Setup GitHub and Sentry integration
@@ -29,7 +41,7 @@ Workflow for setting up GitHub, managing projects, and performing AI-assisted PR
 
 ---
 
-### 3. **Dev Toolkit & Setup** 🛠️
+### 4. **Dev Toolkit & Setup** 🛠️
 Comprehensive checklist for installing and setting up your development environment.
 
 - Core development tools (terminal, package managers, search)
@@ -42,7 +54,7 @@ Comprehensive checklist for installing and setting up your development environme
 
 ---
 
-### 4. **Team Guides** 👥
+### 5. **Team Guides** 👥
 Team-specific onboarding and process documentation.
 
 **Location:** `team/`
@@ -68,6 +80,13 @@ Team-specific onboarding and process documentation.
 ```
 guides/
 ├── README.md (this file)
+├── development/
+│   ├── README.md (development guides index)
+│   ├── 00-developer-workflow.md
+│   ├── 01-pr-review-workflow.md
+│   ├── 02-ci-cd-bots-setup.md        ← NEW
+│   ├── 03-claude-code-ecosystem.md    ← NEW
+│   └── assets/
 ├── django/
 │   ├── README.md (django guides index)
 │   ├── 01-simple-checklist.md
@@ -76,13 +95,6 @@ guides/
 ├── review/
 │   ├── 01-pr-review-workflow.md
 │   └── assets/
-│       ├── install_claude_github.png
-│       ├── Github_project.png
-│       ├── add_project.png
-│       ├── link_tickets.png
-│       ├── prompt.png
-│       ├── claude result.png
-│       └── pr_review.png
 ├── toolkit/
 │   └── 01-toolkit-checklist.md
 └── team/
@@ -108,7 +120,10 @@ Track your onboarding progress:
 | Guide | Duration | Best For |
 |-------|----------|----------|
 | [Dev Toolkit](toolkit/01-toolkit-checklist.md) | 30-60 min | Setting up your dev environment |
-| [PR Review Workflow](review/01-pr-review-workflow.md) | 20 min read | Understanding our review process |
+| [Developer Workflow](development/00-developer-workflow.md) | 15 min read | End-to-end feature workflow |
+| [CI/CD Bots Setup](development/02-ci-cd-bots-setup.md) | 30-45 min | Sentry, Vercel, Actions, Claude |
+| [Claude Code Ecosystem](development/03-claude-code-ecosystem.md) | 20 min read | MCP, plugins, skills, agents |
+| [PR Review Workflow](development/01-pr-review-workflow.md) | 20 min read | Understanding our review process |
 | [Django Simple Checklist](django/01-simple-checklist.md) | 45-60 min | Quick Django production checklist |
 | [Django Detailed Checklist](django/02-detailed-checklist.md) | 45-60 min | Guided Django implementation |
 | [Django Comprehensive Guide](django/03-comprehensive-guide.md) | Reference | Complete Django reference |
