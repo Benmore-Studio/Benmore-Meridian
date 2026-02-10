@@ -2,45 +2,37 @@
 
 This document tracks all skills available in the `/Users/arkashjain/Desktop/guides/skills` directory.
 
-## Custom Skills Included
+## Production Skills
 
-These skills are directly included in this repository (not symlinked):
+Production-grade skills for Django, Next.js, authentication, security, and developer tooling:
 
-| Skill | Status | Added | Description |
-|-------|--------|-------|-------------|
-| `agent-organizer` | ✅ Active | 2026-02-09 | Expert multi-agent orchestration and team coordination |
-| `brainstorm` | ✅ Active | 2026-02-09 | Interactive design refinement with iterative feedback |
-| `commit` | ✅ Active | 2026-02-09 | Smart git commit workflow with context analysis |
-| `debug` | ✅ Active | 2026-02-09 | Systematic debugging with root cause analysis |
-| `execplan` | ✅ Active | 2026-02-09 | Create and manage detailed execution plans |
-| `optimize` | ✅ Active | 2026-02-09 | Performance optimization with measurable improvements |
-| `refactor` | ✅ Active | 2026-02-09 | Safe code refactoring with test preservation |
-| `review-pr` | ✅ Active | 2026-02-09 | Comprehensive pull request review checklist |
-| `security-audit` | ✅ Active | 2026-02-09 | Security vulnerability assessment and remediation |
-| `write-tests` | ✅ Active | 2026-02-09 | Test-driven development with comprehensive coverage |
+| Skill | Category | Status | Description |
+|-------|----------|--------|-------------|
+| `django-production` | 🚀 Production | ✅ Active | Production-ready Django setup with modern tooling (uv, ruff, pytest, Docker, drf-spectacular) |
+| `frontend-productionize` | 🚀 Production | ✅ Active | Next.js + Django integration with OpenAPI TypeScript codegen for type-safe APIs |
+| `dependency-security-audit` | 🔒 Security | ✅ Active | Comprehensive dependency security auditing and automated fixing (npm, pip, poetry) |
+| `django-auth-react-native` | 🔒 Security | ✅ Active | Complete Django authentication system for React Native with JWT and OTP |
+| `modern-terminal-setup` | 🛠️ DevTools | ✅ Active | Modern macOS/Linux terminal with CLI tools (bat, eza, fzf, starship, lazygit) |
+| `skill-creator` | 🛠️ DevTools | ✅ Active | Guide for creating effective Claude Code skills |
+| `gh_issue` | 📝 Utilities | ✅ Active | GitHub issue management and automation |
+| `nano_banana` | 📝 Utilities | ✅ Active | Image generation using Gemini 2.5 Flash Image model |
+| `stripe_processing` | 📝 Utilities | ✅ Active | Stripe payment processing with email notifications |
+| `presentation_maker` | 📝 Utilities | ✅ Active | Create presentations programmatically |
 
-## Managed Skills (Not Included)
+## Superpowers Skills (External)
 
-The following skills are managed via symlinks to the main superpowers repository and are **not included** in this skills directory:
+The following superpowers-style skills may be available if installed separately:
 
-- `api-design` - RESTful API design patterns
-- `debug-cicd` - CI/CD pipeline debugging
-- `deploy` - Deployment automation
-- `docker-optimize` - Container optimization
-- `docs` - Documentation generation
-- `explore` - Codebase exploration
-- `extract` - Code extraction and modularization
-- `fix-types` - TypeScript type error resolution
-- `migrate-db` - Database migration management
-- `onboard` - New developer onboarding
-- `perf-profile` - Performance profiling
-- `quick-fix` - Fast bug fixes
-- `research` - Technical research
-- `scaffold` - Project scaffolding
-- `schema-design` - Database schema design
-- `setup-project` - New project setup
-- `tech-debt` - Technical debt tracking
-- `upgrade-deps` - Dependency upgrades
+- `agent-organizer` - Expert multi-agent orchestration
+- `brainstorm` - Interactive design refinement
+- `commit` - Smart git commit workflow
+- `debug` - Systematic debugging
+- `execplan` - Create execution plans
+- `optimize` - Performance optimization
+- `refactor` - Safe code refactoring
+- `review-pr` - PR review checklist
+- `security-audit` - Security vulnerability assessment
+- `write-tests` - Test-driven development
 
 ## Installation Notes
 
