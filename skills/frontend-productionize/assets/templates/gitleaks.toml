@@ -1,0 +1,30 @@
+# Gitleaks configuration for Next.js projects
+
+title = "Gitleaks config for Next.js + Django"
+
+[allowlist]
+description = "Allowlist for common false positives"
+
+# Allow test/example API keys
+regexes = [
+  '''test_[a-zA-Z0-9_-]+''',
+  '''example_[a-zA-Z0-9_-]+''',
+  '''fake_[a-zA-Z0-9_-]+''',
+  '''mock_[a-zA-Z0-9_-]+''',
+]
+
+# Allow certain file paths
+paths = [
+  '''.env.example''',
+  '''.env.template''',
+  '''tests/fixtures/.*''',
+  '''__tests__/fixtures/.*''',
+  '''e2e/fixtures/.*''',
+]
+
+# Stop words that indicate false positives
+stopwords = [
+  '''password''',  # Word itself is not a secret
+  '''secret''',
+  '''token''',
+]

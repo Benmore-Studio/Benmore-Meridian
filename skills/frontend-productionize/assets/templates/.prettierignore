@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Coverage
+coverage/
+
+# Test reports
+playwright-report/
+test-results/
+
+# Cache
+.cache/
+.turbo/
+
+# Generated files
+src/api/schema.d.ts
+
+# Package manager
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Environment files
+.env*
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+*.tsbuildinfo
+next-env.d.ts

@@ -61,6 +61,23 @@ Team-specific onboarding and process documentation.
 
 ---
 
+### 6. **Claude Code Skills** 🤖
+Production-grade skills that extend Claude Code's capabilities with domain expertise.
+
+**Skills included:**
+- django-production - Django production best practices
+- frontend-productionize - Next.js + Django integration
+- dependency-security-audit - Security scanning and CVE fixes
+- django-auth-react-native - Mobile app authentication
+- modern-terminal-setup - Developer environment setup
+- skill-creator - Create your own skills
+
+**Installation:** `cp -r skills/* ~/.claude/skills/`
+
+**Location:** `skills/README.md`
+
+---
+
 ## 🎯 Quick Start
 
 **New to the project?**

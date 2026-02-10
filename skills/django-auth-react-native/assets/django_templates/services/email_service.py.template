@@ -1,0 +1,551 @@
+"""
+Email Service for sending authentication-related emails
+Handles email templates and delivery
+"""
+from django.conf import settings
+from django.core.mail import send_mail, EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils import timezone
+from django.utils.html import strip_tags
+import logging
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+
+class EmailService:
+    """
+    Service for handling email operations
+    """
+
+    def __init__(self):
+        self.from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com')
+        self.app_name = getattr(settings, 'APP_NAME', 'Your App')
+        self.app_url = getattr(settings, 'FRONTEND_URL', 'https://example.com')
+        self.support_email = getattr(settings, 'SUPPORT_EMAIL', 'support@example.com')
+
+    def send_email_verification(
+        self,
+        user,
+        otp_code: str,
+        expires_at: datetime
+    ) -> bool:
+        """
+        Send email verification OTP
+
+        Args:
+            user: User instance
+            otp_code: The OTP code
+            expires_at: When the OTP expires
+
+        Returns:
+            Boolean indicating if email was sent
+        """
+        subject = f"{self.app_name} - Verify Your Email"
+
+        # Calculate expiry in minutes
+        expiry_minutes = int((expires_at - timezone.now()).total_seconds() / 60)
+
+        context = {
+            'user': user,
+            'otp_code': otp_code,
+            'app_name': self.app_name,
+            'app_url': self.app_url,
+            'expiry_minutes': expiry_minutes,
+            'support_email': self.support_email
+        }
+
+        return self._send_email_with_template(
+            subject=subject,
+            recipient_email=user.email,
+            template_name='email_verification',
+            context=context
+        )
+
+    def send_password_reset(
+        self,
+        user,
+        otp_code: str,
+        expires_at: datetime
+    ) -> bool:
+        """
+        Send password reset OTP
+
+        Args:
+            user: User instance
+            otp_code: The OTP code
+            expires_at: When the OTP expires
+
+        Returns:
+            Boolean indicating if email was sent
+        """
+        subject = f"{self.app_name} - Password Reset Request"
+
+        # Calculate expiry in minutes
+        expiry_minutes = int((expires_at - timezone.now()).total_seconds() / 60)
+
+        context = {
+            'user': user,
+            'otp_code': otp_code,
+            'app_name': self.app_name,
+            'app_url': self.app_url,
+            'expiry_minutes': expiry_minutes,
+            'support_email': self.support_email,
+            'reset_url': f"{self.app_url}/reset-password"
+        }
+
+        return self._send_email_with_template(
+            subject=subject,
+            recipient_email=user.email,
+            template_name='password_reset',
+            context=context
+        )
+
+    def send_login_verification(
+        self,
+        user,
+        otp_code: str,
+        expires_at: datetime
+    ) -> bool:
+        """
+        Send 2FA login verification OTP
+
+        Args:
+            user: User instance
+            otp_code: The OTP code
+            expires_at: When the OTP expires
+
+        Returns:
+            Boolean indicating if email was sent
+        """
+        subject = f"{self.app_name} - Login Verification Code"
+
+        # Calculate expiry in minutes
+        expiry_minutes = int((expires_at - timezone.now()).total_seconds() / 60)
+
+        context = {
+            'user': user,
+            'otp_code': otp_code,
+            'app_name': self.app_name,
+            'expiry_minutes': expiry_minutes,
+            'support_email': self.support_email
+        }
+
+        return self._send_email_with_template(
+            subject=subject,
+            recipient_email=user.email,
+            template_name='login_verification',
+            context=context
+        )
+
+    def send_welcome_email(self, user) -> bool:
+        """
+        Send welcome email to new user
+
+        Args:
+            user: User instance
+
+        Returns:
+            Boolean indicating if email was sent
+        """
+        subject = f"Welcome to {self.app_name}!"
+
+        context = {
+            'user': user,
+            'app_name': self.app_name,
+            'app_url': self.app_url,
+            'support_email': self.support_email,
+            'getting_started_url': f"{self.app_url}/getting-started"
+        }
+
+        return self._send_email_with_template(
+            subject=subject,
+            recipient_email=user.email,
+            template_name='welcome',
+            context=context
+        )
+
+    def send_account_activated(self, user) -> bool:
+        """
+        Send email when account is activated
+
+        Args:
+            user: User instance
+
+        Returns:
+            Boolean indicating if email was sent
+        """
+        subject = f"{self.app_name} - Account Activated"
+
+        context = {
+            'user': user,
+            'app_name': self.app_name,
+            'app_url': self.app_url,
+            'login_url': f"{self.app_url}/login"
+        }
+
+        return self._send_email_with_template(
+            subject=subject,
+            recipient_email=user.email,
+            template_name='account_activated',
+            context=context
+        )
+
+    def send_account_deactivated(self, user, reason: str = None) -> bool:
+        """
+        Send email when account is deactivated
+
+        Args:
+            user: User instance
+            reason: Optional reason for deactivation
+
+        Returns:
+            Boolean indicating if email was sent
+        """
+        subject = f"{self.app_name} - Account Deactivated"
+
+        context = {
+            'user': user,
+            'app_name': self.app_name,
+            'reason': reason,
+            'support_email': self.support_email
+        }
+
+        return self._send_email_with_template(
+            subject=subject,
+            recipient_email=user.email,
+            template_name='account_deactivated',
+            context=context
+        )
+
+    def send_invitation_email(
+        self,
+        email: str,
+        invited_by,
+        organization,
+        role: str,
+        invitation_url: str
+    ) -> bool:
+        """
+        Send invitation to join organization
+
+        Args:
+            email: Recipient email
+            invited_by: User who sent invitation
+            organization: Organization instance
+            role: Role being offered
+            invitation_url: URL to accept invitation
+
+        Returns:
+            Boolean indicating if email was sent
+        """
+        subject = f"{invited_by.full_name} invited you to join {organization.name}"
+
+        context = {
+            'email': email,
+            'invited_by': invited_by,
+            'organization': organization,
+            'role': role,
+            'invitation_url': invitation_url,
+            'app_name': self.app_name
+        }
+
+        return self._send_email_with_template(
+            subject=subject,
+            recipient_email=email,
+            template_name='invitation',
+            context=context
+        )
+
+    def send_password_changed_notification(self, user) -> bool:
+        """
+        Send notification when password is changed
+
+        Args:
+            user: User instance
+
+        Returns:
+            Boolean indicating if email was sent
+        """
+        subject = f"{self.app_name} - Password Changed"
+
+        context = {
+            'user': user,
+            'app_name': self.app_name,
+            'support_email': self.support_email,
+            'changed_at': timezone.now()
+        }
+
+        return self._send_email_with_template(
+            subject=subject,
+            recipient_email=user.email,
+            template_name='password_changed',
+            context=context
+        )
+
+    def send_suspicious_login_alert(
+        self,
+        user,
+        ip_address: str,
+        user_agent: str,
+        location: str = None
+    ) -> bool:
+        """
+        Send alert for suspicious login attempt
+
+        Args:
+            user: User instance
+            ip_address: IP address of login attempt
+            user_agent: User agent string
+            location: Optional location based on IP
+
+        Returns:
+            Boolean indicating if email was sent
+        """
+        subject = f"{self.app_name} - Security Alert: New Login"
+
+        context = {
+            'user': user,
+            'app_name': self.app_name,
+            'ip_address': ip_address,
+            'user_agent': user_agent,
+            'location': location or 'Unknown',
+            'timestamp': timezone.now(),
+            'security_url': f"{self.app_url}/security"
+        }
+
+        return self._send_email_with_template(
+            subject=subject,
+            recipient_email=user.email,
+            template_name='suspicious_login',
+            context=context
+        )
+
+    def _send_email_with_template(
+        self,
+        subject: str,
+        recipient_email: str,
+        template_name: str,
+        context: Dict[str, Any]
+    ) -> bool:
+        """
+        Send email using template
+
+        Args:
+            subject: Email subject
+            recipient_email: Recipient email address
+            template_name: Name of the template (without extension)
+            context: Context for template rendering
+
+        Returns:
+            Boolean indicating if email was sent successfully
+        """
+        try:
+            # Try to render HTML template
+            try:
+                html_content = render_to_string(f'emails/{template_name}.html', context)
+                text_content = strip_tags(html_content)
+            except:
+                # Fallback to inline template
+                html_content = self._get_default_html_template(template_name, context)
+                text_content = self._get_default_text_template(template_name, context)
+
+            # Create email message
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=self.from_email,
+                to=[recipient_email]
+            )
+
+            # Attach HTML version
+            if html_content:
+                email.attach_alternative(html_content, "text/html")
+
+            # Send email
+            email.send(fail_silently=False)
+
+            logger.info(f"Email sent successfully to {recipient_email} - Template: {template_name}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to send email to {recipient_email}: {str(e)}")
+            return False
+
+    def _get_default_html_template(self, template_name: str, context: Dict[str, Any]) -> str:
+        """
+        Get default HTML template when template file is not found
+        """
+        templates = {
+            'email_verification': f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #4CAF50; color: white; padding: 20px; text-align: center; }}
+                        .otp-code {{ font-size: 32px; font-weight: bold; color: #4CAF50; text-align: center; padding: 20px; background-color: #f5f5f5; margin: 20px 0; }}
+                        .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 14px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>{context.get('app_name')}</h1>
+                        </div>
+                        <h2>Verify Your Email</h2>
+                        <p>Hello {context.get('user').first_name or 'there'},</p>
+                        <p>Thank you for registering with {context.get('app_name')}. Please use the verification code below to verify your email address:</p>
+                        <div class="otp-code">{context.get('otp_code')}</div>
+                        <p>This code will expire in {context.get('expiry_minutes')} minutes.</p>
+                        <p>If you didn't create an account with us, please ignore this email.</p>
+                        <div class="footer">
+                            <p>Need help? Contact us at {context.get('support_email')}</p>
+                            <p>&copy; {timezone.now().year} {context.get('app_name')}. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            """,
+            'password_reset': f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #FF9800; color: white; padding: 20px; text-align: center; }}
+                        .otp-code {{ font-size: 32px; font-weight: bold; color: #FF9800; text-align: center; padding: 20px; background-color: #f5f5f5; margin: 20px 0; }}
+                        .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 14px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>{context.get('app_name')}</h1>
+                        </div>
+                        <h2>Password Reset Request</h2>
+                        <p>Hello {context.get('user').first_name or 'there'},</p>
+                        <p>We received a request to reset your password. Use the code below to reset your password:</p>
+                        <div class="otp-code">{context.get('otp_code')}</div>
+                        <p>This code will expire in {context.get('expiry_minutes')} minutes.</p>
+                        <p>If you didn't request this password reset, please ignore this email and your password will remain unchanged.</p>
+                        <div class="footer">
+                            <p>Need help? Contact us at {context.get('support_email')}</p>
+                            <p>&copy; {timezone.now().year} {context.get('app_name')}. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            """,
+            'welcome': f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #2196F3; color: white; padding: 20px; text-align: center; }}
+                        .button {{ display: inline-block; padding: 12px 30px; background-color: #2196F3; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+                        .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 14px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Welcome to {context.get('app_name')}!</h1>
+                        </div>
+                        <h2>Your account is ready!</h2>
+                        <p>Hello {context.get('user').first_name or 'there'},</p>
+                        <p>Welcome to {context.get('app_name')}! We're excited to have you on board.</p>
+                        <p>Your account has been successfully created and you can now access all the features.</p>
+                        <center>
+                            <a href="{context.get('getting_started_url')}" class="button">Get Started</a>
+                        </center>
+                        <div class="footer">
+                            <p>Need help? Contact us at {context.get('support_email')}</p>
+                            <p>&copy; {timezone.now().year} {context.get('app_name')}. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            """
+        }
+
+        return templates.get(template_name, self._get_generic_html_template(context))
+
+    def _get_default_text_template(self, template_name: str, context: Dict[str, Any]) -> str:
+        """
+        Get default text template when template file is not found
+        """
+        templates = {
+            'email_verification': f"""
+                {context.get('app_name')} - Email Verification
+
+                Hello {context.get('user').first_name or 'there'},
+
+                Thank you for registering with {context.get('app_name')}. Please use the verification code below to verify your email address:
+
+                Verification Code: {context.get('otp_code')}
+
+                This code will expire in {context.get('expiry_minutes')} minutes.
+
+                If you didn't create an account with us, please ignore this email.
+
+                Need help? Contact us at {context.get('support_email')}
+            """,
+            'password_reset': f"""
+                {context.get('app_name')} - Password Reset
+
+                Hello {context.get('user').first_name or 'there'},
+
+                We received a request to reset your password. Use the code below to reset your password:
+
+                Reset Code: {context.get('otp_code')}
+
+                This code will expire in {context.get('expiry_minutes')} minutes.
+
+                If you didn't request this password reset, please ignore this email.
+
+                Need help? Contact us at {context.get('support_email')}
+            """,
+            'welcome': f"""
+                Welcome to {context.get('app_name')}!
+
+                Hello {context.get('user').first_name or 'there'},
+
+                Welcome to {context.get('app_name')}! We're excited to have you on board.
+
+                Your account has been successfully created and you can now access all the features.
+
+                Get started: {context.get('getting_started_url')}
+
+                Need help? Contact us at {context.get('support_email')}
+            """
+        }
+
+        return templates.get(template_name, "Email notification from " + context.get('app_name', 'App'))
+
+    def _get_generic_html_template(self, context: Dict[str, Any]) -> str:
+        """
+        Get a generic HTML template for any email
+        """
+        return f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>{context.get('app_name', 'Notification')}</h1>
+                    <p>This is an automated notification from {context.get('app_name', 'our application')}.</p>
+                </div>
+            </body>
+            </html>
+        """

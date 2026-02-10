@@ -1,0 +1,716 @@
+/**
+ * Authentication Service for React Native
+ * Handles all auth operations with JWT token management
+ */
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+
+// API Configuration
+const API_BASE_URL = __DEV__
+  ? Platform.select({
+      ios: 'http://localhost:8000',
+      android: 'http://10.0.2.2:8000',
+      default: 'http://localhost:8000'
+    })
+  : 'https://api.yourdomain.com'; // Replace with your production URL
+
+// Storage keys
+const STORAGE_KEYS = {
+  ACCESS_TOKEN: '@auth_access_token',
+  REFRESH_TOKEN: '@auth_refresh_token',
+  USER_DATA: '@auth_user_data',
+  SESSION_ID: '@auth_session_id',
+  DEVICE_ID: '@auth_device_id',
+  ORGANIZATION_ID: '@auth_organization_id',
+};
+
+/**
+ * Storage abstraction to handle platform differences
+ */
+class StorageService {
+  /**
+   * Store data securely
+   */
+  static async setItem(key, value) {
+    if (Platform.OS === 'web') {
+      // Use AsyncStorage for web
+      return AsyncStorage.setItem(key, JSON.stringify(value));
+    } else {
+      // Use SecureStore for mobile (encrypted storage)
+      return SecureStore.setItemAsync(key, JSON.stringify(value));
+    }
+  }
+
+  /**
+   * Retrieve data from secure storage
+   */
+  static async getItem(key) {
+    try {
+      let value;
+      if (Platform.OS === 'web') {
+        value = await AsyncStorage.getItem(key);
+      } else {
+        value = await SecureStore.getItemAsync(key);
+      }
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.error(`Error getting ${key} from storage:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Remove data from storage
+   */
+  static async removeItem(key) {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.removeItem(key);
+    } else {
+      return SecureStore.deleteItemAsync(key);
+    }
+  }
+
+  /**
+   * Clear all auth-related data
+   */
+  static async clearAll() {
+    const keys = Object.values(STORAGE_KEYS);
+    await Promise.all(keys.map(key => this.removeItem(key)));
+  }
+}
+
+/**
+ * Device information helper
+ */
+class DeviceInfoService {
+  static async getDeviceInfo() {
+    return {
+      platform: Platform.OS,
+      model: Device.modelName || 'Unknown',
+      brand: Device.brand || 'Unknown',
+      osVersion: Device.osVersion || 'Unknown',
+      deviceType: Device.deviceType || 'Unknown',
+      deviceId: await this.getDeviceId(),
+      appVersion: Constants.manifest?.version || '1.0.0',
+      deviceName: await Device.getDeviceNameAsync() || 'Unknown Device',
+    };
+  }
+
+  static async getDeviceId() {
+    // Try to get existing device ID
+    let deviceId = await StorageService.getItem(STORAGE_KEYS.DEVICE_ID);
+
+    if (!deviceId) {
+      // Generate a new device ID if none exists
+      deviceId = `${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await StorageService.setItem(STORAGE_KEYS.DEVICE_ID, deviceId);
+    }
+
+    return deviceId;
+  }
+}
+
+/**
+ * Main Authentication Service
+ */
+class AuthService {
+  constructor() {
+    this.isRefreshing = false;
+    this.refreshSubscribers = [];
+  }
+
+  /**
+   * Register a new user
+   */
+  async register(userData) {
+    try {
+      const deviceInfo = await DeviceInfoService.getDeviceInfo();
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/register/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Platform': Platform.OS,
+        },
+        body: JSON.stringify({
+          ...userData,
+          device_info: deviceInfo,
+          device_name: deviceInfo.deviceName,
+          device_id: deviceInfo.deviceId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+
+      // Store tokens and user data
+      if (data.tokens) {
+        await this.storeAuthData(data);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Login user
+   */
+  async login(email, password) {
+    try {
+      const deviceInfo = await DeviceInfoService.getDeviceInfo();
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Platform': Platform.OS,
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          device_info: deviceInfo,
+          device_name: deviceInfo.deviceName,
+          device_id: deviceInfo.deviceId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 403 && data.email_verified === false) {
+          throw new Error('EMAIL_NOT_VERIFIED');
+        }
+        throw new Error(data.error || 'Login failed');
+      }
+
+      // Store auth data
+      await this.storeAuthData(data);
+
+      return data;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Logout user
+   */
+  async logout(logoutAllDevices = false) {
+    try {
+      const refreshToken = await this.getRefreshToken();
+      const sessionId = await StorageService.getItem(STORAGE_KEYS.SESSION_ID);
+      const accessToken = await this.getAccessToken();
+
+      if (accessToken) {
+        await fetch(`${API_BASE_URL}/api/auth/logout/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+            'X-Platform': Platform.OS,
+          },
+          body: JSON.stringify({
+            refresh: refreshToken,
+            session_id: sessionId,
+            all_devices: logoutAllDevices,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local storage regardless of API call success
+      await StorageService.clearAll();
+    }
+  }
+
+  /**
+   * Refresh access token
+   */
+  async refreshAccessToken() {
+    // Prevent multiple simultaneous refresh requests
+    if (this.isRefreshing) {
+      return new Promise((resolve) => {
+        this.refreshSubscribers.push(resolve);
+      });
+    }
+
+    this.isRefreshing = true;
+
+    try {
+      const refreshToken = await this.getRefreshToken();
+
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Platform': Platform.OS,
+        },
+        body: JSON.stringify({
+          refresh: refreshToken,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error('Token refresh failed');
+      }
+
+      // Store new tokens
+      await StorageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, data.access);
+      await StorageService.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refresh);
+
+      // Notify all subscribers
+      this.refreshSubscribers.forEach(callback => callback(data.access));
+      this.refreshSubscribers = [];
+
+      return data.access;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      // Clear auth data on refresh failure
+      await StorageService.clearAll();
+      throw error;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  /**
+   * Make authenticated API call with automatic token refresh
+   */
+  async authenticatedFetch(url, options = {}) {
+    try {
+      let accessToken = await this.getAccessToken();
+
+      if (!accessToken) {
+        throw new Error('Not authenticated');
+      }
+
+      // First attempt
+      let response = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Platform': Platform.OS,
+          'X-Organization-ID': await this.getOrganizationId() || '',
+        },
+      });
+
+      // If unauthorized, try refreshing token
+      if (response.status === 401) {
+        accessToken = await this.refreshAccessToken();
+
+        // Retry with new token
+        response = await fetch(url, {
+          ...options,
+          headers: {
+            ...options.headers,
+            'Authorization': `Bearer ${accessToken}`,
+            'X-Platform': Platform.OS,
+            'X-Organization-ID': await this.getOrganizationId() || '',
+          },
+        });
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Authenticated fetch error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify email with OTP
+   */
+  async verifyEmail(email, otp) {
+    try {
+      const deviceInfo = await DeviceInfoService.getDeviceInfo();
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Platform': Platform.OS,
+        },
+        body: JSON.stringify({
+          email,
+          otp,
+          device_info: deviceInfo,
+          device_name: deviceInfo.deviceName,
+          device_id: deviceInfo.deviceId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Verification failed');
+      }
+
+      // Store auth data if auto-login is enabled
+      if (data.tokens) {
+        await this.storeAuthData(data);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Email verification error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resend OTP
+   */
+  async resendOTP(email, purpose = 'email_verification') {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/resend-otp/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Platform': Platform.OS,
+        },
+        body: JSON.stringify({
+          email,
+          purpose,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error(`Rate limited. Wait ${data.wait_time} seconds.`);
+        }
+        throw new Error(data.error || 'Failed to resend OTP');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Resend OTP error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Request password reset
+   */
+  async requestPasswordReset(email) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/password-reset/request/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Platform': Platform.OS,
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to request password reset');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify password reset OTP
+   */
+  async verifyPasswordResetOTP(email, otp) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/password-reset/verify-otp/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Platform': Platform.OS,
+        },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Invalid OTP');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Password reset OTP verification error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Confirm password reset
+   */
+  async confirmPasswordReset(email, otp, newPassword, confirmPassword) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/password-reset/confirm/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Platform': Platform.OS,
+        },
+        body: JSON.stringify({
+          email,
+          otp,
+          new_password: newPassword,
+          new_password_confirm: confirmPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset password');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Password reset confirmation error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Change password for authenticated user
+   */
+  async changePassword(currentPassword, newPassword, confirmPassword) {
+    try {
+      const response = await this.authenticatedFetch(
+        `${API_BASE_URL}/api/auth/profile/change-password/`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            current_password: currentPassword,
+            new_password: newPassword,
+            new_password_confirm: confirmPassword,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to change password');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Change password error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user profile
+   */
+  async getProfile() {
+    try {
+      const response = await this.authenticatedFetch(`${API_BASE_URL}/api/auth/profile/`);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get profile');
+      }
+
+      // Update stored user data
+      await StorageService.setItem(STORAGE_KEYS.USER_DATA, data.user);
+
+      return data.user;
+    } catch (error) {
+      console.error('Get profile error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(profileData) {
+    try {
+      const response = await this.authenticatedFetch(
+        `${API_BASE_URL}/api/auth/profile/update/`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(profileData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update profile');
+      }
+
+      // Update stored user data
+      await StorageService.setItem(STORAGE_KEYS.USER_DATA, data.user);
+
+      return data.user;
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get active sessions
+   */
+  async getSessions() {
+    try {
+      const response = await this.authenticatedFetch(`${API_BASE_URL}/api/auth/sessions/`);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get sessions');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get sessions error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Revoke a session
+   */
+  async revokeSession(sessionId) {
+    try {
+      const response = await this.authenticatedFetch(
+        `${API_BASE_URL}/api/auth/sessions/${sessionId}/revoke/`,
+        {
+          method: 'POST',
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to revoke session');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Revoke session error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Switch organization (for multi-tenant apps)
+   */
+  async switchOrganization(organizationId) {
+    await StorageService.setItem(STORAGE_KEYS.ORGANIZATION_ID, organizationId);
+    // Optionally verify the switch with the backend
+    return organizationId;
+  }
+
+  // ===========================
+  // Helper Methods
+  // ===========================
+
+  /**
+   * Store authentication data
+   */
+  async storeAuthData(data) {
+    if (data.tokens) {
+      await StorageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, data.tokens.access);
+      await StorageService.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.tokens.refresh);
+    }
+
+    if (data.user) {
+      await StorageService.setItem(STORAGE_KEYS.USER_DATA, data.user);
+    }
+
+    if (data.session_id) {
+      await StorageService.setItem(STORAGE_KEYS.SESSION_ID, data.session_id);
+    }
+
+    if (data.organizations && data.organizations.length > 0) {
+      await StorageService.setItem(STORAGE_KEYS.ORGANIZATION_ID, data.organizations[0].id);
+    }
+  }
+
+  /**
+   * Get access token
+   */
+  async getAccessToken() {
+    return StorageService.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+  }
+
+  /**
+   * Get refresh token
+   */
+  async getRefreshToken() {
+    return StorageService.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+  }
+
+  /**
+   * Get current user
+   */
+  async getCurrentUser() {
+    return StorageService.getItem(STORAGE_KEYS.USER_DATA);
+  }
+
+  /**
+   * Get organization ID
+   */
+  async getOrganizationId() {
+    return StorageService.getItem(STORAGE_KEYS.ORGANIZATION_ID);
+  }
+
+  /**
+   * Check if user is authenticated
+   */
+  async isAuthenticated() {
+    const token = await this.getAccessToken();
+    return !!token;
+  }
+
+  /**
+   * Check if user's email is verified
+   */
+  async isEmailVerified() {
+    const user = await this.getCurrentUser();
+    return user?.is_verified || false;
+  }
+}
+
+// Export singleton instance
+export default new AuthService();
+
+// Also export the class for testing or multiple instances
+export { AuthService, StorageService, DeviceInfoService };

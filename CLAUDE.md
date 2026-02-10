@@ -284,6 +284,53 @@ This repository contains documentation only - no Python, JavaScript, or executab
 
 ---
 
+## Claude Code Skills
+
+This repository includes production-grade skills for Claude Code.
+
+### Skill Directory Structure
+
+```
+skills/
+├── README.md (installation and usage guide)
+├── django-production/
+├── frontend-productionize/
+├── dependency-security-audit/
+├── django-auth-react-native/
+├── modern-terminal-setup/
+├── skill-creator/
+└── [other skills]/
+```
+
+### Installation
+
+Copy skills to Claude Code's skills directory:
+
+```bash
+cp -r skills/* ~/.claude/skills/
+```
+
+### Available Skills
+
+See `skills/README.md` for complete documentation on:
+- Production deployment skills
+- Security and authentication
+- Developer tools and utilities
+- Skill development
+
+### Creating Custom Skills
+
+Use the skill-creator skill to learn how to create your own skills:
+
+```bash
+# In Claude Code
+"I want to create a new skill for [task]"
+```
+
+Refer to skill-creator/SKILL.md for detailed guidelines.
+
+---
+
 ## For Future Claude Code Instances
 
 **Getting oriented:**

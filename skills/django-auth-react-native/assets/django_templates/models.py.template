@@ -1,0 +1,451 @@
+"""
+Custom User Model and Authentication Models
+Based on Django best practices for email-based authentication
+"""
+import uuid
+from datetime import timedelta
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.db import models
+from django.utils import timezone
+from django.contrib.auth import get_user_model
+from django.core.validators import MinLengthValidator
+import secrets
+
+
+class CustomUserManager(BaseUserManager):
+    """Custom manager for email-based authentication"""
+
+    def create_user(self, email, password=None, **extra_fields):
+        """Create and save a regular user with the given email and password"""
+        if not email:
+            raise ValueError('The Email field must be set')
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        """Create and save a superuser with the given email and password"""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+        extra_fields.setdefault('is_verified', True)
+        extra_fields.setdefault('role', 'admin')
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(email, password, **extra_fields)
+
+
+class User(AbstractUser):
+    """
+    Custom User model with email as the primary authentication field
+    Supports role-based access and multi-tenant operations
+    """
+
+    # Role choices - customize based on your needs
+    ROLE_CHOICES = [
+        ('admin', 'Administrator'),
+        ('manager', 'Manager'),
+        ('employee', 'Employee'),
+        ('customer', 'Customer'),
+    ]
+
+    # Override default fields
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    username = None  # Remove username field
+    email = models.EmailField('email address', unique=True, db_index=True)
+
+    # Profile fields
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True, validators=[MinLengthValidator(10)])
+    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
+
+    # Role and permissions
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
+
+    # Multi-tenant support (optional - remove if not needed)
+    organization = models.ForeignKey(
+        'Organization',  # Define this model separately if needed
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users'
+    )
+
+    # Account status
+    is_verified = models.BooleanField(default=False, help_text='Email verification status')
+    is_active = models.BooleanField(default=True)
+
+    # Security tracking
+    last_login_ip = models.GenericIPAddressField(null=True, blank=True)
+    last_login_device = models.JSONField(default=dict, blank=True)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Use custom manager
+    objects = CustomUserManager()
+
+    # Set email as username field
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['first_name', 'last_name']
+
+    class Meta:
+        db_table = 'users'
+        verbose_name = 'User'
+        verbose_name_plural = 'Users'
+        indexes = [
+            models.Index(fields=['email']),
+            models.Index(fields=['role', 'is_active']),
+            models.Index(fields=['organization', 'is_active']),
+        ]
+
+    def __str__(self):
+        return self.email
+
+    @property
+    def full_name(self):
+        """Return user's full name"""
+        return f"{self.first_name} {self.last_name}".strip() or self.email
+
+    @property
+    def is_admin(self):
+        """Check if user is an admin"""
+        return self.role == 'admin'
+
+    @property
+    def is_manager(self):
+        """Check if user is a manager or above"""
+        return self.role in ['admin', 'manager']
+
+    @property
+    def can_manage_users(self):
+        """Check if user can manage other users"""
+        return self.role in ['admin', 'manager']
+
+
+class Organization(models.Model):
+    """
+    Optional: Organization model for multi-tenant support
+    Remove this if your app doesn't need multi-tenancy
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, unique=True)
+    slug = models.SlugField(unique=True, db_index=True)
+
+    # Organization details
+    description = models.TextField(blank=True)
+    logo = models.ImageField(upload_to='organization_logos/', blank=True, null=True)
+    website = models.URLField(blank=True)
+
+    # Contact information
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=20, blank=True)
+    address = models.TextField(blank=True)
+
+    # Settings
+    settings = models.JSONField(default=dict, blank=True)
+
+    # Subscription/Plan (optional)
+    plan = models.CharField(max_length=50, default='free')
+    is_active = models.BooleanField(default=True)
+
+    # Ownership
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='owned_organizations'
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'organizations'
+        verbose_name = 'Organization'
+        verbose_name_plural = 'Organizations'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class UserSession(models.Model):
+    """
+    Track user sessions for JWT refresh tokens
+    Enables session management and multi-device support
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sessions')
+
+    # Token tracking
+    refresh_token = models.TextField(help_text='Hashed refresh token')
+    access_token_jti = models.CharField(max_length=255, blank=True, help_text='JWT ID for access token')
+
+    # Device information
+    device_info = models.JSONField(default=dict, blank=True)
+    device_name = models.CharField(max_length=255, blank=True)
+    device_id = models.CharField(max_length=255, blank=True, db_index=True)
+    platform = models.CharField(max_length=50, blank=True)  # ios, android, web
+
+    # Network information
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    # Session status
+    is_active = models.BooleanField(default=True, db_index=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+
+    # Activity tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_sessions'
+        verbose_name = 'User Session'
+        verbose_name_plural = 'User Sessions'
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['device_id', 'is_active']),
+            models.Index(fields=['expires_at']),
+        ]
+        ordering = ['-last_used']
+
+    def __str__(self):
+        return f"{self.user.email} - {self.device_name or 'Unknown Device'}"
+
+    def is_valid(self):
+        """Check if session is still valid"""
+        return (
+            self.is_active and
+            self.expires_at > timezone.now() and
+            not self.revoked_at
+        )
+
+    def revoke(self):
+        """Revoke this session"""
+        self.is_active = False
+        self.revoked_at = timezone.now()
+        self.save()
+
+
+class OTPVerification(models.Model):
+    """
+    OTP verification for email verification and password reset
+    Implements secure OTP generation and validation
+    """
+
+    PURPOSE_CHOICES = [
+        ('email_verification', 'Email Verification'),
+        ('password_reset', 'Password Reset'),
+        ('login_verification', '2FA Login'),
+        ('phone_verification', 'Phone Verification'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otp_verifications')
+
+    # OTP details
+    otp_code = models.CharField(max_length=6, db_index=True)
+    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
+
+    # Security
+    attempts = models.PositiveIntegerField(default=0)
+    max_attempts = models.PositiveIntegerField(default=3)
+    is_used = models.BooleanField(default=False, db_index=True)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    # Additional data
+    metadata = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'otp_verifications'
+        verbose_name = 'OTP Verification'
+        verbose_name_plural = 'OTP Verifications'
+        indexes = [
+            models.Index(fields=['user', 'purpose', 'is_used']),
+            models.Index(fields=['otp_code', 'expires_at']),
+        ]
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.otp_code:
+            self.otp_code = self.generate_otp()
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(minutes=10)
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def generate_otp():
+        """Generate a secure 6-digit OTP"""
+        return str(secrets.randbelow(900000) + 100000)
+
+    def is_valid(self):
+        """Check if OTP is valid"""
+        return (
+            not self.is_used and
+            self.attempts < self.max_attempts and
+            timezone.now() < self.expires_at
+        )
+
+    def verify(self, otp_input):
+        """Verify the OTP input"""
+        if not self.is_valid():
+            return False
+
+        self.attempts += 1
+
+        if self.otp_code == otp_input:
+            self.is_used = True
+            self.verified_at = timezone.now()
+            self.save()
+            return True
+
+        self.save()
+        return False
+
+    def __str__(self):
+        return f"{self.user.email} - {self.purpose} - {self.otp_code}"
+
+
+class PasswordResetToken(models.Model):
+    """
+    Optional: Alternative to OTP for password reset using tokens
+    Use this if you prefer token-based password reset over OTP
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_tokens')
+
+    # Token
+    token = models.CharField(max_length=100, unique=True, db_index=True)
+
+    # Status
+    is_used = models.BooleanField(default=False)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    # Security
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'password_reset_tokens'
+        verbose_name = 'Password Reset Token'
+        verbose_name_plural = 'Password Reset Tokens'
+        indexes = [
+            models.Index(fields=['token', 'is_used']),
+            models.Index(fields=['expires_at']),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = self.generate_token()
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def generate_token():
+        """Generate a secure token"""
+        return secrets.token_urlsafe(50)
+
+    def is_valid(self):
+        """Check if token is valid"""
+        return not self.is_used and timezone.now() < self.expires_at
+
+
+class LoginAttempt(models.Model):
+    """
+    Track login attempts for security monitoring and rate limiting
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # User information
+    email = models.EmailField(db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='login_attempts')
+
+    # Attempt details
+    success = models.BooleanField(default=False)
+    failure_reason = models.CharField(max_length=100, blank=True)
+
+    # Network information
+    ip_address = models.GenericIPAddressField(db_index=True)
+    user_agent = models.TextField(blank=True)
+
+    # Timestamps
+    attempted_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'login_attempts'
+        verbose_name = 'Login Attempt'
+        verbose_name_plural = 'Login Attempts'
+        indexes = [
+            models.Index(fields=['email', 'attempted_at']),
+            models.Index(fields=['ip_address', 'attempted_at']),
+        ]
+        ordering = ['-attempted_at']
+
+    def __str__(self):
+        status = "Success" if self.success else "Failed"
+        return f"{self.email} - {status} - {self.attempted_at}"
+
+
+# Social Authentication Models (django-allauth will handle most of this)
+# These are examples if you need custom social auth tracking
+
+class SocialAccount(models.Model):
+    """
+    Track social authentication accounts
+    Note: django-allauth provides its own models, use this only if needed
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='social_accounts')
+
+    # Provider information
+    provider = models.CharField(max_length=50)  # google, facebook, apple, github
+    uid = models.CharField(max_length=255, help_text='User ID from provider')
+
+    # OAuth tokens
+    access_token = models.TextField(blank=True)
+    refresh_token = models.TextField(blank=True)
+    token_expires_at = models.DateTimeField(null=True, blank=True)
+
+    # Profile data from provider
+    extra_data = models.JSONField(default=dict, blank=True)
+
+    # Status
+    is_active = models.BooleanField(default=True)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_login = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'social_accounts'
+        verbose_name = 'Social Account'
+        verbose_name_plural = 'Social Accounts'
+        unique_together = [['provider', 'uid']]
+        indexes = [
+            models.Index(fields=['user', 'provider']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.provider}"

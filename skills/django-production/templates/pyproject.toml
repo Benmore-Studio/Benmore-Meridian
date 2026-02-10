@@ -1,0 +1,189 @@
+# Django Production-Ready pyproject.toml Template
+# Modern Python project configuration with uv, ruff, pytest, mypy
+
+[project]
+name = "myproject"  # CHANGE THIS to your project name
+version = "0.1.0"
+description = "Django project with production-ready configuration"
+requires-python = ">=3.11"
+dependencies = [
+    # Django core
+    "django>=5.0.0,<6.0.0",
+    "django-environ>=0.11.0",  # Environment variable management
+
+    # Database
+    "psycopg[binary]>=3.1.0",  # PostgreSQL adapter
+
+    # API (Django REST Framework)
+    "djangorestframework>=3.14.0",
+    "drf-spectacular>=0.27.0",  # OpenAPI schema generation
+
+    # Security
+    "django-cors-headers>=4.3.0",  # CORS support
+
+    # Production server
+    "gunicorn>=21.0.0",  # WSGI server
+    "whitenoise>=6.6.0",  # Static file serving
+
+    # Monitoring
+    "sentry-sdk>=1.40.0",  # Error tracking
+    "python-json-logger>=2.0.7",  # Structured logging
+]
+
+[project.optional-dependencies]
+dev = [
+    # Code quality
+    "ruff>=0.2.0",  # Linting + formatting (replaces black, flake8, isort)
+    "mypy>=1.8.0",  # Type checking
+    "django-stubs>=4.2.7",  # Django type stubs
+    "djangorestframework-stubs>=3.14.5",  # DRF type stubs
+    "types-requests>=2.31.0",  # requests type stubs
+
+    # Pre-commit
+    "pre-commit>=3.6.0",
+]
+
+test = [
+    # Testing framework
+    "pytest>=8.0.0",
+    "pytest-django>=4.7.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",  # Parallel testing
+    "pytest-sugar>=0.9.7",  # Better test output
+
+    # Test helpers
+    "factory-boy>=3.3.0",  # Test fixture factories
+    "faker>=22.0.0",  # Fake data generation
+    "freezegun>=1.4.0",  # Time mocking
+
+    # Security testing
+    "safety>=3.0.0",  # Dependency vulnerability scanning
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Ruff configuration (replaces black, flake8, isort, pylint, pyupgrade)
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "DJ",   # flake8-django
+    "SIM",  # flake8-simplify
+    "ARG",  # flake8-unused-arguments
+    "S",    # bandit (security)
+]
+
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+    "S101",   # use of assert (ok in tests)
+    "DJ001",  # avoid nullable CharField/TextField (sometimes necessary)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports
+"*/migrations/*.py" = ["ALL"]  # Ignore all checks in migrations
+"*/tests/*.py" = ["S101", "ARG"]  # Allow assert and unused args in tests
+"conftest.py" = ["ARG"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "apps"]  # CHANGE THIS to your apps
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+# Pytest configuration
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"  # CHANGE THIS to your settings module
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--cov",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--strict-markers",
+    "--reuse-db",  # Reuse test database for speed
+    "-n", "auto",  # Parallel testing (auto-detect CPU count)
+]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*.py",
+    "*_test.py",
+    "*/venv/*",
+    "*/.venv/*",
+    "*/virtualenv/*",
+    "manage.py",
+    "*/wsgi.py",
+    "*/asgi.py",
+    "*/conftest.py",
+]
+branch = true
+
+[tool.coverage.report]
+fail_under = 80  # Require 80% coverage
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+# Mypy configuration
+[tool.mypy]
+python_version = "3.11"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "*.migrations.*"
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"  # CHANGE THIS to your settings module
+
+# Django-stubs configuration
+[tool.mypy_django_plugin]
+ignore_missing_model_attributes = true

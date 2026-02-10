@@ -1,0 +1,370 @@
+"""
+Django Middleware for Authentication and Multi-tenant Support
+Handles request context, authentication, and organization switching
+"""
+import logging
+from django.utils.deprecation import MiddlewareMixin
+from django.contrib.auth import get_user_model
+from django.http import JsonResponse
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+class JWTAuthenticationMiddleware(MiddlewareMixin):
+    """
+    Middleware to authenticate users using JWT tokens from headers
+    This allows JWT authentication for all views, not just DRF views
+    """
+
+    def process_request(self, request):
+        """
+        Extract and validate JWT token from Authorization header
+        """
+        # Skip authentication for certain paths
+        skip_paths = ['/admin/', '/static/', '/media/', '/health/', '/docs/']
+        if any(request.path.startswith(path) for path in skip_paths):
+            return None
+
+        # Get Authorization header
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+
+        if auth_header.startswith('Bearer '):
+            try:
+                # Extract token
+                token = auth_header.split(' ')[1]
+
+                # Use DRF's JWT authentication to validate
+                jwt_auth = JWTAuthentication()
+                validated_token = jwt_auth.get_validated_token(token)
+                user = jwt_auth.get_user(validated_token)
+
+                # Attach user to request
+                request.user = user
+                request.auth = validated_token
+
+                logger.debug(f"JWT authenticated user: {user.email}")
+
+            except (InvalidToken, TokenError) as e:
+                logger.warning(f"Invalid JWT token: {str(e)}")
+                # Don't set request.user, let it remain AnonymousUser
+
+            except Exception as e:
+                logger.error(f"JWT authentication error: {str(e)}")
+
+        return None
+
+
+class OrganizationContextMiddleware(MiddlewareMixin):
+    """
+    Middleware to handle multi-tenant organization context
+    Sets the current organization based on headers or user default
+    """
+
+    def process_request(self, request):
+        """
+        Set organization context for the request
+        """
+        # Only process for authenticated users
+        if not hasattr(request, 'user') or not request.user.is_authenticated:
+            return None
+
+        # Try to get organization from different sources
+        organization_id = None
+
+        # 1. Check X-Organization-ID header (highest priority)
+        organization_id = request.META.get('HTTP_X_ORGANIZATION_ID')
+
+        # 2. Check query parameter (for convenience in development)
+        if not organization_id:
+            organization_id = request.GET.get('organization_id')
+
+        # 3. Use user's default organization
+        if not organization_id and hasattr(request.user, 'organization'):
+            organization_id = str(request.user.organization.id)
+
+        # Set organization context
+        if organization_id:
+            try:
+                # Import here to avoid circular imports
+                from .models import Organization
+
+                # Validate user has access to this organization
+                if hasattr(request.user, 'organization'):
+                    # Single organization model
+                    if str(request.user.organization.id) == organization_id:
+                        request.organization = request.user.organization
+                    else:
+                        logger.warning(
+                            f"User {request.user.email} attempted to access "
+                            f"organization {organization_id} without permission"
+                        )
+                        request.organization = None
+                else:
+                    # Multiple organizations model (many-to-many)
+                    organization = Organization.objects.filter(
+                        id=organization_id,
+                        users=request.user,
+                        is_active=True
+                    ).first()
+
+                    if organization:
+                        request.organization = organization
+                    else:
+                        logger.warning(
+                            f"User {request.user.email} attempted to access "
+                            f"organization {organization_id} without permission"
+                        )
+                        request.organization = None
+
+            except Exception as e:
+                logger.error(f"Error setting organization context: {str(e)}")
+                request.organization = None
+        else:
+            # No organization specified, use default if available
+            if hasattr(request.user, 'organization'):
+                request.organization = request.user.organization
+            else:
+                request.organization = None
+
+        # Log organization context
+        if request.organization:
+            logger.debug(
+                f"Organization context set: {request.organization.name} "
+                f"for user {request.user.email}"
+            )
+
+        return None
+
+
+class CORSMiddleware(MiddlewareMixin):
+    """
+    Custom CORS middleware for handling cross-origin requests
+    Use this if django-cors-headers doesn't meet your needs
+    """
+
+    def process_request(self, request):
+        """
+        Handle preflight requests
+        """
+        if request.method == 'OPTIONS':
+            response = JsonResponse({})
+            self._set_cors_headers(request, response)
+            return response
+        return None
+
+    def process_response(self, request, response):
+        """
+        Add CORS headers to response
+        """
+        self._set_cors_headers(request, response)
+        return response
+
+    def _set_cors_headers(self, request, response):
+        """
+        Set appropriate CORS headers based on configuration
+        """
+        # Get origin from request
+        origin = request.META.get('HTTP_ORIGIN')
+
+        # In production, validate origin against whitelist
+        allowed_origins = getattr(
+            settings, 'CORS_ALLOWED_ORIGINS',
+            ['http://localhost:3000', 'http://localhost:8081']  # Dev defaults
+        )
+
+        if origin in allowed_origins:
+            response['Access-Control-Allow-Origin'] = origin
+        elif settings.DEBUG:
+            # In debug mode, allow all origins (not recommended for production)
+            response['Access-Control-Allow-Origin'] = '*'
+
+        # Set other CORS headers
+        response['Access-Control-Allow-Credentials'] = 'true'
+        response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+        response['Access-Control-Allow-Headers'] = (
+            'Accept, Accept-Encoding, Authorization, Content-Type, '
+            'X-Organization-ID, X-Platform, X-Device-ID, X-Requested-With'
+        )
+        response['Access-Control-Max-Age'] = '86400'  # 24 hours
+
+
+class RateLimitMiddleware(MiddlewareMixin):
+    """
+    Middleware for basic rate limiting
+    For more advanced rate limiting, use django-ratelimit or similar
+    """
+
+    def process_request(self, request):
+        """
+        Check rate limits before processing request
+        """
+        from django.core.cache import cache
+        from django.http import HttpResponse
+
+        # Skip rate limiting for certain paths
+        skip_paths = ['/admin/', '/static/', '/media/', '/health/']
+        if any(request.path.startswith(path) for path in skip_paths):
+            return None
+
+        # Get client identifier (IP address or user ID)
+        if request.user.is_authenticated:
+            client_id = f"user_{request.user.id}"
+            # Higher limits for authenticated users
+            rate_limit = 1000  # requests per hour
+        else:
+            # Use IP for anonymous users
+            client_id = f"ip_{self._get_client_ip(request)}"
+            # Lower limits for anonymous users
+            rate_limit = 100  # requests per hour
+
+        # Check rate limit
+        cache_key = f"rate_limit_{client_id}"
+        request_count = cache.get(cache_key, 0)
+
+        if request_count >= rate_limit:
+            logger.warning(f"Rate limit exceeded for {client_id}")
+            return HttpResponse(
+                'Rate limit exceeded. Please try again later.',
+                status=429,
+                content_type='text/plain'
+            )
+
+        # Increment counter
+        cache.set(cache_key, request_count + 1, 3600)  # 1 hour expiry
+
+        return None
+
+    def _get_client_ip(self, request):
+        """
+        Extract client IP from request
+        """
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')
+
+
+class SecurityHeadersMiddleware(MiddlewareMixin):
+    """
+    Middleware to add security headers to responses
+    """
+
+    def process_response(self, request, response):
+        """
+        Add security headers to response
+        """
+        # Prevent clickjacking
+        if not getattr(response, 'xframe_options_exempt', False):
+            response['X-Frame-Options'] = 'DENY'
+
+        # Prevent MIME type sniffing
+        response['X-Content-Type-Options'] = 'nosniff'
+
+        # Enable XSS protection
+        response['X-XSS-Protection'] = '1; mode=block'
+
+        # Content Security Policy (adjust based on your needs)
+        if not settings.DEBUG:
+            response['Content-Security-Policy'] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: https:; "
+                "font-src 'self' data:; "
+                "connect-src 'self'"
+            )
+
+        # Strict Transport Security (only for HTTPS)
+        if request.is_secure():
+            response['Strict-Transport-Security'] = (
+                'max-age=31536000; includeSubDomains; preload'
+            )
+
+        # Referrer Policy
+        response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+        # Permissions Policy (formerly Feature Policy)
+        response['Permissions-Policy'] = (
+            'camera=(), microphone=(), geolocation=(), '
+            'interest-cohort=()'  # Opt out of FLoC
+        )
+
+        return response
+
+
+class AuditLogMiddleware(MiddlewareMixin):
+    """
+    Middleware to log important user actions for audit purposes
+    """
+
+    # Actions to audit
+    AUDIT_ACTIONS = [
+        '/api/auth/login/',
+        '/api/auth/logout/',
+        '/api/auth/register/',
+        '/api/auth/password-reset/confirm/',
+        '/api/profile/change-password/',
+        '/api/users/',  # User management
+    ]
+
+    def process_response(self, request, response):
+        """
+        Log important actions after response is generated
+        """
+        # Only log specific actions
+        should_audit = any(
+            request.path.startswith(action)
+            for action in self.AUDIT_ACTIONS
+        )
+
+        if should_audit and request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            self._create_audit_log(request, response)
+
+        return response
+
+    def _create_audit_log(self, request, response):
+        """
+        Create audit log entry
+        """
+        try:
+            # Import here to avoid circular imports
+            from .models import AuditLog
+
+            # Prepare audit data
+            audit_data = {
+                'user': request.user if request.user.is_authenticated else None,
+                'action': f"{request.method} {request.path}",
+                'ip_address': self._get_client_ip(request),
+                'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+                'status_code': response.status_code,
+                'organization': getattr(request, 'organization', None)
+            }
+
+            # Add request data (be careful with sensitive data)
+            if request.method in ['POST', 'PUT', 'PATCH']:
+                # Don't log passwords or tokens
+                safe_data = request.POST.copy() if request.POST else {}
+                for sensitive_field in ['password', 'token', 'secret', 'key']:
+                    if sensitive_field in safe_data:
+                        safe_data[sensitive_field] = '[REDACTED]'
+                audit_data['request_data'] = safe_data
+
+            # Create audit log
+            AuditLog.objects.create(**audit_data)
+
+            logger.info(f"Audit log created for {audit_data['action']}")
+
+        except Exception as e:
+            logger.error(f"Failed to create audit log: {str(e)}")
+
+    def _get_client_ip(self, request):
+        """
+        Extract client IP from request
+        """
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')

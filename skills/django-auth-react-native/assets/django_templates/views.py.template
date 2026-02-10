@@ -1,0 +1,846 @@
+"""
+Django REST Framework Authentication Views
+Comprehensive auth endpoints for React Native integration
+"""
+from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.hashers import check_password
+from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
+from rest_framework import status, viewsets, generics
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+import logging
+from datetime import timedelta
+
+from .models import UserSession, OTPVerification, LoginAttempt
+from .serializers import (
+    UserRegistrationSerializer,
+    UserLoginSerializer,
+    UserProfileSerializer,
+    PasswordChangeSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetVerifyOTPSerializer,
+    PasswordResetConfirmSerializer,
+    OTPVerificationSerializer,
+    ResendOTPSerializer,
+    UserSessionSerializer,
+)
+from .services import OTPService, EmailService, RateLimitService
+from .permissions import IsOwner
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+class RegisterView(APIView):
+    """
+    User registration endpoint
+    Supports role-based registration with email verification
+    """
+    permission_classes = [AllowAny]
+    serializer_class = UserRegistrationSerializer
+
+    @transaction.atomic
+    def post(self, request):
+        """
+        Register a new user
+        """
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Create user
+            user = serializer.save()
+
+            # Generate OTP for email verification
+            otp_service = OTPService()
+            otp = otp_service.generate_and_send_otp(
+                user=user,
+                purpose='email_verification',
+                request=request
+            )
+
+            # Generate tokens
+            refresh = RefreshToken.for_user(user)
+
+            # Create session
+            session = UserSession.objects.create(
+                user=user,
+                refresh_token=str(refresh),
+                access_token_jti=refresh.access_token.get('jti', ''),
+                device_info=request.data.get('device_info', {}),
+                device_name=request.data.get('device_name', 'Unknown Device'),
+                device_id=request.data.get('device_id', ''),
+                platform=request.headers.get('x-platform', 'unknown'),
+                ip_address=self._get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                expires_at=timezone.now() + timedelta(days=7)
+            )
+
+            return Response({
+                'message': 'Registration successful. Please verify your email.',
+                'user': UserProfileSerializer(user).data,
+                'tokens': {
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                },
+                'otp_expires_at': otp.expires_at if otp else None,
+                'email_sent': bool(otp)
+            }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Registration error: {str(e)}")
+            return Response({
+                'error': 'Registration failed. Please try again.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _get_client_ip(self, request):
+        """Extract client IP from request"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR')
+
+
+class LoginView(APIView):
+    """
+    User login endpoint with JWT token generation
+    """
+    permission_classes = [AllowAny]
+    serializer_class = UserLoginSerializer
+
+    def post(self, request):
+        """
+        Authenticate user and return JWT tokens
+        """
+        serializer = self.serializer_class(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+
+        # Track login attempt
+        ip_address = self._get_client_ip(request)
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+
+        # Check rate limiting
+        rate_limiter = RateLimitService()
+        if not rate_limiter.check_login_attempt(email, ip_address):
+            return Response({
+                'error': 'Too many login attempts. Please try again later.'
+            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        # Authenticate user
+        user = authenticate(request, email=email, password=password)
+
+        if not user:
+            # Log failed attempt
+            LoginAttempt.objects.create(
+                email=email,
+                success=False,
+                failure_reason='Invalid credentials',
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+            return Response({
+                'error': 'Invalid email or password.'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Check if user is active
+        if not user.is_active:
+            LoginAttempt.objects.create(
+                email=email,
+                user=user,
+                success=False,
+                failure_reason='Account inactive',
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+            return Response({
+                'error': 'Your account has been deactivated. Please contact support.'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Check if email is verified (optional - remove if not needed)
+        if not user.is_verified:
+            LoginAttempt.objects.create(
+                email=email,
+                user=user,
+                success=False,
+                failure_reason='Email not verified',
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+            return Response({
+                'error': 'Please verify your email before logging in.',
+                'email_verified': False
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Generate tokens
+        refresh = RefreshToken.for_user(user)
+
+        # Check for existing session on same device
+        device_id = request.data.get('device_id', '')
+        if device_id:
+            # Revoke existing sessions for this device
+            UserSession.objects.filter(
+                user=user,
+                device_id=device_id,
+                is_active=True
+            ).update(
+                is_active=False,
+                revoked_at=timezone.now()
+            )
+
+        # Create new session
+        session = UserSession.objects.create(
+            user=user,
+            refresh_token=str(refresh),
+            access_token_jti=refresh.access_token.get('jti', ''),
+            device_info=request.data.get('device_info', {}),
+            device_name=request.data.get('device_name', 'Unknown Device'),
+            device_id=device_id,
+            platform=request.headers.get('x-platform', 'unknown'),
+            ip_address=ip_address,
+            user_agent=user_agent,
+            expires_at=timezone.now() + timedelta(days=7)
+        )
+
+        # Update user last login
+        user.last_login = timezone.now()
+        user.last_login_ip = ip_address
+        user.last_login_device = request.data.get('device_info', {})
+        user.save()
+
+        # Log successful attempt
+        LoginAttempt.objects.create(
+            email=email,
+            user=user,
+            success=True,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+
+        # Get user's organizations if multi-tenant
+        organizations = []
+        if hasattr(user, 'organization'):
+            organizations = [{
+                'id': str(user.organization.id),
+                'name': user.organization.name,
+                'role': user.role
+            }]
+
+        return Response({
+            'message': 'Login successful',
+            'user': UserProfileSerializer(user).data,
+            'tokens': {
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+            },
+            'session_id': str(session.id),
+            'organizations': organizations
+        }, status=status.HTTP_200_OK)
+
+    def _get_client_ip(self, request):
+        """Extract client IP from request"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR')
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    Custom token refresh view with session validation
+    """
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.data.get('refresh')
+
+        if not refresh_token:
+            return Response({
+                'error': 'Refresh token is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Verify token is valid
+            refresh = RefreshToken(refresh_token)
+            user_id = refresh.get('user_id')
+
+            # Check if session exists and is active
+            session = UserSession.objects.filter(
+                user_id=user_id,
+                is_active=True
+            ).first()
+
+            if not session:
+                return Response({
+                    'error': 'Session not found or expired'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Update session
+            session.last_used = timezone.now()
+            session.save()
+
+            # Generate new tokens
+            user = User.objects.get(id=user_id)
+            new_refresh = RefreshToken.for_user(user)
+
+            # Update session with new refresh token
+            session.refresh_token = str(new_refresh)
+            session.access_token_jti = new_refresh.access_token.get('jti', '')
+            session.save()
+
+            return Response({
+                'access': str(new_refresh.access_token),
+                'refresh': str(new_refresh)
+            }, status=status.HTTP_200_OK)
+
+        except TokenError as e:
+            return Response({
+                'error': 'Invalid or expired refresh token'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(f"Token refresh error: {str(e)}")
+            return Response({
+                'error': 'Token refresh failed'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class LogoutView(APIView):
+    """
+    Logout endpoint - revokes refresh token and ends session
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Logout user and invalidate tokens
+        """
+        try:
+            # Get refresh token from request
+            refresh_token = request.data.get('refresh')
+            if refresh_token:
+                # Blacklist the refresh token
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+
+            # Revoke user session
+            session_id = request.data.get('session_id')
+            if session_id:
+                UserSession.objects.filter(
+                    id=session_id,
+                    user=request.user
+                ).update(
+                    is_active=False,
+                    revoked_at=timezone.now()
+                )
+            else:
+                # Revoke all active sessions for this user (nuclear option)
+                if request.data.get('all_devices', False):
+                    UserSession.objects.filter(
+                        user=request.user,
+                        is_active=True
+                    ).update(
+                        is_active=False,
+                        revoked_at=timezone.now()
+                    )
+
+            return Response({
+                'message': 'Logout successful'
+            }, status=status.HTTP_200_OK)
+
+        except TokenError:
+            return Response({
+                'error': 'Invalid token'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Logout error: {str(e)}")
+            return Response({
+                'error': 'Logout failed'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class VerifyTokenView(APIView):
+    """
+    Verify if a token is still valid
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Verify current token and return user info
+        """
+        return Response({
+            'valid': True,
+            'user': UserProfileSerializer(request.user).data
+        }, status=status.HTTP_200_OK)
+
+
+class ProfileView(APIView):
+    """
+    User profile management
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get current user profile"""
+        return Response({
+            'user': UserProfileSerializer(request.user).data
+        }, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        """Update user profile"""
+        serializer = UserProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'message': 'Profile updated successfully',
+                'user': serializer.data
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request):
+        """Partial update user profile"""
+        return self.put(request)
+
+
+class ChangePasswordView(APIView):
+    """
+    Change password for authenticated user
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = PasswordChangeSerializer
+
+    def post(self, request):
+        """Change user password"""
+        serializer = self.serializer_class(
+            data=request.data,
+            context={'user': request.user}
+        )
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Change password
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
+
+        # Revoke all sessions except current
+        current_auth = request.META.get('HTTP_AUTHORIZATION', '')
+        UserSession.objects.filter(
+            user=request.user,
+            is_active=True
+        ).exclude(
+            access_token_jti=request.auth.get('jti', '') if hasattr(request, 'auth') else ''
+        ).update(
+            is_active=False,
+            revoked_at=timezone.now()
+        )
+
+        return Response({
+            'message': 'Password changed successfully'
+        }, status=status.HTTP_200_OK)
+
+
+class PasswordResetRequestView(APIView):
+    """
+    Request password reset - sends OTP to email
+    """
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetRequestSerializer
+
+    def post(self, request):
+        """Request password reset"""
+        serializer = self.serializer_class(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data['email']
+
+        # Check rate limiting
+        rate_limiter = RateLimitService()
+        ip_address = self._get_client_ip(request)
+
+        if not rate_limiter.check_password_reset_request(email, ip_address):
+            return Response({
+                'error': 'Too many reset requests. Please try again later.'
+            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        # Don't reveal if email exists (security)
+        try:
+            user = User.objects.get(email=email)
+
+            # Generate and send OTP
+            otp_service = OTPService()
+            otp = otp_service.generate_and_send_otp(
+                user=user,
+                purpose='password_reset',
+                request=request
+            )
+
+            message = 'If an account exists with this email, you will receive a password reset code.'
+
+        except User.DoesNotExist:
+            # Same response even if user doesn't exist (security)
+            message = 'If an account exists with this email, you will receive a password reset code.'
+
+        return Response({
+            'message': message
+        }, status=status.HTTP_200_OK)
+
+    def _get_client_ip(self, request):
+        """Extract client IP from request"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR')
+
+
+class PasswordResetVerifyOTPView(APIView):
+    """
+    Verify OTP for password reset
+    """
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetVerifyOTPSerializer
+
+    def post(self, request):
+        """Verify password reset OTP"""
+        serializer = self.serializer_class(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data['email']
+        otp_code = serializer.validated_data['otp']
+
+        try:
+            user = User.objects.get(email=email)
+
+            # Verify OTP
+            otp_service = OTPService()
+            is_valid = otp_service.verify_otp(
+                user=user,
+                otp_code=otp_code,
+                purpose='password_reset',
+                mark_as_used=False  # Don't mark as used yet
+            )
+
+            if is_valid:
+                return Response({
+                    'message': 'OTP verified successfully',
+                    'valid': True
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Invalid or expired OTP',
+                    'valid': False
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except User.DoesNotExist:
+            return Response({
+                'error': 'Invalid request'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    Confirm password reset with new password
+    """
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetConfirmSerializer
+
+    @transaction.atomic
+    def post(self, request):
+        """Reset password with OTP confirmation"""
+        serializer = self.serializer_class(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data['email']
+        otp_code = serializer.validated_data['otp']
+        new_password = serializer.validated_data['new_password']
+
+        try:
+            user = User.objects.get(email=email)
+
+            # Verify OTP again and mark as used
+            otp_service = OTPService()
+            is_valid = otp_service.verify_otp(
+                user=user,
+                otp_code=otp_code,
+                purpose='password_reset',
+                mark_as_used=True
+            )
+
+            if not is_valid:
+                return Response({
+                    'error': 'Invalid or expired OTP'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Change password
+            user.set_password(new_password)
+            user.save()
+
+            # Revoke all existing sessions
+            UserSession.objects.filter(
+                user=user,
+                is_active=True
+            ).update(
+                is_active=False,
+                revoked_at=timezone.now()
+            )
+
+            # Clean up other password reset OTPs for this user
+            OTPVerification.objects.filter(
+                user=user,
+                purpose='password_reset',
+                is_used=False
+            ).update(is_used=True)
+
+            return Response({
+                'message': 'Password reset successful. Please login with your new password.'
+            }, status=status.HTTP_200_OK)
+
+        except User.DoesNotExist:
+            return Response({
+                'error': 'Invalid request'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerifyEmailOTPView(APIView):
+    """
+    Verify email with OTP and auto-login
+    """
+    permission_classes = [AllowAny]
+    serializer_class = OTPVerificationSerializer
+
+    @transaction.atomic
+    def post(self, request):
+        """Verify email OTP"""
+        serializer = self.serializer_class(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data['email']
+        otp_code = serializer.validated_data['otp']
+
+        try:
+            user = User.objects.get(email=email)
+
+            # Check if already verified
+            if user.is_verified:
+                return Response({
+                    'message': 'Email already verified',
+                    'already_verified': True
+                }, status=status.HTTP_200_OK)
+
+            # Verify OTP
+            otp_service = OTPService()
+            is_valid = otp_service.verify_otp(
+                user=user,
+                otp_code=otp_code,
+                purpose='email_verification',
+                mark_as_used=True
+            )
+
+            if not is_valid:
+                return Response({
+                    'error': 'Invalid or expired OTP'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Mark email as verified
+            user.is_verified = True
+            user.save()
+
+            # Auto-login: Generate tokens
+            refresh = RefreshToken.for_user(user)
+
+            # Create session
+            ip_address = self._get_client_ip(request)
+            session = UserSession.objects.create(
+                user=user,
+                refresh_token=str(refresh),
+                access_token_jti=refresh.access_token.get('jti', ''),
+                device_info=request.data.get('device_info', {}),
+                device_name=request.data.get('device_name', 'Unknown Device'),
+                device_id=request.data.get('device_id', ''),
+                platform=request.headers.get('x-platform', 'unknown'),
+                ip_address=ip_address,
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                expires_at=timezone.now() + timedelta(days=7)
+            )
+
+            return Response({
+                'message': 'Email verified successfully',
+                'user': UserProfileSerializer(user).data,
+                'tokens': {
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                },
+                'session_id': str(session.id)
+            }, status=status.HTTP_200_OK)
+
+        except User.DoesNotExist:
+            return Response({
+                'error': 'Invalid request'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    def _get_client_ip(self, request):
+        """Extract client IP from request"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR')
+
+
+class ResendOTPView(APIView):
+    """
+    Resend OTP for email verification or password reset
+    """
+    permission_classes = [AllowAny]
+    serializer_class = ResendOTPSerializer
+
+    def post(self, request):
+        """Resend OTP"""
+        serializer = self.serializer_class(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data['email']
+        purpose = serializer.validated_data['purpose']
+
+        try:
+            user = User.objects.get(email=email)
+
+            # Check if already verified (for email verification)
+            if purpose == 'email_verification' and user.is_verified:
+                return Response({
+                    'message': 'Email already verified',
+                    'already_verified': True
+                }, status=status.HTTP_200_OK)
+
+            # Check rate limiting
+            otp_service = OTPService()
+            can_resend, wait_time = otp_service.can_resend_otp(user, purpose)
+
+            if not can_resend:
+                return Response({
+                    'error': f'Please wait {wait_time} seconds before requesting a new code',
+                    'wait_time': wait_time
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+            # Generate and send new OTP
+            otp = otp_service.generate_and_send_otp(
+                user=user,
+                purpose=purpose,
+                request=request
+            )
+
+            if otp:
+                return Response({
+                    'message': 'Verification code sent successfully',
+                    'expires_at': otp.expires_at,
+                    'resend_available_at': timezone.now() + timedelta(seconds=120)
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Failed to send verification code'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except User.DoesNotExist:
+            # Don't reveal if user exists
+            return Response({
+                'message': 'If an account exists with this email, a verification code will be sent.'
+            }, status=status.HTTP_200_OK)
+
+
+class UserSessionViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    View user sessions (read-only)
+    """
+    serializer_class = UserSessionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return sessions for current user"""
+        return UserSession.objects.filter(
+            user=self.request.user,
+            is_active=True
+        ).order_by('-last_used')
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def revoke(self, request, pk=None):
+        """Revoke a specific session"""
+        session = self.get_object()
+
+        if session.user != request.user:
+            return Response({
+                'error': 'You can only revoke your own sessions'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        session.revoke()
+
+        return Response({
+            'message': 'Session revoked successfully'
+        }, status=status.HTTP_200_OK)
+
+
+class DeleteAccountView(APIView):
+    """
+    Delete user account (GDPR compliance)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        """Delete user account"""
+        # Verify password
+        password = request.data.get('password')
+        if not password:
+            return Response({
+                'error': 'Password is required to delete account'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not request.user.check_password(password):
+            return Response({
+                'error': 'Invalid password'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Soft delete or hard delete based on requirements
+        if request.data.get('hard_delete', False):
+            # Hard delete - completely remove from database
+            request.user.delete()
+        else:
+            # Soft delete - deactivate account
+            request.user.is_active = False
+            request.user.save()
+
+            # Revoke all sessions
+            UserSession.objects.filter(
+                user=request.user
+            ).update(
+                is_active=False,
+                revoked_at=timezone.now()
+            )
+
+        return Response({
+            'message': 'Account deleted successfully'
+        }, status=status.HTTP_200_OK)

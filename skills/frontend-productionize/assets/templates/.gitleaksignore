@@ -1,0 +1,20 @@
+# Gitleaks ignore file for known false positives
+
+# Documentation examples
+README.md:*
+CONTRIBUTING.md:*
+docs/**
+
+# Test fixtures with fake credentials
+tests/fixtures/**
+__tests__/fixtures/**
+e2e/fixtures/**
+
+# Environment templates (not actual secrets)
+.env.example:*
+.env.template:*
+
+# Package lock files (may contain registry tokens that are public)
+package-lock.json:*
+pnpm-lock.yaml:*
+yarn.lock:*

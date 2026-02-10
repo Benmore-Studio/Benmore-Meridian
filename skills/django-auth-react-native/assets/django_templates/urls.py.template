@@ -1,0 +1,127 @@
+"""
+Django URL Configuration for Authentication
+Complete routing for all auth endpoints
+"""
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenVerifyView
+
+from .views import (
+    # Authentication views
+    RegisterView,
+    LoginView,
+    CustomTokenRefreshView,
+    LogoutView,
+    VerifyTokenView,
+
+    # Profile views
+    ProfileView,
+    ChangePasswordView,
+
+    # Password reset views
+    PasswordResetRequestView,
+    PasswordResetVerifyOTPView,
+    PasswordResetConfirmView,
+
+    # Email verification views
+    VerifyEmailOTPView,
+    ResendOTPView,
+
+    # Session management
+    UserSessionViewSet,
+
+    # Account management
+    DeleteAccountView,
+)
+
+# Create router for ViewSets
+router = DefaultRouter()
+router.register(r'sessions', UserSessionViewSet, basename='session')
+
+app_name = 'auth'
+
+urlpatterns = [
+    # ============================================
+    # AUTHENTICATION ENDPOINTS
+    # ============================================
+
+    # Registration
+    path('register/', RegisterView.as_view(), name='register'),
+
+    # Login
+    path('login/', LoginView.as_view(), name='login'),
+
+    # Token management
+    path('refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
+    path('verify/', VerifyTokenView.as_view(), name='verify_token'),
+    path('token/verify/', TokenVerifyView.as_view(), name='token_verify_jwt'),  # JWT lib endpoint
+
+    # Logout
+    path('logout/', LogoutView.as_view(), name='logout'),
+
+    # ============================================
+    # EMAIL VERIFICATION
+    # ============================================
+
+    # Verify email with OTP
+    path('verify-otp/', VerifyEmailOTPView.as_view(), name='verify_email_otp'),
+
+    # Resend OTP (for both email verification and password reset)
+    path('resend-otp/', ResendOTPView.as_view(), name='resend_otp'),
+
+    # ============================================
+    # PASSWORD RESET FLOW
+    # ============================================
+
+    # Step 1: Request password reset (sends OTP)
+    path('password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+
+    # Step 2: Verify OTP for password reset
+    path('password-reset/verify-otp/', PasswordResetVerifyOTPView.as_view(), name='password_reset_verify_otp'),
+
+    # Step 3: Confirm password reset with new password
+    path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+
+    # Resend password reset OTP (convenience endpoint)
+    path('password-reset/resend-otp/', ResendOTPView.as_view(), name='password_reset_resend_otp'),
+
+    # ============================================
+    # USER PROFILE
+    # ============================================
+
+    # Profile management
+    path('profile/', ProfileView.as_view(), name='profile'),
+    path('profile/update/', ProfileView.as_view(), name='profile_update'),  # PUT/PATCH
+
+    # Change password (for authenticated users)
+    path('profile/change-password/', ChangePasswordView.as_view(), name='change_password'),
+
+    # Delete account
+    path('profile/delete/', DeleteAccountView.as_view(), name='delete_account'),
+
+    # ============================================
+    # SESSION MANAGEMENT
+    # ============================================
+
+    # Include router URLs for session management
+    path('', include(router.urls)),
+
+    # ============================================
+    # SOCIAL AUTHENTICATION (django-allauth)
+    # ============================================
+    # Uncomment these when you configure django-allauth
+
+    # path('social/', include('allauth.urls')),
+    # path('social/google/', include('allauth.socialaccount.providers.google.urls')),
+    # path('social/facebook/', include('allauth.socialaccount.providers.facebook.urls')),
+    # path('social/apple/', include('allauth.socialaccount.providers.apple.urls')),
+]
+
+# ============================================
+# OPTIONAL: Additional URLs for admin features
+# ============================================
+
+admin_urlpatterns = [
+    # These endpoints require admin permissions
+    # Add them to your main urls.py with appropriate permission checks
+]

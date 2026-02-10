@@ -1,0 +1,523 @@
+"""
+Django REST Framework Serializers for Authentication
+Comprehensive serializers for user management and auth flows
+"""
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
+import re
+
+from .models import (
+    User,
+    Organization,
+    UserSession,
+    OTPVerification,
+    LoginAttempt,
+    SocialAccount,
+)
+
+User = get_user_model()
+
+
+class OrganizationSerializer(serializers.ModelSerializer):
+    """
+    Organization serializer for multi-tenant support
+    """
+    owner_name = serializers.CharField(source='owner.full_name', read_only=True)
+    member_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Organization
+        fields = [
+            'id', 'name', 'slug', 'description', 'logo',
+            'website', 'contact_email', 'contact_phone',
+            'address', 'settings', 'plan', 'is_active',
+            'owner', 'owner_name', 'member_count',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'slug', 'owner_name', 'member_count', 'created_at', 'updated_at']
+
+    def validate_name(self, value):
+        """Ensure organization name is unique"""
+        if Organization.objects.filter(name__iexact=value).exists():
+            raise serializers.ValidationError("An organization with this name already exists.")
+        return value
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """
+    User profile serializer for reading and updating user information
+    """
+    full_name = serializers.CharField(read_only=True)
+    organization_name = serializers.CharField(
+        source='organization.name',
+        read_only=True,
+        allow_null=True
+    )
+    role_display = serializers.CharField(
+        source='get_role_display',
+        read_only=True
+    )
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'full_name',
+            'phone_number', 'profile_picture', 'role', 'role_display',
+            'organization', 'organization_name', 'is_verified',
+            'is_active', 'is_admin', 'is_manager', 'can_manage_users',
+            'last_login', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'email', 'role', 'organization', 'is_verified',
+            'is_active', 'is_admin', 'is_manager', 'can_manage_users',
+            'last_login', 'created_at', 'updated_at'
+        ]
+
+    def validate_phone_number(self, value):
+        """Validate phone number format"""
+        if value:
+            # Remove all non-digit characters
+            digits = re.sub(r'\D', '', value)
+            if len(digits) < 10:
+                raise serializers.ValidationError("Phone number must be at least 10 digits.")
+            # Format the phone number
+            return digits
+        return value
+
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    """
+    User registration serializer with password confirmation
+    """
+    email = serializers.EmailField(
+        required=True,
+        validators=[UniqueValidator(
+            queryset=User.objects.all(),
+            message="A user with this email already exists."
+        )]
+    )
+    password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'},
+        validators=[validate_password]
+    )
+    password_confirm = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'}
+    )
+
+    # Optional organization creation for admin users
+    create_organization = serializers.BooleanField(
+        write_only=True,
+        required=False,
+        default=False
+    )
+    organization_name = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True
+    )
+
+    class Meta:
+        model = User
+        fields = [
+            'email', 'password', 'password_confirm',
+            'first_name', 'last_name', 'phone_number',
+            'role', 'create_organization', 'organization_name'
+        ]
+
+    def validate(self, attrs):
+        """Validate registration data"""
+        # Check password match
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError({
+                'password_confirm': "Passwords do not match."
+            })
+
+        # Validate role (only certain roles can self-register)
+        allowed_roles = ['customer', 'admin']  # Customize based on your needs
+        role = attrs.get('role', 'customer')
+        if role not in allowed_roles:
+            raise serializers.ValidationError({
+                'role': f"Invalid role for registration. Allowed roles: {', '.join(allowed_roles)}"
+            })
+
+        # If creating organization, require organization name
+        if attrs.get('create_organization') and not attrs.get('organization_name'):
+            raise serializers.ValidationError({
+                'organization_name': "Organization name is required when creating an organization."
+            })
+
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """Create user and optionally organization"""
+        # Remove non-model fields
+        validated_data.pop('password_confirm')
+        create_organization = validated_data.pop('create_organization', False)
+        organization_name = validated_data.pop('organization_name', None)
+
+        # Create user
+        password = validated_data.pop('password')
+        user = User.objects.create_user(
+            password=password,
+            **validated_data
+        )
+
+        # Create organization if requested (for admin users)
+        if create_organization and user.role == 'admin' and organization_name:
+            from django.utils.text import slugify
+            organization = Organization.objects.create(
+                name=organization_name,
+                slug=slugify(organization_name),
+                owner=user
+            )
+            user.organization = organization
+            user.save()
+
+        return user
+
+
+class UserLoginSerializer(serializers.Serializer):
+    """
+    User login serializer
+    """
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'}
+    )
+    device_info = serializers.JSONField(required=False)
+    device_name = serializers.CharField(required=False, allow_blank=True)
+    device_id = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        """Normalize email"""
+        return value.lower().strip()
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """
+    Password change serializer for authenticated users
+    """
+    current_password = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'}
+    )
+    new_password = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'},
+        validators=[validate_password]
+    )
+    new_password_confirm = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'}
+    )
+
+    def validate(self, attrs):
+        """Validate password change data"""
+        user = self.context.get('user')
+
+        # Check current password
+        if not user.check_password(attrs['current_password']):
+            raise serializers.ValidationError({
+                'current_password': "Current password is incorrect."
+            })
+
+        # Check new passwords match
+        if attrs['new_password'] != attrs['new_password_confirm']:
+            raise serializers.ValidationError({
+                'new_password_confirm': "New passwords do not match."
+            })
+
+        # Check new password is different from current
+        if attrs['current_password'] == attrs['new_password']:
+            raise serializers.ValidationError({
+                'new_password': "New password must be different from current password."
+            })
+
+        return attrs
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """
+    Password reset request serializer
+    """
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        """Normalize email"""
+        return value.lower().strip()
+
+
+class PasswordResetVerifyOTPSerializer(serializers.Serializer):
+    """
+    OTP verification for password reset
+    """
+    email = serializers.EmailField(required=True)
+    otp = serializers.CharField(
+        required=True,
+        min_length=6,
+        max_length=6
+    )
+
+    def validate_email(self, value):
+        """Normalize email"""
+        return value.lower().strip()
+
+    def validate_otp(self, value):
+        """Validate OTP format"""
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must contain only digits.")
+        return value
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """
+    Password reset confirmation with new password
+    """
+    email = serializers.EmailField(required=True)
+    otp = serializers.CharField(
+        required=True,
+        min_length=6,
+        max_length=6
+    )
+    new_password = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'},
+        validators=[validate_password]
+    )
+    new_password_confirm = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'}
+    )
+
+    def validate(self, attrs):
+        """Validate password reset data"""
+        # Check passwords match
+        if attrs['new_password'] != attrs['new_password_confirm']:
+            raise serializers.ValidationError({
+                'new_password_confirm': "Passwords do not match."
+            })
+
+        # Normalize email
+        attrs['email'] = attrs['email'].lower().strip()
+
+        return attrs
+
+
+class OTPVerificationSerializer(serializers.Serializer):
+    """
+    OTP verification serializer
+    """
+    email = serializers.EmailField(required=True)
+    otp = serializers.CharField(
+        required=True,
+        min_length=6,
+        max_length=6
+    )
+    device_info = serializers.JSONField(required=False)
+    device_name = serializers.CharField(required=False, allow_blank=True)
+    device_id = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        """Normalize email"""
+        return value.lower().strip()
+
+    def validate_otp(self, value):
+        """Validate OTP format"""
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must contain only digits.")
+        return value
+
+
+class ResendOTPSerializer(serializers.Serializer):
+    """
+    Resend OTP serializer
+    """
+    email = serializers.EmailField(required=True)
+    purpose = serializers.ChoiceField(
+        choices=['email_verification', 'password_reset'],
+        required=True
+    )
+
+    def validate_email(self, value):
+        """Normalize email"""
+        return value.lower().strip()
+
+
+class UserSessionSerializer(serializers.ModelSerializer):
+    """
+    User session serializer for viewing active sessions
+    """
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    is_current = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserSession
+        fields = [
+            'id', 'user', 'user_email', 'device_name', 'device_id',
+            'platform', 'ip_address', 'is_active', 'is_current',
+            'created_at', 'last_used', 'expires_at'
+        ]
+        read_only_fields = fields
+
+    def get_is_current(self, obj):
+        """Check if this is the current session"""
+        request = self.context.get('request')
+        if request and hasattr(request, 'auth'):
+            # Compare JWT IDs if available
+            current_jti = request.auth.get('jti', '')
+            return obj.access_token_jti == current_jti
+        return False
+
+
+class SocialAccountSerializer(serializers.ModelSerializer):
+    """
+    Social account serializer for OAuth connections
+    """
+    provider_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SocialAccount
+        fields = [
+            'id', 'provider', 'provider_display', 'uid',
+            'is_active', 'created_at', 'last_login'
+        ]
+        read_only_fields = fields
+
+    def get_provider_display(self, obj):
+        """Get human-readable provider name"""
+        provider_names = {
+            'google': 'Google',
+            'facebook': 'Facebook',
+            'apple': 'Apple',
+            'github': 'GitHub',
+            'twitter': 'Twitter',
+            'linkedin': 'LinkedIn'
+        }
+        return provider_names.get(obj.provider, obj.provider.title())
+
+
+class TokenSerializer(serializers.Serializer):
+    """
+    JWT token serializer for responses
+    """
+    access = serializers.CharField(read_only=True)
+    refresh = serializers.CharField(read_only=True)
+
+
+class UserListSerializer(serializers.ModelSerializer):
+    """
+    Simplified user serializer for listing users
+    """
+    full_name = serializers.CharField(read_only=True)
+    organization_name = serializers.CharField(
+        source='organization.name',
+        read_only=True,
+        allow_null=True
+    )
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'full_name', 'role',
+            'organization_name', 'is_active', 'is_verified',
+            'last_login', 'created_at'
+        ]
+        read_only_fields = fields
+
+
+class InviteUserSerializer(serializers.Serializer):
+    """
+    Serializer for inviting users to organization
+    """
+    email = serializers.EmailField(required=True)
+    role = serializers.ChoiceField(
+        choices=['manager', 'employee', 'customer'],
+        required=True
+    )
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    send_email = serializers.BooleanField(default=True)
+
+    def validate_email(self, value):
+        """Check if user already exists"""
+        email = value.lower().strip()
+        if User.objects.filter(email=email).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return email
+
+
+class BulkInviteSerializer(serializers.Serializer):
+    """
+    Serializer for bulk user invitations
+    """
+    invitations = InviteUserSerializer(many=True)
+    send_emails = serializers.BooleanField(default=True)
+
+    def validate_invitations(self, value):
+        """Validate all invitations"""
+        if len(value) > 100:  # Limit bulk invites
+            raise serializers.ValidationError("Cannot invite more than 100 users at once.")
+
+        # Check for duplicate emails
+        emails = [inv['email'].lower() for inv in value]
+        if len(emails) != len(set(emails)):
+            raise serializers.ValidationError("Duplicate email addresses found in invitations.")
+
+        return value
+
+
+class UpdateUserRoleSerializer(serializers.Serializer):
+    """
+    Serializer for updating user role
+    """
+    role = serializers.ChoiceField(
+        choices=['admin', 'manager', 'employee', 'customer'],
+        required=True
+    )
+
+    def validate_role(self, value):
+        """Validate role change"""
+        user = self.context.get('user')
+        requester = self.context.get('request').user
+
+        # Prevent demoting yourself
+        if user == requester and value != user.role:
+            if user.role == 'admin' and value != 'admin':
+                raise serializers.ValidationError("You cannot demote yourself from admin.")
+
+        return value
+
+
+class UserActivationSerializer(serializers.Serializer):
+    """
+    Serializer for activating/deactivating users
+    """
+    is_active = serializers.BooleanField(required=True)
+    reason = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        """Validate activation status change"""
+        user = self.context.get('user')
+        requester = self.context.get('request').user
+
+        # Prevent deactivating yourself
+        if user == requester and not attrs['is_active']:
+            raise serializers.ValidationError("You cannot deactivate your own account.")
+
+        return attrs

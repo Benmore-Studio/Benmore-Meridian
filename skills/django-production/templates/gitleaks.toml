@@ -1,0 +1,84 @@
+# Django Production-Ready Gitleaks Configuration
+# Detects secrets and credentials in git repositories
+
+title = "Gitleaks Configuration"
+
+# Extend default gitleaks rules
+[extend]
+useDefault = true
+
+# Custom rules for Django-specific secrets
+[[rules]]
+id = "django-secret-key"
+description = "Django SECRET_KEY"
+regex = '''SECRET_KEY\s*=\s*['\"]([^'\"]{20,})['\"]'''
+tags = ["key", "django", "secret"]
+
+[[rules]]
+id = "django-database-url"
+description = "Django DATABASE_URL with credentials"
+regex = '''DATABASE_URL\s*=\s*['\"]?(postgresql|mysql)://([^:]+):([^@]+)@'''
+tags = ["database", "credentials"]
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+tags = ["key", "AWS"]
+
+[[rules]]
+id = "sentry-dsn"
+description = "Sentry DSN with secret"
+regex = '''SENTRY_DSN\s*=\s*['\"]https://([a-f0-9]+):([a-f0-9]+)@'''
+tags = ["sentry", "credentials"]
+
+[[rules]]
+id = "stripe-secret-key"
+description = "Stripe Secret Key"
+regex = '''sk_(test|live)_[0-9a-zA-Z]{24,}'''
+tags = ["stripe", "api-key"]
+
+[[rules]]
+id = "sendgrid-api-key"
+description = "SendGrid API Key"
+regex = '''SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}'''
+tags = ["sendgrid", "api-key"]
+
+# Allowlist - Files and patterns to ignore
+[allowlist]
+description = "Allowlisted files and patterns"
+
+# Allow example files and test fixtures
+paths = [
+    '''\.env\.example$''',
+    '''\.env\.template$''',
+    '''^tests/fixtures/.*''',
+    '''^tests/.*\.py$''',
+    '''conftest\.py$''',
+]
+
+# Allow specific patterns in specific files
+[[allowlist.regexes]]
+description = "Ignore test database URLs"
+regex = '''postgresql://test:test@localhost/test'''
+
+[[allowlist.regexes]]
+description = "Ignore development secret keys"
+regex = '''SECRET_KEY\s*=\s*['\"]django-insecure-.*['\"]'''
+
+[[allowlist.regexes]]
+description = "Ignore placeholder API keys in documentation"
+regex = '''(your-api-key-here|YOUR_API_KEY|example-key)'''
+
+# Stopwords - Reduce false positives
+[[allowlist.stopwords]]
+stopwords = [
+    "example",
+    "sample",
+    "placeholder",
+    "changeme",
+    "your-key-here",
+    "test-key",
+    "fake",
+    "dummy",
+]

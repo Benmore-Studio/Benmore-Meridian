@@ -1,0 +1,33 @@
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "npm run generate:api && next build",
+    "build:strict": "npm run generate:api && NEXT_TELEMETRY_DISABLED=1 next build 2>&1 | tee build.log; if grep -q 'error' build.log || [ ${PIPESTATUS[0]} -ne 0 ]; then echo '❌ Build failed with errors' && exit 1; fi",
+    "start": "next start",
+    "lint": "next lint --max-warnings 0",
+    "lint:fix": "next lint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch",
+    "generate:api": "openapi-typescript $API_SCHEMA_URL -o src/api/schema.d.ts",
+    "generate:api:watch": "nodemon --watch ../backend --ext py --exec 'npm run generate:api'",
+    "generate:api:check": "npm run generate:api && git diff --exit-code src/api/schema.d.ts || (echo '❌ Schema is out of sync. Commit the changes.' && exit 1)",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "validate": "npm run lint && npm run format:check && npm run type-check && npm run test",
+    "ci": "npm run validate && npm run build:strict"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0",
+    "prettier": "^3.2.0",
+    "@eslint/eslintrc": "^3.0.0",
+    "@eslint/js": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "eslint-config-next": "^15.0.0"
+  }
+}
