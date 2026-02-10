@@ -113,4 +113,4 @@ Welcome aboard.
 
 **Benmore Technologies Engineering Leadership**
 
-*Questions? Reach out to your lead or engineering leadership directly. No question is too small.*
+*Questions? Reach out to your lead or engineering leadership directly (Arkash Jain). No question is too small.*
