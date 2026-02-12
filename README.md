@@ -4,6 +4,23 @@ A comprehensive collection of guides to help developers onboard and follow best 
 
 ---
 
+## 🆕 Latest Updates (February 12, 2026)
+
+**New Configuration Guides:**
+- **[LSP Configuration](development/04-lsp-configuration.md)** - Language Server Protocol setup for enhanced code intelligence across Python, TypeScript, Rust, Go, Ruby, and more
+- **[Sandboxing Setup](development/05-sandboxing-setup.md)** - Open-source sandbox runtime for improved safety and reduced permission prompts
+
+**Recent Additions:**
+- CI/CD bots setup guide (Sentry, Vercel, GitHub Actions, Claude)
+- Claude Code ecosystem guide (MCP servers, plugins, skills, agents)
+- 30+ page developer onboarding presentation
+- GitHub Dependabot compliance guide for Vanta
+- HTML presentations for all major guides
+
+See [CHANGELOG.md](CHANGELOG.md) for complete version history.
+
+---
+
 ## 📚 Guide Categories
 
 ### 1. **Django Production** 🚀
@@ -17,7 +34,19 @@ Guides for productionizing Django applications with modern tooling and best prac
 
 ---
 
-### 2. **Development Workflow & CI/CD** 🔧
+### 2. **Deployment & Infrastructure** 🌐
+Platform-specific deployment guides and server operations.
+
+- **Heroku Django** - Deploy Django to Heroku with uv
+- **DigitalOcean Operations** - Server management command reference
+- **Django CI/CD Setup** - Automated testing and deployment pipelines
+- **React Native Setup** - Mobile app development with Expo
+
+**Location:** `deployment/`
+
+---
+
+### 3. **Development Workflow & CI/CD** 🔧
 Guides for the full development lifecycle — from meeting notes to automated checks.
 
 - Developer workflow: transcripts → requirements → plans → execution
@@ -29,7 +58,7 @@ Guides for the full development lifecycle — from meeting notes to automated ch
 
 ---
 
-### 3. **PR Review & Project Management** 🔍
+### 4. **PR Review & Project Management** 🔍
 Workflow for setting up GitHub, managing projects, and performing AI-assisted PR reviews.
 
 - Setup GitHub and Sentry integration
@@ -41,7 +70,7 @@ Workflow for setting up GitHub, managing projects, and performing AI-assisted PR
 
 ---
 
-### 4. **Dev Toolkit & Setup** 🛠️
+### 5. **Dev Toolkit & Setup** 🛠️
 Comprehensive checklist for installing and setting up your development environment.
 
 - Core development tools (terminal, package managers, search)
@@ -54,14 +83,14 @@ Comprehensive checklist for installing and setting up your development environme
 
 ---
 
-### 5. **Team Guides** 👥
+### 6. **Team Guides** 👥
 Team-specific onboarding and process documentation (currently a placeholder, ready for team content).
 
 **Location:** `team/` (create `team/team_name/` directories for your team)
 
 ---
 
-### 6. **Claude Code Skills** 🤖
+### 7. **Claude Code Skills** 🤖
 Production-grade skills that extend Claude Code's capabilities with domain expertise.
 
 **Skills included:**
@@ -97,12 +126,21 @@ Production-grade skills that extend Claude Code's capabilities with domain exper
 ```
 guides/
 ├── README.md (this file)
+├── CHANGELOG.md (version history)
+├── deployment/                         ← NEW
+│   ├── README.md (deployment overview)
+│   ├── 01-heroku-django.md
+│   ├── 02-digitalocean-ops.md
+│   ├── 03-django-cicd-setup.md
+│   └── 04-react-native-setup.md
 ├── development/
 │   ├── README.md (development guides index)
 │   ├── 00-developer-workflow.md
 │   ├── 01-pr-review-workflow.md
-│   ├── 02-ci-cd-bots-setup.md        ← NEW
-│   ├── 03-claude-code-ecosystem.md    ← NEW
+│   ├── 02-ci-cd-bots-setup.md
+│   ├── 03-claude-code-ecosystem.md
+│   ├── 04-lsp-configuration.md
+│   ├── 05-sandboxing-setup.md
 │   └── assets/
 ├── django/
 │   ├── README.md (django guides index)
@@ -135,6 +173,8 @@ Track your onboarding progress:
 
 | Guide | Duration | Best For |
 |-------|----------|----------|
+| [LSP Configuration](development/04-lsp-configuration.md) | 15-20 min | Setting up code intelligence & language servers |
+| [Sandboxing Setup](development/05-sandboxing-setup.md) | 10-15 min | Enabling secure, isolated code execution |
 | [Dev Toolkit](toolkit/01-toolkit-checklist.md) | 30-60 min | Setting up your dev environment |
 | [Developer Workflow](development/00-developer-workflow.md) | 15 min read | End-to-end feature workflow |
 | [CI/CD Bots Setup](development/02-ci-cd-bots-setup.md) | 30-45 min | Sentry, Vercel, Actions, Claude |
@@ -148,19 +188,20 @@ Track your onboarding progress:
 
 ## 🏗️ Repository Architecture
 
-### Five-Category Organization
+### Six-Category Organization
 
-This repository organizes guides across five complementary categories:
+This repository organizes guides across six complementary categories:
 
 - **django/** - Productionizing Django applications (3 guides at different detail levels)
-- **development/** - Full development lifecycle and CI/CD (4 guides covering workflow, PRs, automation, ecosystem)
+- **deployment/** - Platform deployment and infrastructure (4 guides for Heroku, DO, CI/CD, mobile)
+- **development/** - Full development lifecycle and CI/CD (6 guides covering workflow, PRs, automation, ecosystem, LSP, sandboxing)
 - **review/** - Code review processes (1 focused guide, also integrated into development workflow)
 - **toolkit/** - Developer environment setup (1 comprehensive checklist)
 - **team/** - Team-specific customization (expandable structure, currently placeholder)
 
 **Why multiple categories?**
 - Developers find what they need without searching through monolithic documentation
-- Multiple perspectives on related topics (e.g., PR review in both `development/` and `review/`)
+- Multiple perspectives on related topics (e.g., PR review in both `development/` and `review/`, deployment in both `deployment/` and `development/`)
 - Easy expansion as new team needs arise without restructuring
 - Clear separation of concerns while allowing cross-references between related guides
 
