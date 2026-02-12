@@ -31,10 +31,19 @@ guides/
 ├── CLAUDE.md                          # This file
 ├── deployment/
 │   ├── README.md                     # Deployment overview & platform comparison
-│   ├── 01-heroku-django.md           # Deploy Django to Heroku with uv
-│   ├── 02-digitalocean-ops.md        # Server management command reference
-│   ├── 03-django-cicd-setup.md       # CI/CD setup with Claude Code
-│   └── 04-react-native-setup.md      # React Native mobile development
+│   ├── heroku/
+│   │   └── django-deployment.md      # Deploy Django to Heroku with uv
+│   ├── digitalocean/
+│   │   ├── 01-overview.md            # Quick reference with links
+│   │   ├── 02-getting-started.md     # Connection & new developer setup
+│   │   ├── 03-deployment.md          # Deploy new projects, add Celery
+│   │   ├── 04-daily-operations.md    # Pull code, run migrations, commands
+│   │   ├── 05-commands-reference.md  # PM2, Django, Git, Database commands
+│   │   └── 06-troubleshooting.md     # Fix common errors, check logs
+│   ├── cicd/
+│   │   └── django-setup.md           # CI/CD setup with Claude Code
+│   └── mobile/
+│       └── react-native-setup.md     # React Native mobile development
 ├── django/
 │   ├── README.md                     # Guide selector with comparisons
 │   ├── 01-simple-checklist.md        # Pure checkbox format (95 items)
@@ -58,7 +67,7 @@ guides/
 
 ### File Naming Convention
 
-- **Deployment guides:** `01-heroku-django.md`, `02-digitalocean-ops.md`, `03-django-cicd-setup.md`, `04-react-native-setup.md`
+- **Deployment guides:** Organized in subdirectories - `heroku/`, `digitalocean/` (6 guides), `cicd/`, `mobile/`
 - **Django guides:** `01-simple-checklist.md`, `02-detailed-checklist.md`, `03-comprehensive-guide.md`
 - **Development guides:** `00-developer-workflow.md`, `01-pr-review-workflow.md`, `02-ci-cd-bots-setup.md`, `03-claude-code-ecosystem.md`
 - **Review guides:** `01-pr-review-workflow.md`
@@ -72,11 +81,13 @@ guides/
 
 ### Deployment & Infrastructure
 
-**File:** `deployment/` (4 complementary guides)
+**File:** `deployment/` (9 guides organized by platform)
 
-Platform-specific deployment guides and server operations:
+Platform-specific deployment guides organized into subdirectories:
 
-**01-heroku-django.md** (~15KB, 15-20 min)
+#### Heroku Platform (`deployment/heroku/`)
+
+**django-deployment.md** (~15KB, 15-20 min)
 - Deploy Django to Heroku using modern `uv` package manager
 - Configure Procfile, runtime.txt, and environment variables
 - Manage PostgreSQL and Redis add-ons
@@ -84,32 +95,73 @@ Platform-specific deployment guides and server operations:
 - Continuous deployment workflows
 - Best for: Quick Django deployments with managed infrastructure
 
-**02-digitalocean-ops.md** (~11KB, 5 min reference)
-- Server management command reference for DigitalOcean droplets
-- PM2 process manager operations
+#### DigitalOcean Platform (`deployment/digitalocean/`)
+
+**01-overview.md** (~5KB, 5 min reference)
+- Quick reference with links to all DO guides
+- Common workflows and quick start commands
+- Server information and project structure
+- Best for: Quick navigation and command lookup
+
+**02-getting-started.md** (~8KB, 10 min)
+- How to connect to server via web console
+- New developer setup and account access
+- Understanding server structure and services
+- Security notes and environment variables
+- Best for: First-time setup and onboarding
+
+**03-deployment.md** (~10KB, 15-20 min)
+- Deploy new Django projects with deployment script
+- Create admin/superuser accounts
+- Add Celery for background tasks
+- Deployment checklist and common issues
+- Best for: Deploying new projects to DO
+
+**04-daily-operations.md** (~9KB, 5 min reference)
+- Pull code updates and restart services
+- Run migrations and Django commands
+- View and monitor logs
+- Update dependencies and backup database
+- Best for: Day-to-day server management
+
+**05-commands-reference.md** (~11KB, reference)
+- PM2 process manager commands
 - Django management commands with `uv`
 - PostgreSQL database operations
 - Git deployment workflows
-- Best for: Managing Django on self-hosted infrastructure
+- System and server management
+- Best for: Command lookup and reference
 
-**03-django-cicd-setup.md** (~10KB, 10-15 min)
+**06-troubleshooting.md** (~12KB, reference)
+- Common deployment issues and fixes
+- App not loading, database errors, static files
+- Celery tasks, permissions, memory issues
+- Git pull failures, environment variables
+- Diagnostic commands cheat sheet
+- Best for: Debugging and fixing errors
+
+#### CI/CD (`deployment/cicd/`)
+
+**django-setup.md** (~10KB, 10-15 min)
 - Add production-ready CI/CD to Django projects
 - GitHub Actions workflow configuration
 - Automated testing, linting, security scanning
 - Pre-commit hooks setup
 - Makefile commands for local development
-- Best for: Setting up automated quality checks and deployment pipelines
+- Best for: Setting up automated quality checks
 
-**04-react-native-setup.md** (~8KB, 20-30 min)
+#### Mobile Development (`deployment/mobile/`)
+
+**react-native-setup.md** (~8KB, 20-30 min)
 - React Native project setup with Expo and TypeScript
 - Development environment configuration
 - Running on physical devices (iOS/Android)
 - Using simulators and emulators
 - Claude Code skills for professional UI design
-- Best for: Mobile app development and deployment preparation
+- Best for: Mobile app development setup
 
 **Common Coverage:**
-- Modern deployment platforms: Heroku, DigitalOcean
+- Modern deployment platforms: Heroku (cloud), DigitalOcean (self-hosted)
 - Package management: `uv` for Python, `npm` for JavaScript
 - Process managers: PM2, Heroku Dynos, Gunicorn
 - CI/CD: GitHub Actions, pre-commit hooks, automated testing
@@ -121,7 +173,7 @@ Platform-specific deployment guides and server operations:
 - Zero-downtime deployments with proper release process
 - Automated CI/CD passing all checks
 - Production monitoring and error tracking configured
-- Mobile app running on physical devices
+- Comprehensive troubleshooting documentation available
 
 ### Django Production Readiness
 
@@ -336,7 +388,7 @@ Guides are grouped by topic (django, review, toolkit, team) rather than by audie
 
 The repository organizes guides across six complementary categories:
 - **django/** - Productionizing Django applications (3 guides at different detail levels)
-- **deployment/** - Platform deployment and infrastructure (4 guides for Heroku, DO, CI/CD, mobile)
+- **deployment/** - Platform deployment and infrastructure (9 guides across 4 platforms: heroku/, digitalocean/ [6 guides], cicd/, mobile/)
 - **development/** - Full development lifecycle and CI/CD (4 guides covering workflow, PRs, automation, ecosystem)
 - **review/** - Code review processes (1 focused guide, also integrated into development workflow)
 - **toolkit/** - Developer environment setup (1 comprehensive checklist)
@@ -575,7 +627,7 @@ For detailed documentation on each skill's capabilities, implementation, and usa
 - "Should I create a new guide or update an existing one?" → Check if the existing guide already covers the topic; prefer updating for consistency
 - "How do I link between guides?" → Use relative paths: `[Link Text](../other-category/guide.md)`
 - "What's the difference between the three Django guides?" → See the `django/README.md` comparison table for quick reference
-- "What's in the deployment/ folder?" → Platform-specific deployment guides (Heroku, DigitalOcean), CI/CD setup, and React Native mobile development (4 guides)
+- "What's in the deployment/ folder?" → Platform-specific deployment guides organized by platform: heroku/ (1 guide), digitalocean/ (6 guides), cicd/ (1 guide), mobile/ (1 guide) - 9 guides total
 - "What's in the development/ folder?" → Complete end-to-end development workflow, CI/CD setup, Claude Code ecosystem tools, and PR review processes (4 guides + 20 visual assets)
 - "Are there images/assets to reference?" → Yes, 20 images in `development/assets/` providing visual workflow guidance
 - "Is the team/ folder empty?" → Yes, it's currently a placeholder structure with `.gitkeep`, ready for team-specific content when needed

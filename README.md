@@ -193,6 +193,13 @@ Track your onboarding progress:
 | [Sandboxing Setup](development/05-sandboxing-setup.md) | 10-15 min | Enabling secure, isolated code execution |
 | [Dev Toolkit](toolkit/01-toolkit-checklist.md) | 30-60 min | Setting up your dev environment |
 | [Developer Workflow](development/00-developer-workflow.md) | 15 min read | End-to-end feature workflow |
+| [Heroku Django Deployment](deployment/heroku/django-deployment.md) | 15-20 min | Deploying Django to Heroku |
+| [DigitalOcean Overview](deployment/digitalocean/01-overview.md) | 5 min (ref) | DO quick reference & navigation |
+| [DigitalOcean Getting Started](deployment/digitalocean/02-getting-started.md) | 10 min | First-time DO server setup |
+| [DigitalOcean Deployment](deployment/digitalocean/03-deployment.md) | 15-20 min | Deploy Django to DO |
+| [DigitalOcean Daily Ops](deployment/digitalocean/04-daily-operations.md) | 5 min (ref) | Pull code, run migrations |
+| [Django CI/CD Setup](deployment/cicd/django-setup.md) | 10-15 min | Adding automated CI/CD |
+| [React Native Setup](deployment/mobile/react-native-setup.md) | 20-30 min | Mobile app development |
 | [CI/CD Bots Setup](development/02-ci-cd-bots-setup.md) | 30-45 min | Sentry, Vercel, Actions, Claude |
 | [Claude Code Ecosystem](development/03-claude-code-ecosystem.md) | 20 min read | MCP, plugins, skills, agents |
 | [PR Review Workflow](development/01-pr-review-workflow.md) | 20 min read | Understanding our review process |
