@@ -1,25 +1,32 @@
 # Deployment Guides
 
-Comprehensive guides for deploying Django applications, managing servers, setting up CI/CD, and configuring React Native mobile apps.
+Comprehensive guides for deploying Django applications, managing servers, setting up CI/CD, and configuring mobile development environments.
 
 ---
 
-## 📚 Guide Overview
+## 📁 Guide Organization
 
-| Guide | Duration | Best For |
-|-------|----------|----------|
-| [Heroku Django Deployment](01-heroku-django.md) | 15-20 min | Deploying Django to Heroku with uv |
-| [DigitalOcean Operations](02-digitalocean-ops.md) | 5 min (reference) | Managing deployed apps on DO droplets |
-| [Django CI/CD Setup](03-django-cicd-setup.md) | 10-15 min | Adding automated testing and deployment |
-| [React Native Setup](04-react-native-setup.md) | 20-30 min | Setting up React Native with Expo |
+Guides are organized by platform and purpose:
+
+```
+deployment/
+├── heroku/              # Heroku cloud platform
+├── digitalocean/        # DigitalOcean self-hosted
+├── cicd/               # CI/CD automation
+└── mobile/             # Mobile development
+```
 
 ---
 
-## 🚀 Deployment Platforms
+## 🌐 Deployment Platforms
 
-### Heroku
+### Heroku (Cloud Platform)
 
-**Guide:** [01-heroku-django.md](01-heroku-django.md)
+**Location:** `heroku/`
+
+| Guide | Description |
+|-------|-------------|
+| [Django Deployment](heroku/django-deployment.md) | Deploy Django to Heroku with uv |
 
 **Best for:**
 - Quick Django deployments
@@ -28,22 +35,22 @@ Comprehensive guides for deploying Django applications, managing servers, settin
 - Free tier available
 - Automatic HTTPS
 
-**Use when:**
-- You want to deploy quickly without server management
-- You need managed add-ons (Redis, PostgreSQL, monitoring)
-- Your project is a straightforward Django app
-
-**Tech stack:**
-- Python 3.12+ with `uv`
-- PostgreSQL (via Heroku Postgres)
-- Redis (via Heroku Redis)
-- Gunicorn as WSGI server
+**Tech stack:** Python 3.12+ with `uv`, PostgreSQL, Redis, Gunicorn
 
 ---
 
-### DigitalOcean
+### DigitalOcean (Self-Hosted)
 
-**Guide:** [02-digitalocean-ops.md](02-digitalocean-ops.md)
+**Location:** `digitalocean/`
+
+| Guide | Description |
+|-------|-------------|
+| [Overview](digitalocean/01-overview.md) | Quick reference & navigation |
+| [Getting Started](digitalocean/02-getting-started.md) | Server connection & setup |
+| [Deployment](digitalocean/03-deployment.md) | Deploy new projects |
+| [Daily Operations](digitalocean/04-daily-operations.md) | Pull code, run migrations |
+| [Commands Reference](digitalocean/05-commands-reference.md) | PM2, Django, Git, Database |
+| [Troubleshooting](digitalocean/06-troubleshooting.md) | Fix common errors |
 
 **Best for:**
 - Full server control
@@ -52,26 +59,23 @@ Comprehensive guides for deploying Django applications, managing servers, settin
 - Multiple apps on one server
 - SSH access for debugging
 
-**Use when:**
-- You need more control over your environment
-- You want to run multiple apps on one server
-- Cost optimization is important
-- You're comfortable with Linux/server management
+**Tech stack:** Ubuntu, PM2, PostgreSQL, Nginx, Python with `uv`
 
-**Tech stack:**
-- Ubuntu droplets
-- PM2 for process management
-- PostgreSQL (self-hosted)
-- Nginx as reverse proxy
-- Python with `uv`
+**Quick start:**
+1. Start with [Overview](digitalocean/01-overview.md) for quick reference
+2. New developer? Read [Getting Started](digitalocean/02-getting-started.md)
+3. Deploying? Follow [Deployment](digitalocean/03-deployment.md)
+4. Daily updates? See [Daily Operations](digitalocean/04-daily-operations.md)
 
 ---
 
 ## ⚙️ CI/CD & Automation
 
-### Django CI/CD Setup
+**Location:** `cicd/`
 
-**Guide:** [03-django-cicd-setup.md](03-django-cicd-setup.md)
+| Guide | Description |
+|-------|-------------|
+| [Django CI/CD Setup](cicd/django-setup.md) | Automated testing & deployment |
 
 **Automated checks:**
 - ✅ Linting and formatting (ruff)
@@ -81,25 +85,17 @@ Comprehensive guides for deploying Django applications, managing servers, settin
 - ✅ Django system checks
 - ✅ Docker build verification
 
-**Use when:**
-- Setting up a new Django project
-- Adding quality checks to existing project
-- Configuring GitHub Actions CI/CD
-- Implementing pre-commit hooks
-
-**Success criteria:**
-- All checks pass in < 2 minutes
-- Test coverage ≥ 80%
-- No secrets in git history
-- Docker builds successfully
+**Use when:** Setting up quality checks and deployment pipelines
 
 ---
 
 ## 📱 Mobile Development
 
-### React Native with Expo
+**Location:** `mobile/`
 
-**Guide:** [04-react-native-setup.md](04-react-native-setup.md)
+| Guide | Description |
+|-------|-------------|
+| [React Native Setup](mobile/react-native-setup.md) | Mobile app development with Expo |
 
 **Best for:**
 - Quick mobile app development
@@ -107,17 +103,7 @@ Comprehensive guides for deploying Django applications, managing servers, settin
 - Live updates without app store
 - Simplified build process
 
-**Use when:**
-- Building a mobile frontend for your Django backend
-- You want to test on your phone immediately
-- You need rapid iteration and hot reloading
-- You want to avoid complex native builds
-
-**Tech stack:**
-- Expo SDK
-- TypeScript
-- React Native
-- Expo Go for testing
+**Tech stack:** Expo SDK, TypeScript, React Native
 
 ---
 
@@ -127,48 +113,47 @@ Comprehensive guides for deploying Django applications, managing servers, settin
 
 ```bash
 # 1. Set up CI/CD (10-15 min)
-# Follow: 03-django-cicd-setup.md
+# Follow: cicd/django-setup.md
 
 # 2. Deploy to Heroku (15-20 min)
-# Follow: 01-heroku-django.md
+# Follow: heroku/django-deployment.md
 
 # 3. Verify deployment
 heroku open
 heroku logs --tail
 ```
 
-### Existing Django Project → DigitalOcean
+### Django Project → DigitalOcean
 
 ```bash
-# 1. Deploy to DO droplet
-# Use your existing deployment process
+# 1. Connect to server
+# Follow: digitalocean/02-getting-started.md
 
-# 2. Reference operational commands
-# Follow: 02-digitalocean-ops.md
+# 2. Deploy project
+# Follow: digitalocean/03-deployment.md
 
-# 3. Add CI/CD
-# Follow: 03-django-cicd-setup.md
+# 3. Daily updates
+# Follow: digitalocean/04-daily-operations.md
 ```
 
 ### Django Backend + React Native Frontend
 
 ```bash
 # 1. Set up backend CI/CD
-# Follow: 03-django-cicd-setup.md
+# Follow: cicd/django-setup.md
 
-# 2. Deploy backend to Heroku
-# Follow: 01-heroku-django.md
+# 2. Deploy backend
+# Follow: heroku/django-deployment.md OR digitalocean/03-deployment.md
 
 # 3. Set up React Native app
-# Follow: 04-react-native-setup.md
+# Follow: mobile/react-native-setup.md
 
 # 4. Connect frontend to backend API
-# Use the Heroku app URL as your API base URL
 ```
 
 ---
 
-## 📊 Deployment Comparison
+## 📊 Platform Comparison
 
 ### Heroku vs DigitalOcean
 
@@ -216,7 +201,6 @@ git pull origin main
 cd backend
 uv sync
 uv run python manage.py migrate
-uv run python manage.py collectstatic --noinput
 pm2 restart yourproject
 ```
 
@@ -320,7 +304,9 @@ pm2 logs yourproject --lines 100
 - Verify git push succeeded
 - Check for migration errors
 
-See individual guides for platform-specific troubleshooting.
+See platform-specific troubleshooting:
+- [Heroku Troubleshooting](heroku/django-deployment.md#5-troubleshooting-common-issues)
+- [DigitalOcean Troubleshooting](digitalocean/06-troubleshooting.md)
 
 ---
 
@@ -339,6 +325,22 @@ Before deploying to production:
 - [ ] Domain/DNS configured (if applicable)
 - [ ] HTTPS enabled
 - [ ] Test deployment in staging first
+
+---
+
+## 🗺️ Navigation
+
+**By platform:**
+- [Heroku guides](heroku/) - Cloud deployment
+- [DigitalOcean guides](digitalocean/) - Self-hosted deployment
+- [CI/CD guides](cicd/) - Automated testing
+- [Mobile guides](mobile/) - React Native development
+
+**By task:**
+- **First deployment:** Start with [Heroku](heroku/django-deployment.md) or [DigitalOcean](digitalocean/03-deployment.md)
+- **Daily updates:** See [Heroku workflow](heroku/django-deployment.md#6-post-deployment) or [DO daily ops](digitalocean/04-daily-operations.md)
+- **CI/CD setup:** Follow [Django CI/CD guide](cicd/django-setup.md)
+- **Mobile app:** Start with [React Native setup](mobile/react-native-setup.md)
 
 ---
 
