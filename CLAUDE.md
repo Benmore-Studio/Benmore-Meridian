@@ -29,6 +29,12 @@ The guides are organized by topic with a consistent structure:
 guides/
 ├── README.md                          # Main index & quick start
 ├── CLAUDE.md                          # This file
+├── deployment/
+│   ├── README.md                     # Deployment overview & platform comparison
+│   ├── 01-heroku-django.md           # Deploy Django to Heroku with uv
+│   ├── 02-digitalocean-ops.md        # Server management command reference
+│   ├── 03-django-cicd-setup.md       # CI/CD setup with Claude Code
+│   └── 04-react-native-setup.md      # React Native mobile development
 ├── django/
 │   ├── README.md                     # Guide selector with comparisons
 │   ├── 01-simple-checklist.md        # Pure checkbox format (95 items)
@@ -52,6 +58,7 @@ guides/
 
 ### File Naming Convention
 
+- **Deployment guides:** `01-heroku-django.md`, `02-digitalocean-ops.md`, `03-django-cicd-setup.md`, `04-react-native-setup.md`
 - **Django guides:** `01-simple-checklist.md`, `02-detailed-checklist.md`, `03-comprehensive-guide.md`
 - **Development guides:** `00-developer-workflow.md`, `01-pr-review-workflow.md`, `02-ci-cd-bots-setup.md`, `03-claude-code-ecosystem.md`
 - **Review guides:** `01-pr-review-workflow.md`
@@ -62,6 +69,59 @@ guides/
 ---
 
 ## Guide Purposes and Use Cases
+
+### Deployment & Infrastructure
+
+**File:** `deployment/` (4 complementary guides)
+
+Platform-specific deployment guides and server operations:
+
+**01-heroku-django.md** (~15KB, 15-20 min)
+- Deploy Django to Heroku using modern `uv` package manager
+- Configure Procfile, runtime.txt, and environment variables
+- Manage PostgreSQL and Redis add-ons
+- Monorepo/subdirectory deployment with git subtree
+- Continuous deployment workflows
+- Best for: Quick Django deployments with managed infrastructure
+
+**02-digitalocean-ops.md** (~11KB, 5 min reference)
+- Server management command reference for DigitalOcean droplets
+- PM2 process manager operations
+- Django management commands with `uv`
+- PostgreSQL database operations
+- Git deployment workflows
+- Best for: Managing Django on self-hosted infrastructure
+
+**03-django-cicd-setup.md** (~10KB, 10-15 min)
+- Add production-ready CI/CD to Django projects
+- GitHub Actions workflow configuration
+- Automated testing, linting, security scanning
+- Pre-commit hooks setup
+- Makefile commands for local development
+- Best for: Setting up automated quality checks and deployment pipelines
+
+**04-react-native-setup.md** (~8KB, 20-30 min)
+- React Native project setup with Expo and TypeScript
+- Development environment configuration
+- Running on physical devices (iOS/Android)
+- Using simulators and emulators
+- Claude Code skills for professional UI design
+- Best for: Mobile app development and deployment preparation
+
+**Common Coverage:**
+- Modern deployment platforms: Heroku, DigitalOcean
+- Package management: `uv` for Python, `npm` for JavaScript
+- Process managers: PM2, Heroku Dynos, Gunicorn
+- CI/CD: GitHub Actions, pre-commit hooks, automated testing
+- Mobile development: Expo, React Native, TypeScript
+- Server operations: PostgreSQL, Redis, Nginx
+
+**Success criteria:**
+- Successful deployment to chosen platform
+- Zero-downtime deployments with proper release process
+- Automated CI/CD passing all checks
+- Production monitoring and error tracking configured
+- Mobile app running on physical devices
 
 ### Django Production Readiness
 
@@ -272,10 +332,11 @@ Guides are grouped by topic (django, review, toolkit, team) rather than by audie
 - Navigate to category READMEs for context
 - Share specific categories with different team members
 
-### Five-Category Organization
+### Six-Category Organization
 
-The repository organizes guides across five complementary categories:
+The repository organizes guides across six complementary categories:
 - **django/** - Productionizing Django applications (3 guides at different detail levels)
+- **deployment/** - Platform deployment and infrastructure (4 guides for Heroku, DO, CI/CD, mobile)
 - **development/** - Full development lifecycle and CI/CD (4 guides covering workflow, PRs, automation, ecosystem)
 - **review/** - Code review processes (1 focused guide, also integrated into development workflow)
 - **toolkit/** - Developer environment setup (1 comprehensive checklist)
@@ -283,7 +344,7 @@ The repository organizes guides across five complementary categories:
 
 This multi-category approach allows:
 - Developers to find what they need without searching through monolithic documentation
-- Multiple perspectives on related topics (e.g., PR review in both development/ and review/)
+- Multiple perspectives on related topics (e.g., PR review in both development/ and review/, deployment in both deployment/ and development/)
 - Easy expansion as new team needs arise without restructuring
 - Clear separation of concerns while allowing cross-references between related guides
 
@@ -324,6 +385,7 @@ This repository contains documentation only - no Python, JavaScript, or executab
 
 **Main navigation points:**
 - `README.md` - Main index and quick start (entry point for all users)
+- `deployment/README.md` - Deployment platform comparison and guide index
 - `django/README.md` - Guide selector with feature comparison
 - `development/README.md` - Development workflow overview and guide index
 - `toolkit/README.md` - Toolkit setup overview
@@ -513,6 +575,7 @@ For detailed documentation on each skill's capabilities, implementation, and usa
 - "Should I create a new guide or update an existing one?" → Check if the existing guide already covers the topic; prefer updating for consistency
 - "How do I link between guides?" → Use relative paths: `[Link Text](../other-category/guide.md)`
 - "What's the difference between the three Django guides?" → See the `django/README.md` comparison table for quick reference
+- "What's in the deployment/ folder?" → Platform-specific deployment guides (Heroku, DigitalOcean), CI/CD setup, and React Native mobile development (4 guides)
 - "What's in the development/ folder?" → Complete end-to-end development workflow, CI/CD setup, Claude Code ecosystem tools, and PR review processes (4 guides + 20 visual assets)
 - "Are there images/assets to reference?" → Yes, 20 images in `development/assets/` providing visual workflow guidance
 - "Is the team/ folder empty?" → Yes, it's currently a placeholder structure with `.gitkeep`, ready for team-specific content when needed

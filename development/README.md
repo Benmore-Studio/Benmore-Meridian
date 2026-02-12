@@ -38,9 +38,34 @@ Claude Code tools & ecosystem:
 - ✅ Skills (skills.sh, Superpowers skills, custom skills)
 - ✅ Subagents & Agent Teams
 
+**[04-lsp-configuration.md](./04-lsp-configuration.md)**
+
+Language Server Protocol setup for code intelligence:
+- ✅ LSP overview and benefits
+- ✅ Installing language servers (Python, TypeScript, Rust, Go, Ruby, more)
+- ✅ Global and per-project configuration
+- ✅ Server-specific settings and tuning
+- ✅ Integration with Claude Code tools
+- ✅ Troubleshooting and performance optimization
+
+**[05-sandboxing-setup.md](./05-sandboxing-setup.md)**
+
+Claude Code sandboxing & security:
+- ✅ Sandbox runtime installation and quick start
+- ✅ File and network isolation configuration
+- ✅ Permission management and access control
+- ✅ Security best practices and troubleshooting
+- ✅ Integration with MCP servers and skills
+
 ---
 
 ## 🎯 Workflow Phases
+
+### Phase 0: Developer Environment
+- Setup language servers (LSP) for your languages
+- Configure Claude Code ecosystem (MCP servers, plugins)
+- Enable sandboxing for improved security and fewer prompts
+- Install development toolkit
 
 ### Phase 1: Initial Setup
 - Install and configure Claude GitHub app
@@ -126,7 +151,9 @@ Visual guides for each phase:
 ---
 
 **New developer?** Start here:
-1. [Developer Workflow](./00-developer-workflow.md) — How we build features
-2. [CI/CD Bots](./02-ci-cd-bots-setup.md) — Set up your repo's automated checks
-3. [Claude Code Ecosystem](./03-claude-code-ecosystem.md) — Set up your AI tools
-4. [PR Review Workflow](./01-pr-review-workflow.md) — How to review PRs
+1. [LSP Configuration](./04-lsp-configuration.md) — Set up language servers for code intelligence
+2. [Sandboxing Setup](./05-sandboxing-setup.md) — Enable secure, isolated code execution
+3. [Claude Code Ecosystem](./03-claude-code-ecosystem.md) — Set up your AI tools (MCP, skills, subagents)
+4. [Developer Workflow](./00-developer-workflow.md) — How we build features end-to-end
+5. [CI/CD Bots](./02-ci-cd-bots-setup.md) — Set up your repo's automated checks
+6. [PR Review Workflow](./01-pr-review-workflow.md) — How to review PRs
