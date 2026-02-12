@@ -35,14 +35,21 @@ Guides for productionizing Django applications with modern tooling and best prac
 ---
 
 ### 2. **Deployment & Infrastructure** 🌐
-Platform-specific deployment guides and server operations.
+Platform-specific deployment guides organized by platform.
 
-- **Heroku Django** - Deploy Django to Heroku with uv
-- **DigitalOcean Operations** - Server management command reference
-- **Django CI/CD Setup** - Automated testing and deployment pipelines
-- **React Native Setup** - Mobile app development with Expo
+**Platforms:**
+- **Heroku** - Cloud platform deployment (1 guide)
+- **DigitalOcean** - Self-hosted server operations (6 guides)
+- **CI/CD** - Automated testing and deployment (1 guide)
+- **Mobile** - React Native development (1 guide)
 
-**Location:** `deployment/`
+**Location:** `deployment/` with subdirectories for each platform
+
+**Quick access:**
+- [Heroku Django](deployment/heroku/django-deployment.md)
+- [DigitalOcean Overview](deployment/digitalocean/01-overview.md)
+- [Django CI/CD](deployment/cicd/django-setup.md)
+- [React Native](deployment/mobile/react-native-setup.md)
 
 ---
 
@@ -128,11 +135,20 @@ guides/
 ├── README.md (this file)
 ├── CHANGELOG.md (version history)
 ├── deployment/                         ← NEW
-│   ├── README.md (deployment overview)
-│   ├── 01-heroku-django.md
-│   ├── 02-digitalocean-ops.md
-│   ├── 03-django-cicd-setup.md
-│   └── 04-react-native-setup.md
+│   ├── README.md (deployment overview & platform comparison)
+│   ├── heroku/
+│   │   └── django-deployment.md
+│   ├── digitalocean/
+│   │   ├── 01-overview.md
+│   │   ├── 02-getting-started.md
+│   │   ├── 03-deployment.md
+│   │   ├── 04-daily-operations.md
+│   │   ├── 05-commands-reference.md
+│   │   └── 06-troubleshooting.md
+│   ├── cicd/
+│   │   └── django-setup.md
+│   └── mobile/
+│       └── react-native-setup.md
 ├── development/
 │   ├── README.md (development guides index)
 │   ├── 00-developer-workflow.md
