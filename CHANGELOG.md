@@ -4,20 +4,63 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] - 2026-02-12
+## [Unreleased]
+
+### In Progress
+- Additional deployment platform guides (AWS, Vercel, Railway, Fly.io)
+- Video walkthroughs for complex setups
+- Interactive LSP configuration playground
+- Security best practices comprehensive guide
+
+---
+
+## [v0.3.0] - 2026-02-12
 
 ### Added
 
+#### Configuration Guides
 - **LSP Configuration Guide** (`development/04-lsp-configuration.md`) - Comprehensive Language Server Protocol setup for enhanced code intelligence
   - Multi-language support: Python (pylsp, pyright), TypeScript, Rust, Go, Ruby, C/C++
   - Real-time error checking and autocompletion
   - Integration with Claude Code, MCP servers, and skills
   - Troubleshooting guides and performance optimization
+  - Project-specific and global configuration examples
+  - Performance optimization for large codebases
 - **Sandboxing Setup Guide** (`development/05-sandboxing-setup.md`) - Open-source sandbox runtime configuration
   - File and network isolation for improved safety
-  - Reduced permission prompts during development
-  - Platform support (macOS, Linux; Windows coming soon)
+  - Reduced permission prompts during development (20-30 down to 2-5 per session)
+  - Platform support (macOS, Linux; Windows coming Q2 2026)
   - Based on Boris Cherny's announcement and official Anthropic sandbox runtime
+  - Integration with MCP servers and skills
+  - Security best practices and troubleshooting
+
+#### Deployment Guides (9 new guides across 4 platforms)
+- **Deployment Category** (`deployment/`) - New category for platform-specific deployment documentation
+  - **Heroku Platform** (`deployment/heroku/`)
+    - `django-deployment.md` - Deploy Django to Heroku using modern `uv` package manager
+      - Procfile, runtime.txt, environment variables configuration
+      - PostgreSQL and Redis add-ons
+      - Monorepo/subdirectory deployment with git subtree
+      - Continuous deployment workflows
+  - **DigitalOcean Platform** (`deployment/digitalocean/`) - 6 comprehensive guides
+    - `01-overview.md` - Quick reference with links and command lookup
+    - `02-getting-started.md` - First-time server connection and setup
+    - `03-deployment.md` - Deploy Django projects with deployment script
+    - `04-daily-operations.md` - Pull code, run migrations, restart services
+    - `05-commands-reference.md` - PM2, Django, Git, PostgreSQL command reference
+    - `06-troubleshooting.md` - Common issues, fixes, and diagnostic commands
+  - **CI/CD Automation** (`deployment/cicd/`)
+    - `django-setup.md` - Add production-ready CI/CD to Django projects
+      - GitHub Actions workflow configuration
+      - Automated testing, linting, security scanning
+      - Pre-commit hooks setup
+      - Makefile commands for local development
+  - **Mobile Development** (`deployment/mobile/`)
+    - `react-native-setup.md` - React Native project setup with Expo and TypeScript
+      - Development environment configuration
+      - Running on physical devices (iOS/Android)
+      - Simulators and emulators setup
+      - Claude Code skills for professional UI design
 - **Documentation**: Enhanced project documentation with comprehensive CLAUDE.md file providing Claude Code guidance
 - **README**: Improved README.md with better organization and navigation
 - **Skills Inventory**: Complete production skills inventory with categorization (Production, Security, DevTools, Utilities)
