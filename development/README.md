@@ -57,6 +57,17 @@ Claude Code sandboxing & security:
 - ✅ Security best practices and troubleshooting
 - ✅ Integration with MCP servers and skills
 
+**[06-pageindex-rag.md](./06-pageindex-rag.md)**
+
+PageIndex: Vectorless, reasoning-based RAG:
+- ✅ How PageIndex works (tree index + LLM reasoning)
+- ✅ Comparison with traditional vector RAG
+- ✅ When to use vs when NOT to use
+- ✅ Cost analysis and latency trade-offs
+- ✅ Hybrid architecture design (vector + PageIndex)
+- ✅ Getting started and configuration
+- ✅ Decision checklist for your project
+
 ---
 
 ## 🎯 Workflow Phases
