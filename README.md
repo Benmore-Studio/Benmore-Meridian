@@ -202,6 +202,7 @@ Track your onboarding progress:
 | [React Native Setup](deployment/mobile/react-native-setup.md) | 20-30 min | Mobile app development |
 | [CI/CD Bots Setup](development/02-ci-cd-bots-setup.md) | 30-45 min | Sentry, Vercel, Actions, Claude |
 | [Claude Code Ecosystem](development/03-claude-code-ecosystem.md) | 20 min read | MCP, plugins, skills, agents |
+| [PageIndex RAG](development/06-pageindex-rag.md) | 15 min read | Vectorless reasoning-based RAG evaluation |
 | [PR Review Workflow](development/01-pr-review-workflow.md) | 20 min read | Understanding our review process |
 | [Django Simple Checklist](django/01-simple-checklist.md) | 45-60 min | Quick Django production checklist |
 | [Django Detailed Checklist](django/02-detailed-checklist.md) | 45-60 min | Guided Django implementation |
