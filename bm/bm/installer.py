@@ -76,9 +76,8 @@ def discover_skills(skills_dir: Path) -> list[SkillEntry]:
                     validation = validate_skill(entry)
                     if not validation.valid:
                         _err.print(
-                            f"[red]Validation error:[/] {'; '.join(validation.errors)}"
+                            f"[yellow]Warning:[/] {'; '.join(validation.errors)}"
                         )
-                        continue
                     entries.append(entry)
         elif (child / "SKILL.md").exists():
             entry = SkillEntry(
@@ -91,9 +90,8 @@ def discover_skills(skills_dir: Path) -> list[SkillEntry]:
             validation = validate_skill(entry)
             if not validation.valid:
                 _err.print(
-                    f"[red]Validation error:[/] {'; '.join(validation.errors)}"
+                    f"[yellow]Warning:[/] {'; '.join(validation.errors)}"
                 )
-                continue
             entries.append(entry)
         # else: directory with no SKILL.md and no skill children (e.g. assets/) — skip
 
