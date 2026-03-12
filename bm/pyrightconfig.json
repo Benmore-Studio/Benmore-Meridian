@@ -1,0 +1,6 @@
+{
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "standard",
+  "include": ["bm"],
+  "exclude": ["tests", "**/__pycache__"]
+}
