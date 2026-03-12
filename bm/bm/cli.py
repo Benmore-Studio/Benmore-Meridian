@@ -14,14 +14,13 @@ from rich.panel import Panel
 from rich.table import Table
 
 from bm.config import (
-    AGENTS_SKILLS_DIR,
     CLAUDE_SKILLS_DIR,
-    PLUGINS_DIR,
     REGISTRY_FILE,
     SKILLS_DIR,
 )
 from bm.installer import discover_skills, install_skill
 from bm.models import (
+    InstallMethod,
     InstallResult,
     RegistryEntry,
     SkillEntry,
@@ -31,7 +30,7 @@ from bm.models import (
 )
 from bm.plugins import format_install_guide, get_plugin_status
 from bm.registry import Registry
-from bm.status import check_plugins, check_skill_status
+from bm.status import check_skill_status
 from bm.updater import git_pull, reinstall_all
 
 app = typer.Typer(name="bm", help="Benmore skill manager", add_completion=False)
@@ -97,7 +96,11 @@ def install(
                     source=skill.source,
                     scope=skill.scope,
                     project=skill.project,
-                    install_method="symlink" if result == InstallResult.SYMLINKED else "copy",
+                    install_method=(
+                        InstallMethod.SYMLINK
+                        if result == InstallResult.SYMLINKED
+                        else InstallMethod.COPY
+                    ),
                 )
             )
 
@@ -139,7 +142,7 @@ def status(
     for skill, st in statuses:
         table.add_row(skill.name, _STATUS_ICON[st], _scope_label(skill))
 
-    plugin_status = check_plugins(PLUGINS_DIR, AGENTS_SKILLS_DIR)
+    plugin_status = get_plugin_status()
     console.print(table)
     lines = [f"  {'✅' if ok else '⚠️ '} {name}" for name, ok in plugin_status.items()]
     console.print(Panel("\n".join(lines), title="Plugins", border_style="blue"))
@@ -158,6 +161,7 @@ def update(
         raise typer.Exit(1)
     console.print(f"[green]{output.strip()}[/]")
 
+    reg = Registry(REGISTRY_FILE)
     if name:
         skill = _find_skill(name)
         if not skill:
@@ -166,11 +170,27 @@ def update(
         result = install_skill(skill, CLAUDE_SKILLS_DIR, force_copy=rsync)
         icon = _RESULT_ICON[result]
         console.print(f"{icon} {name}: {result.value}")
+        if result != InstallResult.FAILED:
+            reg.add(RegistryEntry(
+                name=skill.name,
+                installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
+                source=skill.source,
+                scope=skill.scope,
+                project=skill.project,
+                install_method=(
+                    InstallMethod.SYMLINK
+                    if result == InstallResult.SYMLINKED
+                    else InstallMethod.COPY
+                ),
+            ))
+            reg.save()
     else:
         results = reinstall_all(force_copy=rsync)
         linked = sum(1 for r in results.values() if r == InstallResult.SYMLINKED)
         copied = sum(1 for r in results.values() if r == InstallResult.COPIED)
         console.print(f"✅ {linked} linked  ⚙️  {copied} copied")
+        # Sync registry to reflect updated install state
+        reg.sync(CLAUDE_SKILLS_DIR, SKILLS_DIR)
 
 
 @app.command()
@@ -206,7 +226,7 @@ def doctor() -> None:
             f"  [yellow]→ run [bold]bm install[/bold] to fix "
             f"{counts[SkillStatus.MISSING]} missing, {counts[SkillStatus.BROKEN]} broken[/]"
         )
-    plugin_status = check_plugins(PLUGINS_DIR, AGENTS_SKILLS_DIR)
+    plugin_status = get_plugin_status()
     for pname, ok in plugin_status.items():
         console.print(f"Plugin {'✅' if ok else '⚠️ '} {pname}")
     if not all(plugin_status.values()):
@@ -255,7 +275,7 @@ def skill_add(
             source=SkillSource.REPO,
             scope=scope,
             project=project,
-            install_method="none",
+            install_method=InstallMethod.NONE,
         )
     )
     reg.save()

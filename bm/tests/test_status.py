@@ -2,7 +2,8 @@ import shutil
 from pathlib import Path
 
 from bm.models import SkillEntry, SkillStatus
-from bm.status import check_plugins, check_skill_status
+from bm.plugins import get_plugin_status
+from bm.status import check_skill_status
 
 
 def _make_skill(tmp_path: Path, name: str = "vercel-cli") -> SkillEntry:
@@ -43,6 +44,14 @@ def test_status_broken_symlink(tmp_path: Path) -> None:
     assert check_skill_status(skill, claude) == SkillStatus.BROKEN
 
 
-def test_check_plugins_returns_dict(tmp_path: Path) -> None:
-    result = check_plugins(tmp_path / "plugins", tmp_path / ".agents" / "skills")
+def test_get_plugin_status_returns_dict(tmp_path: Path) -> None:
+    # Provide non-existent paths — both plugins will show as not installed
+    result = get_plugin_status(
+        markers={
+            "Superpowers": tmp_path / "plugins",
+            "Double Shot Latte": tmp_path / "agents",
+        }
+    )
     assert all(isinstance(v, bool) for v in result.values())
+    assert not result["Superpowers"]
+    assert not result["Double Shot Latte"]

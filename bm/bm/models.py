@@ -31,6 +31,15 @@ class InstallResult(StrEnum):
     SKIPPED = "skipped"
 
 
+class InstallMethod(StrEnum):
+    """How a skill was installed into ~/.claude/skills/."""
+
+    SYMLINK = "symlink"
+    COPY = "copy"
+    EXTERNAL = "external"
+    NONE = "none"
+
+
 class SkillStatus(StrEnum):
     """Current installation status of a skill."""
 
@@ -68,4 +77,17 @@ class RegistryEntry:
     scope: SkillScope
     project: str = ""
     version: str = "1.0.0"
-    install_method: str = "symlink"  # "symlink" | "copy" | "external" | "none"
+    install_method: InstallMethod = InstallMethod.SYMLINK
+
+    @classmethod
+    def from_dict(cls, d: dict[str, str]) -> RegistryEntry:
+        """Deserialize from a registry JSON entry."""
+        return cls(
+            name=d["name"],
+            installed_path=d["installed_path"],
+            source=SkillSource(d["source"]),
+            scope=SkillScope(d["scope"]),
+            project=d.get("project", ""),
+            version=d.get("version", "1.0.0"),
+            install_method=InstallMethod(d.get("install_method", "symlink")),
+        )

@@ -6,7 +6,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from bm.models import RegistryEntry, SkillScope, SkillSource
+from bm.models import InstallMethod, RegistryEntry, SkillScope, SkillSource
 
 
 class Registry:
@@ -19,15 +19,7 @@ class Registry:
     def _load(self) -> None:
         data = json.loads(self._file.read_text())
         for name, d in data.items():
-            self._entries[name] = RegistryEntry(
-                name=d["name"],
-                installed_path=d["installed_path"],
-                source=SkillSource(d["source"]),
-                scope=SkillScope(d["scope"]),
-                project=d.get("project", ""),
-                version=d.get("version", "1.0.0"),
-                install_method=d.get("install_method", "symlink"),
-            )
+            self._entries[name] = RegistryEntry.from_dict(d)
 
     def save(self) -> None:
         """Persist registry to disk. Call explicitly after batch operations."""
@@ -60,39 +52,42 @@ class Registry:
         Scan ~/.claude/skills/ and reconcile registry.
         Detects source: REPO (symlink into repo), MARKETPLACE (symlink into .agents),
         EXTERNAL (plain dir or symlink elsewhere).
+        Always updates install_method and source for existing entries.
         """
         if not claude_skills_dir.exists():
             return
 
         repo_root = repo_skills_dir.parent if repo_skills_dir else None
 
-        for entry in claude_skills_dir.iterdir():
-            if not entry.is_dir() and not entry.is_symlink():
+        for entry_path in claude_skills_dir.iterdir():
+            if not entry_path.is_dir() and not entry_path.is_symlink():
                 continue
 
-            name = entry.name
-            installed_path = str(entry)
+            name = entry_path.name
 
-            if entry.is_symlink():
-                target = entry.resolve()
+            if entry_path.is_symlink():
+                target = entry_path.resolve()
                 if repo_root and str(target).startswith(str(repo_root)):
                     source = SkillSource.REPO
                 elif ".agents" in str(target):
                     source = SkillSource.MARKETPLACE
                 else:
                     source = SkillSource.EXTERNAL
-                install_method = "symlink"
+                install_method = InstallMethod.SYMLINK
             else:
                 source = SkillSource.EXTERNAL
-                install_method = "copy"
+                install_method = InstallMethod.COPY
 
-            if name not in self._entries:
-                self._entries[name] = RegistryEntry(
-                    name=name,
-                    installed_path=installed_path,
-                    source=source,
-                    scope=SkillScope.GENERAL,
-                    install_method=install_method,
-                )
+            existing = self._entries.get(name)
+            self._entries[name] = RegistryEntry(
+                name=name,
+                installed_path=str(entry_path),
+                source=source,
+                # preserve user-set scope/project/version if already known
+                scope=existing.scope if existing else SkillScope.GENERAL,
+                project=existing.project if existing else "",
+                version=existing.version if existing else "1.0.0",
+                install_method=install_method,
+            )
 
         self.save()
