@@ -5,7 +5,14 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from bm.models import InstallResult, SkillEntry, SkillScope, SkillSource
+from rich.console import Console
+
+from bm.dryrun import DryRunContext
+from bm.models import InstallMethod, InstallResult, SkillEntry, SkillScope, SkillSource
+from bm.registry import Registry
+from bm.validator import validate_skill
+
+_err = Console(stderr=True)
 
 
 def _read_skill_description(skill_path: Path) -> str:
@@ -58,26 +65,36 @@ def discover_skills(skills_dir: Path) -> list[SkillEntry]:
             project_name = child.name
             for skill_dir in sorted(child.iterdir()):
                 if skill_dir.is_dir() and not skill_dir.name.startswith("."):
-                    entries.append(
-                        SkillEntry(
-                            name=skill_dir.name,
-                            path=skill_dir,
-                            scope=SkillScope.PROJECT,
-                            project=project_name,
-                            source=SkillSource.REPO,
-                            description=_read_skill_description(skill_dir),
-                        )
+                    entry = SkillEntry(
+                        name=skill_dir.name,
+                        path=skill_dir,
+                        scope=SkillScope.PROJECT,
+                        project=project_name,
+                        source=SkillSource.REPO,
+                        description=_read_skill_description(skill_dir),
                     )
+                    validation = validate_skill(entry)
+                    if not validation.valid:
+                        _err.print(
+                            f"[red]Validation error:[/] {'; '.join(validation.errors)}"
+                        )
+                        continue
+                    entries.append(entry)
         elif (child / "SKILL.md").exists():
-            entries.append(
-                SkillEntry(
-                    name=child.name,
-                    path=child,
-                    scope=SkillScope.GENERAL,
-                    source=SkillSource.REPO,
-                    description=_read_skill_description(child),
-                )
+            entry = SkillEntry(
+                name=child.name,
+                path=child,
+                scope=SkillScope.GENERAL,
+                source=SkillSource.REPO,
+                description=_read_skill_description(child),
             )
+            validation = validate_skill(entry)
+            if not validation.valid:
+                _err.print(
+                    f"[red]Validation error:[/] {'; '.join(validation.errors)}"
+                )
+                continue
+            entries.append(entry)
         # else: directory with no SKILL.md and no skill children (e.g. assets/) — skip
 
     return entries
@@ -87,12 +104,21 @@ def install_skill(
     skill: SkillEntry,
     claude_skills_dir: Path,
     force_copy: bool = False,
+    ctx: DryRunContext | None = None,
 ) -> InstallResult:
     """
     Install skill into claude_skills_dir. Idempotent.
     Tries symlink first; falls back to copytree on OSError.
+    When ctx.dry_run=True, records the planned op and returns the expected result
+    without writing anything.
     """
+    _ctx = ctx or DryRunContext()
     target = claude_skills_dir / skill.name
+
+    if _ctx.dry_run:
+        verb = "copy" if force_copy else "symlink"
+        _ctx.record(verb, str(target), str(skill.path.resolve()))
+        return InstallResult.COPIED if force_copy else InstallResult.SYMLINKED
 
     if target.is_symlink():
         target.unlink()
@@ -111,3 +137,41 @@ def install_skill(
         return InstallResult.COPIED
     except Exception:
         return InstallResult.FAILED
+
+
+def remove_skill(
+    name: str,
+    claude_skills_dir: Path,
+    reg: Registry,
+    ctx: DryRunContext | None = None,
+) -> None:
+    """
+    Remove an installed skill from ~/.claude/skills/ and the registry.
+
+    Raises ValueError if the skill is EXTERNAL (not managed by bm).
+    Missing symlink is a warning, not an error — registry is still cleaned up.
+    """
+    _ctx = ctx or DryRunContext()
+    entry = reg.get(name)
+
+    if entry and entry.install_method == InstallMethod.EXTERNAL:
+        raise ValueError(
+            f"Skill '{name}' is externally installed and not managed by bm. "
+            f"Remove it manually from {claude_skills_dir / name}"
+        )
+
+    target = claude_skills_dir / name
+    _ctx.record("remove", str(target))
+
+    if not _ctx.dry_run:
+        if target.is_symlink() or target.exists():
+            if target.is_symlink():
+                target.unlink()
+            else:
+                shutil.rmtree(target)
+        else:
+            _err.print(
+                f"[yellow]Warning:[/] {target} not found — removing registry entry only"
+            )
+
+    reg.remove(name, ctx=_ctx)
