@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian/skills/*.md)",
+      "Read(//Users/arkashjain/.agents/skills/vercel-cli/**)",
+      "Bash(for skill:*)",
+      "Bash(do echo:*)",
+      "Read(//Users/arkashjain/.claude/skills/**)",
+      "Bash(done)",
+      "Bash(cat /Users/arkashjain/.claude/plugins/installed_plugins.json | python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(k,':',v.get\\('version','?'\\)\\) for k,v in d.items\\(\\)]\" 2>/dev/null | head -20)",
+      "Bash(git -C /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian branch)",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian/bm && touch README.md && uv sync --all-extras 2>&1 | tail -5)",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian/bm && uv run pytest tests/test_installer.py -v 2>&1)",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian/bm && uv run pytest tests/ -v 2>&1)",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian/bm && uv run mypy bm/ 2>&1 | head -30)",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian/bm && uv run mypy bm/ 2>&1)",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian/bm && uv run pytest tests/ -v --tb=short 2>&1 | tail -20)",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian && pip install -e ./bm --quiet 2>&1 | tail -3 && bm --help)",
+      "Bash(bm status:*)",
+      "Bash(bm doctor:*)",
+      "Bash(bm install:*)",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian && gh pr create \\\\\n  --title \"feat: bm CLI + 29 new skills + skills/pcs/ + project skill lifecycle\" \\\\\n  --body \"$\\(cat <<'EOF'\n## Summary\n\n- **`bm` CLI** \\(`bm/`\\): Lightweight Python CLI installable via `pipx install ./bm`\n  - `bm install` — symlinks all 50 repo skills → `~/.claude/skills/`\n  - `bm skill add/list/generalize/info` — project-specific → general skill lifecycle\n  - `bm registry sync` — detects externally installed skills, maintains `~/.bm/registry.json`\n  - `bm plugins` — guides Superpowers + Double Shot Latte install\n  - `--json` output flag for Claude agent use\n  - `bm doctor` — full health check with rich tables\n- **29 new skills**: 16 marketplace + 6 locally-owned added to repo\n- **`skills/pcs/`**: 7 PCS microservice skills in dedicated subfolder\n- **27 tests**: models, installer, registry, status — all passing, mypy strict clean\n- **Global CLAUDE.md**: Updated with all new skills, bm CLI docs, deprecated aliases\n\n## Architecture\n\n```\nbm install\n  → discover_skills\\(skills/\\) — includes pcs/* flattened\n  → install_skill\\(\\) — symlink → OSError → copytree fallback\n  → Registry.add\\(\\) — writes ~/.bm/registry.json\n  → rich table output\n\nbm skill add x --project pcs → skills/pcs/x/SKILL.md\nbm skill generalize x → mv skills/pcs/x/ skills/x/ → re-symlink\nbm registry sync → scan ~/.claude/skills/ → detect source type\n```\n\n## Tech Stack\n- **Typer** + **Rich** — modern, typed CLI with beautiful output\n- **dataclasses + Enums** — typed models, zero extra deps\n- **uv + ruff + mypy** — fast builds, linting, strict types\n- **pytest-cov** — 27 tests, 80%+ coverage\n\n## Test plan\n\n- [ ] `cd bm && uv run pytest -v` — 27 tests pass\n- [ ] `uv run mypy bm/` — 0 errors\n- [ ] `pipx install ./bm && bm doctor` — green, 50/50 skills\n- [ ] `bm install && ls -la ~/.claude/skills/vercel-cli` — symlink into repo\n- [ ] `bm install && ls -la ~/.claude/skills/pcs-migration` — symlink into skills/pcs/\n- [ ] `bm skill add test-skill --project test-project` — creates `skills/test-project/test-skill/`\n- [ ] `bm skill generalize test-skill` — moves to `skills/test-skill/`\n- [ ] `bm registry sync && bm registry list --json` — valid JSON\n- [ ] `bm status --json` — valid JSON \\(Claude-friendly\\)\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\nEOF\n\\)\")",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian && gh release create v1.0.0 \\\\\n  --title \"v1.0.0 — bm CLI + 50 skills\" \\\\\n  --notes \"$\\(cat <<'EOF'\n## What's new in v1.0.0\n\n### bm — Benmore Skill Manager\n\nA lightweight Python CLI that makes setting up Claude Code skills trivial:\n\n\\\\`\\\\`\\\\`bash\ngit clone https://github.com/Benmore-Studio/Benmore-Meridian\ncd Benmore-Meridian\npipx install ./bm\nbm install   # 50+ skills symlinked and ready\nbm doctor    # verify everything\n\\\\`\\\\`\\\\`\n\n### 50+ Claude Code Skills\n\n29 new skills added in this release:\n\n**Marketplace** — `ai-seo`, `django-celery-expert`, `fastapi-templates`, `find-skills`, `mcp-builder`, `pdf`, `programmatic-seo`, `receiving-code-review`, `release-notes`, `remotion-best-practices`, `seo-audit`, `stripe-integration`, `vercel-cli`, `vercel-react-best-practices`, `web-design-guidelines`, `xlsx`\n\n**Locally-owned** — `audit-trail`, `gdpr-compliance`, `multi-tenant-guard`, `presentation-maker`, `productionize-app`, `tickets`\n\n**PCS microservices** \\(project-scoped\\) — `pcs-add-endpoint`, `pcs-add-kafka-event`, `pcs-integration-test`, `pcs-kong-route`, `pcs-migration`, `pcs-new-service`, `pcs-pr-review`\n\n### Claude-Native\n\nEvery command supports `--json` output so Claude agents can query skill status directly:\n\n\\\\`\\\\`\\\\`bash\nbm status --json        # {name, status, scope, project}\nbm registry list --json # full registry with source detection\nbm skill list --json    # skills with paths and descriptions\n\\\\`\\\\`\\\\`\n\nSee [AGENTS.md]\\(https://github.com/Benmore-Studio/Benmore-Meridian/blob/feat/skills-manager-cli/AGENTS.md\\) for the full integration guide.\n\n### Full Changelog\n\nSee [CHANGELOG.md]\\(https://github.com/Benmore-Studio/Benmore-Meridian/blob/feat/skills-manager-cli/CHANGELOG.md\\)\nEOF\n\\)\")",
+      "Bash(cd ~/Desktop/work/benmore/Benmore-Meridian/bm && uv run pytest -v --tb=short 2>&1 | tail -10 && uv run mypy bm/ 2>&1)",
+      "Bash(cd /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian/bm && uv run pytest -v --tb=short 2>&1)",
+      "Bash(uv run:*)",
+      "Bash(make check-all:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr:*)",
+      "Bash(git checkout:*)"
+    ]
+  }
+}
