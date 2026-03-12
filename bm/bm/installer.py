@@ -152,7 +152,7 @@ def remove_skill(
     _ctx = ctx or DryRunContext()
     entry = reg.get(name)
 
-    if entry and entry.install_method == InstallMethod.EXTERNAL:
+    if entry and entry.source == SkillSource.EXTERNAL:
         raise ValueError(
             f"Skill '{name}' is externally installed and not managed by bm. "
             f"Remove it manually from {claude_skills_dir / name}"

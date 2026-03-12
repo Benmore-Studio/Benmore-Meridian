@@ -93,7 +93,7 @@ class Registry:
                 install_method = InstallMethod.SYMLINK
             else:
                 source = SkillSource.EXTERNAL
-                install_method = InstallMethod.COPY
+                install_method = InstallMethod.EXTERNAL
 
             existing = self._entries.get(name)
             new_entry = RegistryEntry(
