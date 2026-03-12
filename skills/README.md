@@ -15,7 +15,28 @@ Skills trigger automatically based on your task descriptions—no commands to me
 
 ---
 
-## Installation
+## Quick Install (Recommended)
+
+```bash
+# 1. Install bm CLI (once, from repo root)
+pipx install ./bm
+
+# 2. Install all skills as symlinks
+bm install
+
+# 3. Check plugin requirements (Superpowers, Double Shot Latte)
+bm plugins
+
+# 4. Full health check
+bm doctor
+```
+
+Skills are symlinked from this repo into `~/.claude/skills/` — edits here instantly reflect in Claude Code.
+Use `bm install --rsync` to force file copies instead.
+
+---
+
+## Installation (Manual)
 
 ### Prerequisites
 

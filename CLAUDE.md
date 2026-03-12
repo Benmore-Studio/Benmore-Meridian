@@ -608,6 +608,116 @@ For detailed documentation on each skill's capabilities, implementation, and usa
 
 ---
 
+## bm CLI — Skill Manager
+
+`bm` is the Benmore skill manager. Install once, then use to manage all skills.
+
+```bash
+pip install -e ./bm   # one-time editable install
+bm install            # symlink all skills → ~/.claude/skills/
+bm doctor             # full health check
+bm status --json      # machine-readable skill status (for agents)
+```
+
+### ASCII Flow: bm install
+
+```
+bm install [--rsync]
+     │
+     ▼
+ensure ~/.claude/skills/ exists
+     │
+     ▼
+discover_skills(skills/)
+  ├── skills/vercel-cli/SKILL.md   → GENERAL skill
+  ├── skills/pdf/SKILL.md          → GENERAL skill
+  └── skills/pcs/                  → project container (no SKILL.md at root)
+       └── pcs-migration/SKILL.md  → PROJECT skill (project="pcs")
+     │
+     for each skill:
+     ▼
+target = ~/.claude/skills/<name>
+  remove existing (unlink or rmtree)
+     │
+  --rsync?  ──yes──▶  copytree → COPIED
+     │ no
+     ▼
+  symlink_to(skill.path)
+     ├── success → SYMLINKED
+     └── OSError → copytree fallback → COPIED
+     │
+  result != FAILED?
+     └── yes → append to registry batch
+     │
+     ▼
+reg.batch_add(entries)   ← single JSON write (not N writes)
+```
+
+### ASCII Flow: Project Skill Lifecycle
+
+```
+bm skill add pcs-migration --project pcs
+     │
+     ▼
+creates skills/pcs/pcs-migration/SKILL.md
+scope = PROJECT, project = "pcs"
+     │
+bm install
+     │
+     ▼
+~/.claude/skills/pcs-migration → symlink → skills/pcs/pcs-migration/
+     │
+     │   (skill proves useful everywhere)
+     │
+bm skill generalize pcs-migration
+     │
+     ▼
+mv skills/pcs/pcs-migration/ → skills/pcs-migration/
+re-symlink ~/.claude/skills/pcs-migration → skills/pcs-migration/
+update registry: scope=GENERAL, project=""
+     │
+     ▼
+✅ available to all projects
+```
+
+### ASCII Flow: Auto-discovery of Project Folders
+
+```
+skills/
+├── vercel-cli/
+│   └── SKILL.md      ← has SKILL.md → GENERAL skill
+├── pcs/
+│   ├── (no SKILL.md) ← no SKILL.md → project container
+│   └── pcs-migration/
+│       └── SKILL.md  ← PROJECT skill, project="pcs"
+└── myteam/           ← any new folder without SKILL.md
+    └── myteam-deploy/  is auto-detected as project container
+        └── SKILL.md
+```
+
+### Proactive Hints for Claude
+
+When working on this repo, Claude should suggest `bm` commands in these situations:
+
+| Situation | Suggest |
+|-----------|---------|
+| Just implemented authentication | `bm skill add auth-pattern --project <project>` |
+| Finished a reusable pattern | `bm skill generalize <name>` |
+| Added new skill files | `bm install` to activate symlinks |
+| After `git pull` | `bm update` to pull + reinstall |
+| Skills seem outdated | `bm doctor` to diagnose |
+| New team member onboarding | `bm install && bm plugins` |
+
+### JSON Output for Agents
+
+```bash
+bm status --json         # → [{name, status, scope, project}, ...]
+bm registry list --json  # → [{name, source, scope, install_method, ...}, ...]
+bm skill list --json     # → [{name, scope, project, path}, ...]
+```
+
+---
+
 ## For Future Claude Code Instances
 
 **Getting oriented:**
