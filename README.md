@@ -1,349 +1,307 @@
-# Dev Onboarding Guides
+# bm
 
-A comprehensive collection of guides to help developers onboard and follow best practices.
+**An extremely fast Claude Code skill manager.**
 
----
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-38%2B%20passing-brightgreen.svg)](#contributing)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
 
-## 🆕 Latest Updates (February 12, 2026)
-
-**New Configuration Guides:**
-- **[LSP Configuration](development/04-lsp-configuration.md)** - Language Server Protocol setup for enhanced code intelligence across Python, TypeScript, Rust, Go, Ruby, and more
-- **[Sandboxing Setup](development/05-sandboxing-setup.md)** - Open-source sandbox runtime for improved safety and reduced permission prompts
-
-**Recent Additions:**
-- CI/CD bots setup guide (Sentry, Vercel, GitHub Actions, Claude)
-- Claude Code ecosystem guide (MCP servers, plugins, skills, agents)
-- 30+ page developer onboarding presentation
-- GitHub Dependabot compliance guide for Vanta
-- HTML presentations for all major guides
-
-See [CHANGELOG.md](CHANGELOG.md) for complete version history.
+Install 50+ Claude Code skills in one command. Edit once, reflect everywhere via symlinks.
 
 ---
 
-## 📚 Guide Categories
+## Table of Contents
 
-### 1. **Django Production** 🚀
-Guides for productionizing Django applications with modern tooling and best practices.
-
-- **Simple Checklist** (95 items) - Pure checkbox format for quick reference
-- **Detailed Checklist** (45-60 min) - Step-by-step implementation with context
-- **Comprehensive Guide** (Reference) - Deep dive with complete explanations
-
-**Location:** `django/README.md`
-
----
-
-### 2. **Deployment & Infrastructure** 🌐
-Platform-specific deployment guides organized by platform.
-
-**Platforms:**
-- **Heroku** - Cloud platform deployment (1 guide)
-- **DigitalOcean** - Self-hosted server operations (6 guides)
-- **CI/CD** - Automated testing and deployment (1 guide)
-- **Mobile** - React Native development (1 guide)
-
-**Location:** `deployment/` with subdirectories for each platform
-
-**Quick access:**
-- [Heroku Django](deployment/heroku/django-deployment.md)
-- [DigitalOcean Overview](deployment/digitalocean/01-overview.md)
-- [Django CI/CD](deployment/cicd/django-setup.md)
-- [React Native](deployment/mobile/react-native-setup.md)
+- [Highlights](#highlights)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Commands](#commands)
+- [Skills](#skills)
+- [Plugin Ecosystem](#plugin-ecosystem)
+- [Developer Tools](#developer-tools)
+- [Technology Stack](#technology-stack)
+- [Repository Structure](#repository-structure)
+- [Guides](#guides)
+- [Contributing](#contributing)
 
 ---
 
-### 3. **Development Workflow & CI/CD** 🔧
-Guides for the full development lifecycle — from meeting notes to automated checks.
+## Highlights
 
-- Developer workflow: transcripts → requirements → plans → execution
-- **CI/CD Bots**: Sentry, Vercel, GitHub Actions, Claude Bot setup
-- **Claude Code Ecosystem**: MCP tools, plugins, skills, subagents
-- PR review workflow with AI
-
-**Location:** `development/`
-
----
-
-### 4. **PR Review & Project Management** 🔍
-Workflow for setting up GitHub, managing projects, and performing AI-assisted PR reviews.
-
-- Setup GitHub and Sentry integration
-- Organize projects with GitHub Projects
-- Use Claude for hyper-critical PR reviews
-- Track tickets and link them to PRs
-
-**Location:** `review/01-pr-review-workflow.md`
+- ⚡ **One command install** — `bm install` symlinks all 50+ skills into Claude Code instantly.
+- ✅ **Symlink-first** — skills live in the repo; edit once and changes reflect everywhere with no reinstall.
+- 🎯 **Project skill lifecycle** — create scoped skills with `bm skill add x --project p`, promote to general when proven.
+- 🔧 **Registry tracking** — every installed skill is recorded in `~/.bm/registry.json`, however it was installed.
+- **Claude-native JSON output** — every command supports `--json` so agents can query `bm status --json` directly.
+- **Plugin guidance** — `bm plugins` detects [Superpowers](#plugin-ecosystem) and [Double Shot Latte](#plugin-ecosystem) and walks you through any missing installs.
+- **Zero config** — path constants computed from repo root at import time; works from any directory.
 
 ---
 
-### 5. **Dev Toolkit & Setup** 🛠️
-Comprehensive checklist for installing and setting up your development environment.
+## Installation
 
-- Core development tools (terminal, package managers, search)
-- System utilities (window management, productivity)
-- Version control & deployment platforms
-- External services & APIs
-- Installation verification & setup script
+**Requirements:** Python 3.11+, [Claude Code](https://claude.ai/code)
 
-**Location:** `toolkit/01-toolkit-checklist.md`
-
----
-
-### 6. **Team Guides** 👥
-Team-specific onboarding and process documentation (currently a placeholder, ready for team content).
-
-**Location:** `team/` (create `team/team_name/` directories for your team)
-
----
-
-### 7. **Claude Code Skills** 🤖
-Production-grade skills that extend Claude Code's capabilities with domain expertise.
-
-**Skills included:**
-- django-production - Django production best practices
-- frontend-productionize - Next.js + Django integration
-- dependency-security-audit - Security scanning and CVE fixes
-- django-auth-react-native - Mobile app authentication
-- modern-terminal-setup - Developer environment setup
-- skill-creator - Create your own skills
-
-**Installation:** `cp -r skills/* ~/.claude/skills/`
-
-**Location:** `skills/README.md`
-
----
-
-## 🎯 Quick Start
-
-**New to the project?**
-1. Start with the [Dev Toolkit](toolkit/) - get your environment set up
-2. Read [PR Review Workflow](review/) - understand our review process
-3. Check [Django Production](django/) - if working on Django projects
-
-**Implementing Django production setup?**
-- Start with [Detailed Checklist](django/02-detailed-checklist.md) for hands-on implementation
-- Reference [Comprehensive Guide](django/03-comprehensive-guide.md) for details
-- Use [Simple Checklist](django/01-simple-checklist.md) for quick reference
-
----
-
-## 📊 File Structure
-
+```bash
+git clone https://github.com/Benmore-Studio/Benmore-Meridian
+cd Benmore-Meridian
+pip install -e ./bm
 ```
-guides/
-├── README.md (this file)
-├── CHANGELOG.md (version history)
-├── deployment/                         ← NEW
-│   ├── README.md (deployment overview & platform comparison)
-│   ├── heroku/
-│   │   └── django-deployment.md
-│   ├── digitalocean/
-│   │   ├── 01-overview.md
-│   │   ├── 02-getting-started.md
-│   │   ├── 03-deployment.md
-│   │   ├── 04-daily-operations.md
-│   │   ├── 05-commands-reference.md
-│   │   └── 06-troubleshooting.md
-│   ├── cicd/
-│   │   └── django-setup.md
-│   └── mobile/
-│       └── react-native-setup.md
-├── development/
-│   ├── README.md (development guides index)
-│   ├── 00-developer-workflow.md
-│   ├── 01-pr-review-workflow.md
-│   ├── 02-ci-cd-bots-setup.md
-│   ├── 03-claude-code-ecosystem.md
-│   ├── 04-lsp-configuration.md
-│   ├── 05-sandboxing-setup.md
-│   └── assets/
-├── django/
-│   ├── README.md (django guides index)
-│   ├── 01-simple-checklist.md
-│   ├── 02-detailed-checklist.md
-│   └── 03-comprehensive-guide.md
-├── review/
-│   └── 01-pr-review-workflow.md
-├── toolkit/
-│   ├── README.md (toolkit overview)
-│   └── 01-toolkit-checklist.md
-└── team/
-    └── .gitkeep (placeholder for team-specific guides)
+
+`pip install -e ./bm` keeps `bm` linked to the repo so it always finds the `skills/` directory. Running `git pull` immediately updates all skill content through symlinks — no reinstall needed.
+
+---
+
+## Quick Start
+
+```bash
+# Symlink all 50+ skills into Claude Code
+bm install
+
+# Verify skill status
+bm status
+
+# Check plugin requirements (Superpowers, Double Shot Latte)
+bm plugins
+
+# Full health check
+bm doctor
+```
+
+Open Claude Code in any project — all skills are live.
+
+**Update to latest:**
+
+```bash
+git pull
+bm update    # git pull + reinstalls all skills
 ```
 
 ---
 
-## ✅ Onboarding Checklist
+## Commands
 
-Track your onboarding progress:
+### Core
 
-- [ ] **Environment Setup** - Complete the [Dev Toolkit](toolkit/01-toolkit-checklist.md)
-- [ ] **Development Workflow** - Read [Developer Workflow](development/00-developer-workflow.md)
-- [ ] **PR Review Process** - Understand [PR Review Workflow](review/01-pr-review-workflow.md)
-- [ ] **Django Setup** (if applicable) - Follow [Django Production](django/) guides
+| Command | Description |
+|---------|-------------|
+| **`bm install [--rsync] [--dry-run]`** | Symlink all skills → `~/.claude/skills/` (idempotent) |
+| **`bm status [--json]`** | Show skill status as rich table or JSON |
+| **`bm update [name] [--rsync] [--dry-run]`** | `git pull` + reinstall one or all skills |
+| **`bm plugins`** | Detect and guide Superpowers / Double Shot Latte install |
+| **`bm doctor`** | Full health check: skills + plugins + registry |
 
----
+### Skills
 
-## 🔗 Quick Links
+| Command | Description |
+|---------|-------------|
+| **`bm skill add <name>`** | Scaffold a new general skill |
+| **`bm skill add <name> --project <p>`** | Scaffold a project-scoped skill |
+| **`bm skill list [--project <p>] [--json]`** | List skills, optionally filtered by project |
+| **`bm skill generalize <name>`** | Promote a project skill to general |
+| **`bm skill info <name>`** | Show path, scope, status, and source |
+| **`bm skill remove <name> [--dry-run]`** | Uninstall a skill from `~/.claude/skills/` and registry ✨ v1.1 |
+| **`bm skill write <name>`** | Interactively generate a new SKILL.md with guided prompts ✨ v1.1 |
 
-| Guide | Duration | Best For |
-|-------|----------|----------|
-| [LSP Configuration](development/04-lsp-configuration.md) | 15-20 min | Setting up code intelligence & language servers |
-| [Sandboxing Setup](development/05-sandboxing-setup.md) | 10-15 min | Enabling secure, isolated code execution |
-| [Dev Toolkit](toolkit/01-toolkit-checklist.md) | 30-60 min | Setting up your dev environment |
-| [Developer Workflow](development/00-developer-workflow.md) | 15 min read | End-to-end feature workflow |
-| [Heroku Django Deployment](deployment/heroku/django-deployment.md) | 15-20 min | Deploying Django to Heroku |
-| [DigitalOcean Overview](deployment/digitalocean/01-overview.md) | 5 min (ref) | DO quick reference & navigation |
-| [DigitalOcean Getting Started](deployment/digitalocean/02-getting-started.md) | 10 min | First-time DO server setup |
-| [DigitalOcean Deployment](deployment/digitalocean/03-deployment.md) | 15-20 min | Deploy Django to DO |
-| [DigitalOcean Daily Ops](deployment/digitalocean/04-daily-operations.md) | 5 min (ref) | Pull code, run migrations |
-| [Django CI/CD Setup](deployment/cicd/django-setup.md) | 10-15 min | Adding automated CI/CD |
-| [React Native Setup](deployment/mobile/react-native-setup.md) | 20-30 min | Mobile app development |
-| [CI/CD Bots Setup](development/02-ci-cd-bots-setup.md) | 30-45 min | Sentry, Vercel, Actions, Claude |
-| [Claude Code Ecosystem](development/03-claude-code-ecosystem.md) | 20 min read | MCP, plugins, skills, agents |
-| [PageIndex RAG](development/06-pageindex-rag.md) | 15 min read | Vectorless reasoning-based RAG evaluation |
-| [PR Review Workflow](development/01-pr-review-workflow.md) | 20 min read | Understanding our review process |
-| [Django Simple Checklist](django/01-simple-checklist.md) | 45-60 min | Quick Django production checklist |
-| [Django Detailed Checklist](django/02-detailed-checklist.md) | 45-60 min | Guided Django implementation |
-| [Django Comprehensive Guide](django/03-comprehensive-guide.md) | Reference | Complete Django reference |
+### Registry
 
----
+| Command | Description |
+|---------|-------------|
+| **`bm registry sync [--dry-run]`** | Scan `~/.claude/skills/` and reconcile registry |
+| **`bm registry list [--json]`** | List all registered skills |
 
-## 🏗️ Repository Architecture
+### Tools
 
-### Six-Category Organization
+| Command | Description |
+|---------|-------------|
+| **`bm tools list`** | Show available developer CLI tools with install status ✨ v1.1 |
+| **`bm tools install [name...]`** | Install tools via Homebrew (macOS) or apt (Linux) ✨ v1.1 |
 
-This repository organizes guides across six complementary categories:
-
-- **django/** - Productionizing Django applications (3 guides at different detail levels)
-- **deployment/** - Platform deployment and infrastructure (4 guides for Heroku, DO, CI/CD, mobile)
-- **development/** - Full development lifecycle and CI/CD (6 guides covering workflow, PRs, automation, ecosystem, LSP, sandboxing)
-- **review/** - Code review processes (1 focused guide, also integrated into development workflow)
-- **toolkit/** - Developer environment setup (1 comprehensive checklist)
-- **team/** - Team-specific customization (expandable structure, currently placeholder)
-
-**Why multiple categories?**
-- Developers find what they need without searching through monolithic documentation
-- Multiple perspectives on related topics (e.g., PR review in both `development/` and `review/`, deployment in both `deployment/` and `development/`)
-- Easy expansion as new team needs arise without restructuring
-- Clear separation of concerns while allowing cross-references between related guides
-
-### Key Design Decisions
-
-**Three Django Guides Instead of One**
-Different audiences need different levels of detail:
-- **Simple checklist** for experienced developers who want minimal context
-- **Detailed checklist** for step-by-step implementation with tracking
-- **Comprehensive guide** for deep understanding and team training
-
-**Documentation Repository**
-This repository contains guides and documentation only — no Python, JavaScript, or executable code. Implementation happens in separate project repositories.
+All commands support `--help` for detailed usage.
 
 ---
 
-## 🛠️ Tools & Technologies Referenced
+## Skills
 
-**Development Tools:**
-- `uv` - Ultra-fast Python package manager
-- `ruff` - All-in-one Python linting + formatting
-- `pytest` - Python testing framework
-- `mypy` - Python type checking
-- `gitleaks` - Secret scanning for git repos
-- `pre-commit` - Git hooks framework
+Skills are markdown files (`SKILL.md`) that give Claude Code domain expertise and step-by-step workflows for specialized tasks. They live in `skills/` and are symlinked to `~/.claude/skills/` where Claude Code picks them up automatically.
 
-**Deployment & Monitoring:**
-- GitHub Actions - CI/CD platform
-- Docker - Containerization
-- Sentry - Error tracking and monitoring
-- Vercel - Frontend deployment platform
+### Available Skills
 
-**Frameworks:**
-- Django - Python web framework
-- Django REST Framework (DRF) - API framework
-- drf-spectacular - OpenAPI documentation
-- Next.js - React framework
+| Category | Skills |
+|----------|--------|
+| 🚀 Production | `django-production`, `frontend-productionize`, `productionize-app`, `fastapi-templates`, `vercel-cli` |
+| 🔒 Security | `dependency-security-audit`, `audit-trail`, `gdpr-compliance`, `multi-tenant-guard` |
+| 🌐 SEO | `ai-seo`, `seo-audit`, `programmatic-seo` |
+| 📄 Documents | `pdf`, `xlsx`, `presentation-maker`, `release-notes` |
+| 🔧 Dev Tools | `mcp-builder`, `modern-terminal-setup`, `skill-creator`, `find-skills` |
+| 💳 Payments | `stripe-integration` |
+| 🏗️ PCS (scoped) | `pcs-migration`, `pcs-new-service`, `pcs-add-endpoint`, + 4 more |
 
-**AI & Automation:**
-- Claude Code - AI-powered development tool
-- MCP Servers - Context7 (docs), Hyperbrowser (web automation), Agent Browser
-- Claude Code Skills - Domain-specific automated workflows
+Full inventory: [`skills/SKILLS_INVENTORY.md`](skills/SKILLS_INVENTORY.md)
 
----
+### Creating a Skill
 
-## 🤖 Claude Code Integration
+```bash
+# 1. Scaffold a new skill
+bm skill add my-skill
 
-This repository works seamlessly with Claude Code via:
+# 2. Edit the generated SKILL.md
+$EDITOR skills/my-skill/SKILL.md
 
-### Skills System (Automated Workflows)
-Pre-built skills that automate complex tasks:
-- **django-production** - Production-ready Django setup auditing
-- **frontend-productionize** - Next.js + Django integration with type-safe APIs
-- **dependency-security-audit** - Security scanning and CVE fixes
-- **django-auth-react-native** - Complete auth system for mobile apps
-- **modern-terminal-setup** - Developer environment automation
-- **skill-creator** - Create your own specialized skills
+# 3. Activate via symlink
+bm install
 
-**Installation:** `cp -r skills/* ~/.claude/skills/`
+# 4. Invoke it in Claude Code
+# "Run my-skill on this project"
+```
 
-### MCP Servers (AI-Enhanced Tools)
-- **Context7** - Get up-to-date docs for any library (Context7-compatible library lookup)
-- **Hyperbrowser** - Cloud-hosted browser automation for web testing
-- **Agent Browser** - Local browser automation for headless testing
+### Project Skill Lifecycle
 
-### Subagents & Teams
-- **Subagents** - Parallel agents for focused tasks (search, analysis, implementation)
-- **Agent Teams** - Coordinated teams of agents with shared task lists and inter-agent messaging
-- **Parallel Execution** - Up to 50 subagents working simultaneously on independent work
+Skills start project-scoped and graduate to general when proven:
 
-See `development/03-claude-code-ecosystem.md` for detailed setup and usage.
+```bash
+# Create scoped to a project
+bm skill add deploy-hook --project my-project
 
----
+# Edit and test in Claude Code
+$EDITOR skills/my-project/deploy-hook/SKILL.md
+bm install
 
-## 📋 Development Guidelines
+# Promote when it proves universally useful
+bm skill generalize deploy-hook
+# → moves skills/my-project/deploy-hook/ → skills/deploy-hook/
+# → updates symlink and registry
+```
 
-### Before Adding or Modifying Guides
+### Claude-Native JSON Output
 
-1. **Maintain existing structure** - Keep folder organization and naming consistent
-2. **Update category READMEs** - If adding new guides, update the relevant `README.md`
-3. **Update main README.md** - Reflect any new guides or structural changes
-4. **Use relative paths** - All markdown links should use relative paths for portability
-5. **Test links and images** - Verify all links work from different locations
-
-### Style & Format
-
-**Markdown conventions:**
-- Clear hierarchy with `#`, `##`, `###` headings
-- Emoji for visual organization (📚 🚀 ☑️ ✅ 📖, etc.)
-- Tables for comparisons
-- Code blocks for commands and examples
-- Checkboxes (`[ ]`) for tracking in checklists
-
-**Content principles:**
-- Checklists should be actionable with minimal explanation
-- Include verification steps after major sections
-- Provide troubleshooting guidance when applicable
-- Copy-paste commands should be clearly formatted
-- Link to external documentation when relevant
+```bash
+# Claude agents can query bm directly
+bm status --json          # [{name, status, scope, project}, ...]
+bm registry list --json   # [{name, source, scope, install_method, ...}, ...]
+bm skill list --json      # [{name, scope, project, path}, ...]
+```
 
 ---
 
-## 🎓 For Future Developers
+## Plugin Ecosystem
 
-**Getting oriented:**
-1. Start with this README to understand the repository purpose
-2. Explore the relevant category (`django/`, `development/`, `review/`, `toolkit/`, or `team/`)
-3. Check the category `README.md` to understand guide scope
-4. Read the specific guide file(s) as needed
+`bm` integrates with two Claude Code plugin marketplaces. Run **`bm plugins`** to check your install status and get setup instructions.
 
-**Common questions:**
-- **Where do I add a new guide?** → Create it in the appropriate category folder and update that category's `README.md`
-- **What's in the development/ folder?** → Complete end-to-end development workflow, CI/CD setup, Claude Code ecosystem tools (4 guides + 20 visual assets)
-- **Are there images/assets?** → Yes, 20 images in `development/assets/` for visual workflow guidance
-- **Why two PR review guides?** → `review/01-pr-review-workflow.md` and `development/01-pr-review-workflow.md` provide same content in different contexts
-- **How do I link between guides?** → Use relative paths: `[Link Text](../other-category/guide.md)`
-- **Is the team/ folder empty?** → Yes, it's a placeholder with `.gitkeep`, ready for team-specific content
+### [Superpowers](https://superpowers.club)
+
+Advanced skills for systematic debugging, test-driven development, parallel subagent execution, git worktrees, and more. Installs into `~/.claude/skills/superpowers/`.
+
+### [Double Shot Latte](https://github.com/doubleshottlatte)
+
+Compound engineering workflows: browser automation, frontend design, brainstorming, PR review, and agent-native architecture patterns.
+
+```bash
+# Check which plugins are installed
+bm plugins
+
+# Doctor will also surface missing plugins
+bm doctor
+```
 
 ---
 
-**Happy onboarding! 🎉**
+## Developer Tools
+
+`bm` can install a curated set of modern CLI tools via Homebrew (macOS) or apt (Linux):
+
+```bash
+bm tools list                          # see available tools + install status
+bm tools install ripgrep fzf lazygit   # install specific tools
+bm tools install                       # install everything
+```
+
+| Tool | Purpose | Install |
+|------|---------|---------|
+| [ripgrep](https://github.com/BurntSushi/ripgrep) | Extremely fast `grep` replacement (`rg`) | `brew install ripgrep` |
+| [fzf](https://github.com/junegunn/fzf) | Fuzzy finder for shell history, files, git | `brew install fzf` |
+| [lazygit](https://github.com/jesseduffield/lazygit) | Terminal UI for git branches and diffs | `brew install lazygit` |
+| [bat](https://github.com/sharkdp/bat) | `cat` with syntax highlighting and git markers | `brew install bat` |
+| [eza](https://github.com/eza-community/eza) | Modern `ls` with icons and git status | `brew install eza` |
+| [zoxide](https://github.com/ajeetdsouza/zoxide) | Smarter `cd` — jump to frecent directories | `brew install zoxide` |
+| [delta](https://github.com/dandavison/delta) | Syntax-highlighted git diff viewer | `brew install git-delta` |
+| [gh](https://cli.github.com/) | GitHub CLI — PRs, issues, releases | `brew install gh` |
+
+---
+
+## Technology Stack
+
+| Tool | Purpose |
+|------|---------|
+| [Claude Code](https://claude.ai/code) | AI coding assistant — skill runtime |
+| [uv](https://github.com/astral-sh/uv) | Python package manager |
+| [Ruff](https://github.com/astral-sh/ruff) | Python linter and formatter |
+| [Typer](https://github.com/tiangolo/typer) | CLI framework built on Click + type annotations |
+| [Rich](https://github.com/Textualize/rich) | Terminal UI — tables, panels, progress bars |
+| [mypy](https://mypy-lang.org/) | Static type checker (strict mode, 0 errors) |
+| [pytest](https://pytest.org/) | Test framework |
+| [ripgrep](https://github.com/BurntSushi/ripgrep) | Fast code search referenced in dev skills |
+| [fzf](https://github.com/junegunn/fzf) | Fuzzy finder referenced in terminal skills |
+| [lazygit](https://github.com/jesseduffield/lazygit) | Git TUI referenced in dev tooling skills |
+
+---
+
+## Repository Structure
+
+```
+Benmore-Meridian/
+├── bm/                    # The bm CLI tool
+│   ├── bm/                # Python package
+│   │   ├── cli.py         # All commands (Typer)
+│   │   ├── installer.py   # Symlink-first install + SKILL.md validation
+│   │   ├── registry.py    # ~/.bm/registry.json persistence
+│   │   ├── dryrun.py      # DryRunContext — safe preview of any write ✨ v1.1
+│   │   ├── validator.py   # SKILL.md frontmatter validation ✨ v1.1
+│   │   ├── tools.py       # Developer tool definitions ✨ v1.1
+│   │   ├── status.py      # Installed/missing/broken detection
+│   │   ├── plugins.py     # Superpowers + Double Shot Latte detection
+│   │   ├── updater.py     # git pull + reinstall orchestration
+│   │   ├── config.py      # Path constants + REPO_ROOT discovery
+│   │   └── models.py      # All dataclasses and enums
+│   ├── tests/             # 38+ tests, mypy strict, ruff clean
+│   └── README.md          # Full bm command reference + architecture
+├── skills/                # 50+ Claude Code skills (symlinked to ~/.claude/skills/)
+├── guides/                # Developer onboarding documentation
+│   ├── django/            # Production readiness (3 complementary guides)
+│   ├── deployment/        # Heroku, DigitalOcean, CI/CD, React Native
+│   ├── development/       # Dev workflow, Claude Code ecosystem
+│   ├── review/            # PR review with AI
+│   └── toolkit/           # Environment setup
+└── docs/                  # Design specs + implementation plans
+```
+
+## Guides
+
+| Guide | Description |
+|-------|-------------|
+| [Django Production](guides/django/) | Simple → detailed → comprehensive productionization |
+| [Deployment](guides/deployment/) | Heroku, DigitalOcean (6 ops guides), CI/CD, React Native |
+| [Development Workflow](guides/development/) | Meeting notes → production, Claude Code ecosystem |
+| [PR Review](guides/review/) | AI-assisted review + GitHub Projects setup |
+| [Developer Toolkit](guides/toolkit/) | Environment setup checklist (ripgrep, gh, uv, etc.) |
+
+## Contributing
+
+Guides for deployment, Django, CI/CD, and team workflows live in [`guides/`](guides/). See [`guides/README.md`](guides/README.md) for the full index.
+
+```bash
+# Run the full check suite before submitting
+cd bm
+uv sync --all-extras
+make check-all    # ruff + mypy + pytest in < 30s
+```
+
+Pull requests welcome. When adding a new skill, follow the project skill lifecycle above — start scoped, generalize when proven.
+
+---
+
+> Part of [Benmore-Meridian](https://github.com/Benmore-Studio/Benmore-Meridian) — the Claude Code skills repo for [Benmore Studio](https://benmore.studio).
