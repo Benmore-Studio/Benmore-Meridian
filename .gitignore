@@ -35,5 +35,9 @@ logs/
 # OS-specific
 Thumbs.db
 
+# Claude Code worktrees (temporary agent workspaces — never commit)
+.claude/worktrees/
+.claude/settings.local.json
+
 # Do NOT ignore markdown files and images
 # All .md, .markdown, .png, .jpg, .jpeg, .gif, .svg, .webp files are tracked
