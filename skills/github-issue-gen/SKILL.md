@@ -12,6 +12,119 @@ Generate comprehensive, enterprise-grade GitHub issues organized into Epics with
 
 ---
 
+## Phase 0.5: Stack Detection & Library Preferences
+
+### MANDATORY: Before generating ANY issues, detect stack and confirm preferences.
+
+**Step 1 — Auto-detect from project files:**
+
+| Signal | Files to check |
+|--------|---------------|
+| Backend framework | `requirements.txt`, `pyproject.toml`, `package.json`, `go.mod` |
+| Frontend framework | `package.json` → next, react, vue, expo |
+| State management | `package.json` → zustand, redux, jotai |
+| Data fetching | `package.json` → @tanstack/react-query, swr, axios |
+| Routing (RN) | `package.json` → expo-router, @react-navigation |
+| Validation | `package.json` → zod, yup, class-validator |
+| Testing | `pyproject.toml` → pytest, `package.json` → jest, vitest |
+| ORM | `pyproject.toml` → django, sqlalchemy, `prisma/schema.prisma` |
+
+**Step 2 — Confirm via AskUserQuestion (load with `ToolSearch` → `select:AskUserQuestion`):**
+
+```js
+AskUserQuestion({
+  questions: [
+    {
+      question: "Detected stack — does this look right?",
+      header: "Stack Confirm",
+      multiSelect: false,
+      options: [
+        { label: "Yes — use detected stack", description: "Proceed with auto-detected packages and patterns" },
+        { label: "No — let me specify", description: "I'll tell you which framework / packages to use" }
+      ]
+    },
+    {
+      question: "Which data fetching pattern should code templates use?",
+      header: "Data Fetching",
+      multiSelect: false,
+      options: [
+        { label: "TanStack Query (Recommended)", description: "useQuery / useMutation — no raw useEffect for async state" },
+        { label: "SWR", description: "useSWR for data fetching" },
+        { label: "useEffect + fetch/axios", description: "Classic pattern — include in templates" }
+      ]
+    },
+    {
+      question: "React Native routing approach?",
+      header: "RN Routing",
+      multiSelect: false,
+      options: [
+        { label: "Expo Router (Recommended)", description: "File-based routing — generate with app/ directory structure" },
+        { label: "React Navigation", description: "Stack/Tab navigators — generate with traditional nav patterns" },
+        { label: "Not a React Native project", description: "Skip mobile routing templates" }
+      ]
+    },
+    {
+      question: "Schema validation library for generated code?",
+      header: "Validation",
+      multiSelect: false,
+      options: [
+        { label: "Zod (Recommended)", description: "Runtime schema validation — z.object(), z.string() etc." },
+        { label: "Yup", description: "Formik-style schema validation" },
+        { label: "None / manual", description: "Use TypeScript types only, no runtime validation" }
+      ]
+    }
+  ]
+})
+```
+
+**Step 3 — Store confirmed preferences as session constants:**
+```
+STACK_BACKEND=       [django|express|nestjs|fastapi|go|laravel]
+STACK_FRONTEND=      [nextjs|react|vue|expo]
+STACK_DATA_FETCHING= [tanstack-query|swr|useeffect]
+STACK_RN_ROUTING=    [expo-router|react-navigation|none]
+STACK_VALIDATION=    [zod|yup|none]
+STACK_TESTING=       [pytest|jest|vitest|detected_from_config]
+```
+
+> All code templates in sub-issues MUST use these confirmed preferences — no mixing patterns.
+
+---
+
+## Phase 0.6: Codebase Drift Prevention
+
+### MANDATORY: Before generating issues for EACH epic, scan actual codebase.
+
+The single biggest issue with generated GitHub issues is **stale field names** — issues referencing field names, model attributes, or API shapes that don't match the actual codebase.
+
+**Before generating each epic's tickets:**
+
+```
+1. SCAN RELEVANT FILES for that epic's domain
+   ├── Backend: models.py, serializers.py, views.py, urls.py
+   ├── Frontend: types/, interfaces/, api/, hooks/
+   ├── Existing migrations: apps/{name}/migrations/
+   └── Tests: apps/{name}/tests/
+
+2. EXTRACT ACTUAL NAMES
+   ├── Model field names (exact spelling, snake_case)
+   ├── Serializer field names (may differ from model)
+   ├── Endpoint paths (exact URL patterns)
+   ├── Function/class names being referenced
+   └── Import paths
+
+3. USE EXACT NAMES in all code templates
+   └── Never invent field names — only use what exists in the codebase
+       (or explicitly mark new fields as NEW: in comments)
+```
+
+**If codebase doesn't exist yet (new project):**
+- Use the conventions detected in Phase 0.5
+- Mark all fields with `# NEW —` comment in code templates
+- First epic's issues always establish the base models — all later epics reference those field names
+
+---
+
 ## Phase 1: Holistic Project Discovery
 
 ### MANDATORY: Full Project Scan
@@ -1466,8 +1579,17 @@ Tech Stack: Django 5.0, PostgreSQL, Redis, Celery
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    CUSTOM ISSUE GENERATOR                        │
+│                    CUSTOM ISSUE GENERATOR v3                     │
 ├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  0.5 STACK PREFERENCES (NEW)                                     │
+│     └─→ Auto-detect stack from package.json / pyproject.toml    │
+│         └─→ AskUserQuestion: confirm + pick library prefs        │
+│             └─→ Store STACK_* constants for all code templates   │
+│                                                                  │
+│  0.6 CODEBASE DRIFT PREVENTION (NEW)                             │
+│     └─→ Before each epic: scan models, serializers, views        │
+│         └─→ Extract actual field names → use in code templates   │
 │                                                                  │
 │  1. DISCOVER                                                     │
 │     └─→ Scan all MDs, diagrams, HTML, specs                     │
@@ -1482,13 +1604,14 @@ Tech Stack: Django 5.0, PostgreSQL, Redis, Celery
 │         └─→ Estimate hours, assign days                         │
 │             └─→ Create dependency graph                         │
 │                                                                  │
-│  4. GENERATE                                                     │
-│     └─→ Summary table with counts                               │
-│         └─→ Directory structure                                 │
-│             └─→ README.md template                              │
-│                 └─→ CLAUDE.md template                          │
-│                     └─→ Flow diagrams (ASCII)                   │
-│                         └─→ Epic files with tickets             │
+│  4. GENERATE (Sub-issues now enterprise-grade)                   │
+│     └─→ Summary table + directory structure                     │
+│         └─→ README.md + CLAUDE.md templates                     │
+│             └─→ ASCII flow diagrams                             │
+│                 └─→ Epic files (locked format)                  │
+│                     └─→ Sub-issues: API contract + schema       │
+│                         + ASCII diagram + code templates        │
+│                         + test code + payloads + edge cases     │
 │                             └─→ gh CLI script                   │
 │                                                                  │
 │  5. EXECUTE (3-Subagent Pattern)                                │
@@ -1526,6 +1649,8 @@ When this skill completes, you will have:
 ## Critical Rules
 
 ### DO's ✅
+- **ALWAYS run Phase 0.5 first** - detect stack and confirm library preferences via AskUserQuestion widgets
+- **ALWAYS scan codebase before each epic** - read actual models/serializers/views to extract real field names (Phase 0.6)
 - **ALWAYS scan the full project first** - read every MD, diagram, spec
 - **Group into Epics** - never create orphan issues
 - **Include hour estimates** - every ticket gets X hours
@@ -1539,13 +1664,19 @@ When this skill completes, you will have:
 - **Use 3-subagent pattern** - Implementor, Critic, Observer
 - **Include prod-ready config** - ruff, pre-commit, pytest
 - **Store locally first** - get approval before posting to GitHub
+- **Sub-issues must be enterprise-grade** - full API contract, data schema, code templates, test code, example payloads, edge cases, dev setup
+- **Use confirmed library patterns** - TanStack Query / Expo Router / Zod etc. as confirmed in Phase 0.5
+- **Mark new fields clearly** - when adding new fields in code templates, add `# NEW —` comment
 
 ### DON'Ts ❌
+- **Don't skip Phase 0.5** - never generate issues without confirming stack preferences
+- **Don't invent field names** - always read actual codebase before using field names in code templates
 - **Don't skip discovery** - you MUST read the full project first
 - **Don't create flat issues** - always organize into Epics
 - **Don't omit estimates** - every task needs hours
 - **Don't forget dependencies** - note what blocks what
-- **Don't write full implementations** - hints only
+- **Don't write vague sub-issues** - sub-issues need full API contracts, test code, example payloads, and edge cases
+- **Don't mix library patterns** - if TanStack Query is confirmed, never write useEffect for data fetching
 - **Don't skip directory structure** - always propose file layout
 - **Don't use Mermaid** - ASCII diagrams for universal compatibility
 - **Don't create issues for unknowns** - ask or add to notes instead
@@ -1571,9 +1702,15 @@ When this skill completes, you will have:
 ---
 
 ## Skill Version
-**Version:** 2.2.0
-**Last Updated:** 2026-02-24
-**Based on:** Echelon NIL Platform planning methodology + github-issue-generator skill + 3-subagent pattern + gh-sub-issue extension
+**Version:** 3.0.0
+**Last Updated:** 2026-03-12
+**Changes in v3.0:**
+- Phase 0.5: Stack detection + library preference confirmation via AskUserQuestion widgets
+- Phase 0.6: Codebase drift prevention — scan actual models/fields before each epic
+- Sub-issue format upgraded from "concise hints" to full enterprise depth (API contract, data schema, ASCII architecture diagram, code templates, test code, example payloads, edge cases, dev setup)
+- Modern library defaults: TanStack Query, Expo Router, Zod — confirmed per project via widget
+- Epic format LOCKED — heading order enforced, only content depth may be enriched
+- Critical Rules updated: "Don't write full implementations" removed; replaced with "sub-issues must be enterprise-grade"
 
 ---
 
@@ -1736,28 +1873,297 @@ After this epic, the next epic will build on:
 
 ### Sub-Issue (Individual Ticket) Format
 
-Sub-issues must be **concise**. No full code implementations — hints and patterns only.
+Sub-issues must be **enterprise-grade**. Every sub-issue is a complete self-contained work spec — a developer should be able to pick it up with zero context and implement it correctly.
+
+> **DO NOT apply the "conciseness rule" to sub-issues.** Sub-issues are the opposite of concise — they are comprehensive. The conciseness rule applies to epics only.
 
 ```markdown
-## Overview
-{1-2 sentences: what this accomplishes and why it's needed.}
+## Feature Description
+{2-4 sentences: what this ticket implements, why it's needed, and how it fits the broader epic.}
 
-## Requirements
-- [ ] {Requirement 1}
-- [ ] {Requirement 2}
-- [ ] {Requirement 3}
-
-## Key Files
-- `{path/to/file.py}` - {what to change/add}
-
-## Implementation Notes
-- {Critical hint 1}
-- {Critical hint 2 — reference existing pattern if applicable}
+---
 
 ## Acceptance Criteria
-- [ ] {Testable outcome 1}
-- [ ] {Testable outcome 2}
-- [ ] Tests pass: `make test`
+- [ ] {Specific, testable outcome 1 — e.g. "POST /api/v1/users/ returns 201 with user object"}
+- [ ] {Specific, testable outcome 2 — e.g. "Duplicate email returns 400 with field error"}
+- [ ] {Specific, testable outcome 3}
+- [ ] All existing tests still pass: `make test`
+- [ ] Linting clean: `make lint`
+
+---
+
+## API Contract
+
+### {HTTP_METHOD} {endpoint_path}
+
+**Request:**
+```json
+{
+  "field_name": "string | type",
+  "another_field": "string | type"
+}
+```
+
+**Response 2xx:**
+```json
+{
+  "id": "uuid",
+  "field_name": "value",
+  "created_at": "ISO-8601"
+}
+```
+
+**Response Errors:**
+| Code | When |
+|------|------|
+| 400  | {Validation failure description} |
+| 401  | Unauthenticated |
+| 403  | {Permission failure description} |
+| 404  | Resource not found |
+
+---
+
+## Data Schema
+
+```
+{ModelName}
+├── id             UUID          PK, auto
+├── {field_1}      CharField(n)  required, {constraint}
+├── {field_2}      ForeignKey    → {RelatedModel}, on_delete=CASCADE
+├── {field_3}      BooleanField  default=False
+├── created_at     DateTimeField auto_now_add=True
+└── updated_at     DateTimeField auto_now=True
+
+Indexes: [{field_1}], [{field_2}, {field_3}]
+Constraints: unique_together = ['{field_1}', '{field_2}'] (if applicable)
+```
+
+---
+
+## Architecture Diagram
+
+```
++---------------------------+      +---------------------------+
+|  {Client / Mobile / Web}  |      |  {External Service}       |
++-------------+-------------+      +-------------+-------------+
+              |                                  |
+              | {HTTP_METHOD} {path}             |
+              v                                  |
++---------------------------+                    |
+|  {View / Controller}      |                    |
+|  Permission: {IsAuth...}  |                    |
++-------------+-------------+                    |
+              |                                  |
+   +-----------+-----------+                     |
+   |           |           |                     |
+   v           v           v                     |
++-------+  +--------+  +--------+                |
+| Model |  | Serial |  | Signal |---→ task.delay |
++-------+  +--------+  +--------+                |
+                                   +-------------v---------+
+                                   | Celery Worker         |
+                                   | Calls {ExternalSvc}   |
+                                   +-----------------------+
+```
+
+---
+
+## Code Templates
+
+### {Backend Framework} — {File path}
+
+```python  # or js/ts
+# EXACT field names from codebase scan (Phase 0.6)
+class {ModelName}(TimeStampedModel):
+    {field_name} = models.CharField(max_length=255)
+    {fk_field} = models.ForeignKey(
+        "{RelatedModel}",
+        on_delete=models.CASCADE,
+        related_name="{related_name}",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["{field_name}"]),
+        ]
+```
+
+### Serializer — `apps/{name}/serializers.py`
+
+```python
+class {ModelName}Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = {ModelName}
+        fields = ["{field_name}", "{fk_field}", "id", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_{field_name}(self, value):
+        # Validation logic
+        return value
+```
+
+### View — `apps/{name}/views.py`
+
+```python
+class {ModelName}ViewSet(viewsets.ModelViewSet):
+    serializer_class = {ModelName}Serializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["{field_name}"]
+
+    def get_queryset(self):
+        return {ModelName}.objects.filter(
+            user=self.request.user
+        ).select_related("{fk_field}")
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+```
+
+### Frontend — Data Fetching (TanStack Query / SWR / detected pattern)
+
+```typescript
+// Using [STACK_DATA_FETCHING] — confirmed in Phase 0.5
+const use{ModelName}s = () => {
+  return useQuery({
+    queryKey: ["{modelName}s"],
+    queryFn: () => api.get<{ModelName}[]>("/{resource}/"),
+  });
+};
+
+const useCreate{ModelName} = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Create{ModelName}Input) =>
+      api.post<{ModelName}>("/{resource}/", data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["{modelName}s"] }),
+  });
+};
+```
+
+---
+
+## Test Expectations
+
+### Unit Tests — `apps/{name}/tests/test_{feature}.py`
+
+```python
+import pytest
+from model_bakery import baker
+from rest_framework.test import APIClient
+
+@pytest.fixture
+def client_with_user(db):
+    user = baker.make("users.User")
+    client = APIClient()
+    client.force_authenticate(user=user)
+    return client, user
+
+class Test{ModelName}ViewSet:
+    def test_create_{model_name}_success(self, client_with_user):
+        client, user = client_with_user
+        payload = {
+            "{field_name}": "{valid_value}",
+        }
+        response = client.post("/api/v1/{resource}/", payload, format="json")
+        assert response.status_code == 201
+        assert response.data["{field_name}"] == "{valid_value}"
+
+    def test_create_{model_name}_duplicate_returns_400(self, client_with_user):
+        client, user = client_with_user
+        baker.make("{ModelName}", user=user, {field_name}="{value}")
+        payload = {"{field_name}": "{value}"}
+        response = client.post("/api/v1/{resource}/", payload, format="json")
+        assert response.status_code == 400
+
+    def test_list_{model_name}_only_own_records(self, client_with_user):
+        client, user = client_with_user
+        baker.make("{ModelName}", user=user, _quantity=2)
+        baker.make("{ModelName}", _quantity=3)  # Other user's records
+        response = client.get("/api/v1/{resource}/")
+        assert response.status_code == 200
+        assert len(response.data["results"]) == 2
+```
+
+---
+
+## Example Payloads
+
+**Successful create request:**
+```bash
+curl -X POST http://localhost:8000/api/v1/{resource}/ \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "{field_name}": "{example_value}",
+    "{another_field}": "{example_value}"
+  }'
+```
+
+**Expected response (201):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "{field_name}": "{example_value}",
+  "created_at": "2026-01-01T00:00:00Z"
+}
+```
+
+**Validation error response (400):**
+```json
+{
+  "{field_name}": ["This field is required."],
+  "detail": "Validation error"
+}
+```
+
+---
+
+## Edge Cases
+
+| Case | Expected Behavior |
+|------|------------------|
+| {Field} is empty string | Return 400 with field-level error |
+| {Field} exceeds max length | Return 400 with length error |
+| Duplicate {unique_field} | Return 400, not 500 |
+| Unauthorized request | Return 401 |
+| Access another user's record | Return 404 (not 403 — don't reveal existence) |
+| {External service} timeout | Return 503 or queue for retry |
+| Concurrent creation race | Use `select_for_update()` or unique constraint |
+
+---
+
+## Dev Setup
+
+```bash
+# Run migrations for new models in this ticket
+make makemigrations
+make migrate
+
+# Run tests for this specific feature only
+pytest apps/{name}/tests/test_{feature}.py -v
+
+# Test endpoint manually
+curl -X POST http://localhost:8000/api/v1/{resource}/ \
+  -H "Authorization: Bearer $(make get-token 2>/dev/null || echo '{your_token}')" \
+  -H "Content-Type: application/json" \
+  -d '{"key": "value"}'
+
+# Check OpenAPI schema updates
+make docs && open http://localhost:8000/api/docs/
+```
+
+---
+
+## Key Files
+
+- `apps/{name}/models.py` — Add {ModelName} model
+- `apps/{name}/serializers.py` — Add {ModelName}Serializer
+- `apps/{name}/views.py` — Add {ModelName}ViewSet
+- `apps/{name}/urls.py` — Register router
+- `apps/{name}/tests/test_{feature}.py` — Tests
+
+---
 
 ## Metadata
 - **Priority:** P{0/1/2}
@@ -1774,11 +2180,13 @@ Sub-issues must be **concise**. No full code implementations — hints and patte
 
 | Rule | Detail |
 |------|--------|
-| Epic overview | 2-3 sentences, no more |
-| Ticket description | 1-2 sentences max |
-| Implementation Notes | Code hints only, never full implementations |
-| Requirements | Bullet checklist, 3-6 items |
-| Sub-issue body | Follows compact ticket format above |
+| Epic overview | 2-3 sentences, concise |
+| Epic sections | LOCKED — never reorder: Status, Priority, Iteration, Total Estimate, Dependencies, Overview, Key Deliverables, Acceptance Criteria, API Endpoints Summary, Ticket Breakdown, Detailed Ticket Specifications |
+| Sub-issue depth | Enterprise-grade — all sections required |
+| API contract | Full request/response JSON shapes in every sub-issue |
+| Code templates | Use EXACT field names from codebase scan (Phase 0.6) |
+| Library patterns | Use confirmed STACK_* preferences from Phase 0.5 |
+| Test code | Always include pytest/jest examples with real assertions |
 | ASCII only | No Mermaid diagrams — use ASCII art |
-| Project-agnostic | No hardcoded project names or paths |
+| Project-agnostic | No hardcoded project names — use {placeholders} |
 | Status badges | Always include ⏳/🔄/✅ on Epic status line |
