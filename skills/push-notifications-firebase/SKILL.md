@@ -1,3 +1,8 @@
+---
+name: push-notifications-firebase
+description: Push Notifications Implementation Skill
+---
+
 # Push Notifications Implementation Skill
 
 ## Purpose

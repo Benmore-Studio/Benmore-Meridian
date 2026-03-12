@@ -1,5 +1,5 @@
 ---
-name: nano-banana
+name: nano_banana
 description: Generates or edits an image using the Gemini 2.5 Flash Image (Nano Banana) model via the API.
 license: Google Generative AI SDK License
 ---

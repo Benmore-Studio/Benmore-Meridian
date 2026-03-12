@@ -1,3 +1,8 @@
+---
+name: role-based-authentication
+description: Authentication Flow in House Service Pass Web-Frontend
+---
+
 # Authentication Flow in House Service Pass Web-Frontend
 
 This skill documents the complete authentication flow in the House Service Pass web-frontend application, including login, logout, token refresh, route protection, and state management.

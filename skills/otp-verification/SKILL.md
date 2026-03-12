@@ -1,3 +1,8 @@
+---
+name: otp-verification
+description: OTP Verification Implementation Skill
+---
+
 # OTP Verification Implementation Skill
 
 ## Purpose

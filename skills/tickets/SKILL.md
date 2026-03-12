@@ -1,3 +1,8 @@
+---
+name: tickets
+description: Custom GitHub Issue Generator Skill
+---
+
 # Custom GitHub Issue Generator Skill
 
 ## Purpose

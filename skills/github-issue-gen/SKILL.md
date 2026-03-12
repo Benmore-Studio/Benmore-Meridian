@@ -1,3 +1,8 @@
+---
+name: github-issue-gen
+description: Custom GitHub Issue Generator Skill
+---
+
 # Custom GitHub Issue Generator Skill
 
 ## Purpose

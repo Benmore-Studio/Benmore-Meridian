@@ -1,3 +1,8 @@
+---
+name: mailjet-email-service
+description: Mailjet Email Service Implementation Skill
+---
+
 # Mailjet Email Service Implementation Skill
 
 ## Purpose

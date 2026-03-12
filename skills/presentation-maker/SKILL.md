@@ -1,3 +1,8 @@
+---
+name: presentation-maker
+description: Enhanced Presentation Formatter Skill
+---
+
 # Enhanced Presentation Formatter Skill
 
 ## Purpose

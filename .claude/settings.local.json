@@ -29,7 +29,13 @@
       "Bash(git push:*)",
       "Bash(gh pr:*)",
       "Bash(git checkout:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(bm --version)",
+      "Bash(bm --help)",
+      "Bash(bm plugins:*)",
+      "Bash(bm skill:*)",
+      "Bash(bm registry:*)",
+      "Bash(bm tools:*)"
     ]
   }
 }

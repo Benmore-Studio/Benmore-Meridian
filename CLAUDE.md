@@ -619,6 +619,72 @@ bm doctor             # full health check
 bm status --json      # machine-readable skill status (for agents)
 ```
 
+### Common Commands
+
+**First-time setup (run once):**
+
+```bash
+pip install -e ./bm              # install bm CLI (editable)
+bm setup                         # install everything: skills + tools + plugins
+bm setup --yes                   # skip all confirmation prompts
+bm setup --dry-run               # preview what setup would do
+```
+
+**Daily workflow:**
+
+```bash
+bm                               # dashboard — shows skills/tools/plugins at a glance
+bm install                       # symlink all repo skills → ~/.claude/skills/
+bm install --rsync               # force file copy instead of symlinks
+bm install --dry-run             # preview what would be installed
+bm update                        # git pull + reinstall all skills
+bm update django-production      # pull + reinstall one specific skill
+bm update --rsync                # pull + reinstall with file copies
+bm update --dry-run              # preview what would be updated
+bm status                        # rich table: skill name, status icon, scope
+bm status --json                 # machine-readable JSON for agents/scripts
+bm doctor                        # full health check (skills + tools + plugins)
+bm doctor --yes                  # auto-fix all issues without prompting
+bm doctor -y                     # short form of --yes
+bm plugins                       # check Superpowers + Double Shot Latte status
+```
+
+**Skill management:**
+
+```bash
+bm skill list                    # browse all available skills with descriptions
+bm skill list --json             # JSON output for agents
+bm skill list --project pcs      # filter skills by project scope
+bm skill list -p pcs             # short form of --project
+bm skill info <name>             # show path, scope, status, version, description
+bm skill add <name>              # create a new general skill with SKILL.md stub
+bm skill add <name> -p pcs      # create a project-scoped skill
+bm skill add <name> --from ./path  # create skill by copying existing directory
+bm skill write <name>            # interactive skill builder (prompts for desc + triggers)
+bm skill write <name> -p pcs    # interactive builder for project-scoped skill
+bm skill remove <name>           # uninstall skill from ~/.claude/skills/ + registry
+bm skill remove <name> --dry-run # preview what would be removed
+bm skill generalize <name>       # promote project skill → general (moves + re-symlinks)
+bm skill add-external <source> --skill <name>  # install external skill from plugins/agents dirs
+```
+
+**Tools (developer CLI tools):**
+
+```bash
+bm tools list                    # show all 8 dev tools with install status
+bm tools install                 # install all missing tools (via brew/apt)
+bm tools install ripgrep bat     # install specific tools by name
+```
+
+**Registry:**
+
+```bash
+bm registry list                 # show all tracked skills
+bm registry list --json          # JSON output
+bm registry sync                 # detect externally installed skills in ~/.claude/skills/
+bm registry sync --dry-run       # preview what sync would find
+```
+
 ### ASCII Flow: bm install
 
 ```
@@ -706,7 +772,12 @@ When working on this repo, Claude should suggest `bm` commands in these situatio
 | Added new skill files | `bm install` to activate symlinks |
 | After `git pull` | `bm update` to pull + reinstall |
 | Skills seem outdated | `bm doctor` to diagnose |
-| New team member onboarding | `bm install && bm plugins` |
+| New team member onboarding | `bm setup --yes` (one-shot install) |
+| Want to preview changes safely | Add `--dry-run` to any install/update/remove |
+| Removing a skill you no longer need | `bm skill remove <name>` |
+| Creating a skill interactively | `bm skill write <name>` |
+| Checking what dev tools are missing | `bm tools list` |
+| Need machine-readable output | Add `--json` to status, skill list, or registry list |
 
 ### JSON Output for Agents
 

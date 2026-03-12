@@ -1,3 +1,8 @@
+---
+name: chatbot_frontend
+description: AI Chatbot Skill - Enterprise Website Assistant
+---
+
 # AI Chatbot Skill - Enterprise Website Assistant
 
 A production-ready AI chatbot skill for creating sophisticated conversational interfaces on business websites. Built with assistant-ui React components, featuring dynamic context-aware responses, professional UI, and easy customization for any industry.

@@ -1,3 +1,8 @@
+---
+name: gh_issue
+description: GitHub Issue Generator Skill
+---
+
 # GitHub Issue Generator Skill
 
 ## Purpose
