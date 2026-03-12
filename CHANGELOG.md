@@ -8,6 +8,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## v1.1.0 — 2026-03-12
+
+### New Commands
+- **`bm skill remove <name> [--dry-run]`** — Safely uninstall a repo-managed skill from `~/.claude/skills/` and the registry. Refuses EXTERNAL skills with a clear error message.
+- **`bm tools list`** — List available developer CLI tools (ripgrep, fzf, lazygit, bat, eza, zoxide, delta, gh) with install status.
+- **`bm tools install [name...]`** — Install developer CLI tools via Homebrew (macOS) or apt (Linux).
+- **`bm skill write <name>`** — Interactively create a new skill with guided prompts for description and triggers.
+
+### New Features
+- **`--dry-run` flag** on `bm install`, `bm update`, `bm skill remove`, and `bm registry sync` — Shows a Rich table of planned operations without writing anything. Safe to run anywhere.
+- **SKILL.md frontmatter validation** — `discover_skills()` now validates required fields (`name`, `description`) and warns on missing optional fields (`version`, `author`, `tags`). Invalid skills are blocked at install time with a clear error.
+
+### Architecture
+- New `bm/bm/dryrun.py`: `DryRunOp` and `DryRunContext` dataclasses — collect planned operations for dry-run preview.
+- New `bm/bm/validator.py`: `validate_skill()` and `ValidationResult` — frontmatter validation with structured errors and warnings.
+- New `bm/bm/tools.py`: `DevTool` dataclass + `TOOLS` registry of curated developer tools.
+- `install_skill()`, `Registry.batch_add()`, `Registry.remove()`, `Registry.sync()` all accept optional `ctx: DryRunContext`.
+
+### Quality
+- Test suite expanded from 27 to 38+ tests
+- mypy strict: 0 errors
+- ruff: all clean
+
+---
+
 ## [v1.0.1] — 2026-03-11
 
 ### Fixed — `bm` CLI
