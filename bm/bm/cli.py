@@ -18,7 +18,8 @@ from bm.config import (
     REGISTRY_FILE,
     SKILLS_DIR,
 )
-from bm.installer import discover_skills, install_skill
+from bm.dryrun import DryRunContext
+from bm.installer import discover_skills, install_skill, remove_skill
 from bm.models import (
     InstallMethod,
     InstallResult,
@@ -31,13 +32,16 @@ from bm.models import (
 from bm.plugins import format_install_guide, get_plugin_status
 from bm.registry import Registry
 from bm.status import check_skill_status
-from bm.updater import git_pull, reinstall_all
+from bm.tools import TOOLS, install_tool
+from bm.updater import git_pull
 
 app = typer.Typer(name="bm", help="Benmore skill manager", add_completion=False)
 skill_app = typer.Typer(help="Manage individual skills")
 registry_app = typer.Typer(help="Manage skill registry")
+tools_app = typer.Typer(help="Install developer CLI tools")
 app.add_typer(skill_app, name="skill")
 app.add_typer(registry_app, name="registry")
+app.add_typer(tools_app, name="tools")
 
 console = Console()
 
@@ -72,20 +76,25 @@ def _find_skill(name: str) -> SkillEntry | None:
 @app.command()
 def install(
     rsync: bool = typer.Option(False, "--rsync", help="Force file copy instead of symlinks"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would be installed without writing"
+    ),
 ) -> None:
     """Symlink all repo skills into ~/.claude/skills/ (idempotent)."""
     CLAUDE_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
     skills = discover_skills(SKILLS_DIR)
     reg = Registry(REGISTRY_FILE)
+    ctx = DryRunContext(dry_run=dry_run)
 
-    table = Table(title="Installing Skills", box=box.ROUNDED)
+    title = "Installing Skills" + (" [dim](dry-run)[/]" if dry_run else "")
+    table = Table(title=title, box=box.ROUNDED)
     table.add_column("Skill", style="cyan")
     table.add_column("Scope")
     table.add_column("Result", justify="center")
 
     new_entries: list[RegistryEntry] = []
     for skill in skills:
-        result = install_skill(skill, CLAUDE_SKILLS_DIR, force_copy=rsync)
+        result = install_skill(skill, CLAUDE_SKILLS_DIR, force_copy=rsync, ctx=ctx)
         icon = _RESULT_ICON[result]
         table.add_row(skill.name, _scope_label(skill), f"{icon} {result.value}")
         if result != InstallResult.FAILED:
@@ -104,10 +113,14 @@ def install(
                 )
             )
 
-    reg.batch_add(new_entries)
     console.print(table)
-    console.print(f"\n[bold green]Done![/] {len(skills)} skills → {CLAUDE_SKILLS_DIR}")
-    console.print("[dim]Run [bold]bm plugins[/] to verify plugin requirements.[/]")
+    reg.batch_add(new_entries, ctx=ctx)
+
+    if dry_run:
+        ctx.render(console)
+    else:
+        console.print(f"\n[bold green]Done![/] {len(skills)} skills → {CLAUDE_SKILLS_DIR}")
+        console.print("[dim]Run [bold]bm plugins[/] to verify plugin requirements.[/]")
 
 
 @app.command()
@@ -152,14 +165,22 @@ def status(
 def update(
     name: str | None = typer.Argument(None, help="Skill name to update (omit for all)"),
     rsync: bool = typer.Option(False, "--rsync"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would be updated without writing"
+    ),
 ) -> None:
     """Pull latest and reinstall one or all skills."""
-    console.print("[bold]Pulling latest changes...[/]")
-    ok, output = git_pull()
-    if not ok:
-        console.print(f"[red]git pull failed:[/]\n{output}")
-        raise typer.Exit(1)
-    console.print(f"[green]{output.strip()}[/]")
+    ctx = DryRunContext(dry_run=dry_run)
+
+    if not dry_run:
+        console.print("[bold]Pulling latest changes...[/]")
+        ok, output = git_pull()
+        if not ok:
+            console.print(f"[red]git pull failed:[/]\n{output}")
+            raise typer.Exit(1)
+        console.print(f"[green]{output.strip()}[/]")
+    else:
+        console.print("[dim]Dry-run: skipping git pull[/]")
 
     reg = Registry(REGISTRY_FILE)
     if name:
@@ -167,30 +188,57 @@ def update(
         if not skill:
             console.print(f"[red]Skill '{name}' not found in repo.[/]")
             raise typer.Exit(1)
-        result = install_skill(skill, CLAUDE_SKILLS_DIR, force_copy=rsync)
+        result = install_skill(skill, CLAUDE_SKILLS_DIR, force_copy=rsync, ctx=ctx)
         icon = _RESULT_ICON[result]
         console.print(f"{icon} {name}: {result.value}")
-        if result != InstallResult.FAILED:
-            reg.add(RegistryEntry(
-                name=skill.name,
-                installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
-                source=skill.source,
-                scope=skill.scope,
-                project=skill.project,
-                install_method=(
-                    InstallMethod.SYMLINK
-                    if result == InstallResult.SYMLINKED
-                    else InstallMethod.COPY
-                ),
-            ))
+        if result != InstallResult.FAILED and not dry_run:
+            reg.add(
+                RegistryEntry(
+                    name=skill.name,
+                    installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
+                    source=skill.source,
+                    scope=skill.scope,
+                    project=skill.project,
+                    install_method=(
+                        InstallMethod.SYMLINK
+                        if result == InstallResult.SYMLINKED
+                        else InstallMethod.COPY
+                    ),
+                )
+            )
             reg.save()
     else:
-        results = reinstall_all(force_copy=rsync)
-        linked = sum(1 for r in results.values() if r == InstallResult.SYMLINKED)
-        copied = sum(1 for r in results.values() if r == InstallResult.COPIED)
-        console.print(f"✅ {linked} linked  ⚙️  {copied} copied")
-        # Sync registry to reflect updated install state
-        reg.sync(CLAUDE_SKILLS_DIR, SKILLS_DIR)
+        skills = discover_skills(SKILLS_DIR)
+        new_entries: list[RegistryEntry] = []
+        for skill in skills:
+            result = install_skill(skill, CLAUDE_SKILLS_DIR, force_copy=rsync, ctx=ctx)
+            if result != InstallResult.FAILED:
+                new_entries.append(
+                    RegistryEntry(
+                        name=skill.name,
+                        installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
+                        source=skill.source,
+                        scope=skill.scope,
+                        project=skill.project,
+                        install_method=(
+                            InstallMethod.SYMLINK
+                            if result == InstallResult.SYMLINKED
+                            else InstallMethod.COPY
+                        ),
+                    )
+                )
+        reg.batch_add(new_entries, ctx=ctx)
+        if not dry_run:
+            linked = sum(
+                1 for e in new_entries if e.install_method == InstallMethod.SYMLINK
+            )
+            copied = sum(
+                1 for e in new_entries if e.install_method == InstallMethod.COPY
+            )
+            console.print(f"✅ {linked} linked  ⚙️  {copied} copied")
+
+    if dry_run:
+        ctx.render(console)
 
 
 @app.command()
@@ -373,18 +421,57 @@ def skill_info(name: str = typer.Argument(..., help="Skill name")) -> None:
     console.print("\n".join(lines))
 
 
+@skill_app.command("remove")
+def skill_remove(
+    name: str = typer.Argument(..., help="Skill name to remove"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would be removed without writing"
+    ),
+) -> None:
+    """Remove an installed skill from ~/.claude/skills/ and the registry."""
+    reg = Registry(REGISTRY_FILE)
+    entry = reg.get(name)
+
+    if not entry:
+        console.print(f"[red]Skill '{name}' not found in registry.[/]")
+        raise typer.Exit(1)
+
+    ctx = DryRunContext(dry_run=dry_run)
+    try:
+        remove_skill(name, CLAUDE_SKILLS_DIR, reg, ctx)
+    except ValueError as e:
+        console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1) from e
+
+    if dry_run:
+        ctx.render(console)
+    else:
+        console.print(f"[green]Removed skill '{name}'[/]")
+
+
 # ── registry sub-commands ──────────────────────────────────────────────────────
 
 
 @registry_app.command("sync")
-def registry_sync() -> None:
+def registry_sync(
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would sync without writing"
+    ),
+) -> None:
     """Scan ~/.claude/skills/ and update registry (detects externally installed skills)."""
     reg = Registry(REGISTRY_FILE)
     before = len(reg.list_all())
-    reg.sync(CLAUDE_SKILLS_DIR, SKILLS_DIR)
-    after = len(reg.list_all())
-    added = after - before
-    console.print(f"[green]Registry synced.[/] {before} → {after} entries ({added:+d} new)")
+    ctx = DryRunContext(dry_run=dry_run)
+    reg.sync(CLAUDE_SKILLS_DIR, SKILLS_DIR, ctx=ctx)
+
+    if dry_run:
+        ctx.render(console)
+    else:
+        after = len(reg.list_all())
+        added = after - before
+        console.print(
+            f"[green]Registry synced.[/] {before} → {after} entries ({added:+d} new)"
+        )
 
 
 @registry_app.command("list")
@@ -405,3 +492,176 @@ def registry_list(
     for e in entries:
         table.add_row(e.name, e.source.value, e.scope.value, e.install_method)
     console.print(table)
+
+
+# ── tools sub-commands ─────────────────────────────────────────────────────────
+
+
+@tools_app.command("list")
+def tools_list() -> None:
+    """List available developer tools to install."""
+    table = Table(title="Developer Tools", box=box.ROUNDED)
+    table.add_column("Name", style="cyan")
+    table.add_column("Description")
+    table.add_column("Installed", justify="center")
+    table.add_column("URL", style="dim")
+    for tool in TOOLS.values():
+        installed_icon = "✅" if tool.is_installed() else "❌"
+        table.add_row(tool.name, tool.description, installed_icon, tool.url)
+    console.print(table)
+
+
+@tools_app.command("install")
+def tools_install(
+    names: list[str] = typer.Argument(None, help="Tool names (omit for all)"),  # noqa: B008
+) -> None:
+    """Install developer CLI tools via Homebrew (macOS) or apt (Linux)."""
+    targets: list[str] = list(names) if names else list(TOOLS.keys())
+
+    unknown = [n for n in targets if n not in TOOLS]
+    if unknown:
+        console.print(f"[red]Unknown tools: {', '.join(unknown)}[/]")
+        console.print(f"[dim]Available: {', '.join(TOOLS.keys())}[/]")
+        raise typer.Exit(1)
+
+    for name in targets:
+        tool = TOOLS[name]
+        if tool.is_installed():
+            console.print(f"[dim]⏭️  {name} already installed[/]")
+            continue
+        console.print(f"[bold]Installing {name}...[/]")
+        success, msg = install_tool(tool)
+        if success:
+            console.print(f"[green]✅ {name}[/] installed")
+        else:
+            console.print(f"[red]❌ {name}:[/] {msg}")
+
+
+# ── skill write ────────────────────────────────────────────────────────────────
+
+
+@skill_app.command("write")
+def skill_write(
+    name: str = typer.Argument(..., help="Skill name (e.g. my-skill)"),
+    project: str = typer.Option("", "--project", "-p", help="Project scope (e.g. pcs)"),
+) -> None:
+    """Interactively create a SKILL.md stub for a new skill."""
+    scope = SkillScope.PROJECT if project else SkillScope.GENERAL
+    dest_dir = SKILLS_DIR / project / name if project else SKILLS_DIR / name
+
+    if dest_dir.exists():
+        console.print(f"[yellow]Skill '{name}' already exists at {dest_dir}[/]")
+        raise typer.Exit(1)
+
+    console.print(f"[bold]Creating skill:[/] [cyan]{name}[/]")
+
+    description = typer.prompt("  Description (one line)")
+    triggers_raw = typer.prompt(
+        "  Triggers (comma-separated phrases that invoke this skill)",
+        default="",
+    )
+    triggers = [t.strip() for t in triggers_raw.split(",") if t.strip()]
+
+    trigger_lines = "\n".join(f"  - {t}" for t in triggers) if triggers else "  - TODO: add trigger"
+    trigger_block = f"triggers:\n{trigger_lines}"
+
+    skill_md_content = (
+        f"---\n"
+        f"name: {name}\n"
+        f"description: {description}\n"
+        f"{trigger_block}\n"
+        f"---\n\n"
+        f"# {name}\n\n"
+        f"{description}\n\n"
+        f"## Usage\n\n"
+        f"TODO: Describe how to use this skill.\n\n"
+        f"## Instructions\n\n"
+        f"TODO: Write the skill instructions here.\n"
+    )
+
+    dest_dir.mkdir(parents=True)
+    (dest_dir / "SKILL.md").write_text(skill_md_content)
+
+    scope_label = f"project '{project}'" if project else "general"
+    console.print(f"[green]✅ Created {scope_label} skill '[cyan]{name}[/cyan]'[/] at {dest_dir}")
+    console.print(
+        f"[dim]Edit {dest_dir}/SKILL.md, then run [bold]bm install[/bold] to activate.[/]"
+    )
+
+    reg = Registry(REGISTRY_FILE)
+    reg.add(
+        RegistryEntry(
+            name=name,
+            installed_path=str(dest_dir),
+            source=SkillSource.REPO,
+            scope=scope,
+            project=project,
+            install_method=InstallMethod.NONE,
+        )
+    )
+    reg.save()
+
+
+# ── skill add-external (alias for installing external skills) ──────────────────
+
+
+@skill_app.command("add-external")
+def skills_add_external(
+    source: str = typer.Argument(..., help="Source hint e.g. 'vercel/vercel --skill vercel-cli'"),
+    skill: str = typer.Option("", "--skill", help="Skill name to look for in plugin directories"),
+) -> None:
+    """
+    Attempt to install an external skill from ~/.claude/plugins or ~/.agents.
+    If not found, prints installation guidance.
+    """
+    skill_name = skill
+    if not skill_name and "--skill" in source:
+        parts = source.split("--skill")
+        if len(parts) > 1:
+            skill_name = parts[1].strip().split()[0]
+        source = parts[0].strip()
+
+    if not skill_name:
+        console.print(
+            "[red]Provide a skill name via --skill <name> or embed '--skill <name>' in source.[/]"
+        )
+        raise typer.Exit(1)
+
+    search_dirs = [
+        Path.home() / ".claude" / "plugins",
+        Path.home() / ".agents",
+        Path.home() / ".claude" / "skills",
+    ]
+
+    found_path: Path | None = None
+    for d in search_dirs:
+        candidate = d / skill_name
+        if candidate.exists():
+            found_path = candidate
+            break
+
+    if found_path:
+        target = CLAUDE_SKILLS_DIR / skill_name
+        if target.exists() or target.is_symlink():
+            console.print(f"[yellow]Skill '{skill_name}' already installed at {target}[/]")
+            raise typer.Exit(0)
+        try:
+            target.symlink_to(found_path.resolve())
+            console.print(f"[green]✅ Linked '{skill_name}'[/] from {found_path} → {target}")
+        except OSError:
+            shutil.copytree(str(found_path), str(target))
+            console.print(f"[green]✅ Copied '{skill_name}'[/] from {found_path} → {target}")
+    else:
+        searched = "\n  ".join(str(d) for d in search_dirs)
+        console.print(
+            Panel(
+                f"Skill '[cyan]{skill_name}[/cyan]' not found in:\n  {searched}\n\n"
+                f"To install manually:\n"
+                f"  1. Download or clone the skill directory\n"
+                f"  2. Place it in [bold]~/.claude/skills/{skill_name}[/bold]\n"
+                f"  3. Run [bold]bm registry sync[/bold] to register it\n\n"
+                f"Source hint: [dim]{source}[/dim]",
+                title="External Skill Not Found",
+                border_style="yellow",
+            )
+        )
