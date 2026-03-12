@@ -1,6 +1,5 @@
-from pathlib import Path
 from bm.installer import discover_skills, install_skill
-from bm.models import SkillScope, SkillSource, InstallResult
+from bm.models import InstallResult, SkillScope
 
 
 def test_discover_finds_top_level(tmp_skills_dir):

@@ -8,6 +8,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.0.1] — 2026-03-11
+
+### Fixed — `bm` CLI
+
+- **Registry corruption** (Sentry severity: MEDIUM): Skills that fail to install are no longer added to `~/.bm/registry.json`. Only `SYMLINKED` or `COPIED` results are recorded.
+- **N×1 registry writes**: `Registry.add()` no longer auto-saves on every call. Added `batch_add(entries)` for bulk installs (one write per `bm install` run, not one per skill).
+- **REPO_ROOT portability**: `config.py` now walks up the directory tree looking for `skills/ + bm/` siblings instead of hardcoding three `parent` jumps. Fallback: reads `~/.bm/repo_root`. Works with `pip install -e` and any install layout.
+- **Project folder auto-discovery**: `discover_skills()` no longer hardcodes `"pcs"` as the only project subfolder. Any directory without its own `SKILL.md` that contains skill subdirectories is treated as a project container — `skills/myteam/`, `skills/chatbot/`, etc. all work automatically.
+- **cli.py imports**: `SkillEntry`, `shutil`, `asdict` moved to top-level imports; local imports inside function bodies removed.
+- **`Optional[X]` → `X | None`**: All `typing.Optional` usage replaced with modern union syntax (Python 3.11+).
+- **StrEnum upgrade**: All four model enums (`SkillScope`, `SkillSource`, `InstallResult`, `SkillStatus`) now inherit from `StrEnum` (Python 3.11+), removing the `(str, Enum)` workaround.
+- **Unused `field` import** removed from `models.py`.
+- **Code helpers extracted**: `_scope_label()`, `_find_skill()`, `_RESULT_ICON` dict added to `cli.py` to eliminate three instances of duplicated scope formatting and linear skill search.
+- **`status` command**: Removed wasteful `SkillStatus` round-trip (building dict of `.value` strings then reconstructing enum from string). Status objects are kept throughout.
+
+### Changed
+
+- `bm/README.md`: Install instruction changed from `pipx install ./bm` to `pip install -e ./bm` with explanation of why editable install is required.
+- `CLAUDE.md`: Added `bm CLI` section with three ASCII flow diagrams (install, project lifecycle, project folder discovery) and a proactive hints table for Claude agents.
+
+---
+
+## [v1.0.0] — 2026-03-11
+
 ## [v1.0.0] — 2026-03-11
 
 ### Added — `bm` CLI (Benmore Skill Manager)

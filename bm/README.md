@@ -69,7 +69,7 @@ $ bm status --json | head -12
 ### Requirements
 
 - Python 3.11+
-- [`pipx`](https://pipx.pypa.io/) (recommended) or `pip`
+- `pip` (ships with Python)
 - [Claude Code](https://claude.ai/code) (`brew install claude`)
 
 ### Install
@@ -79,8 +79,8 @@ $ bm status --json | head -12
 git clone https://github.com/Benmore-Studio/Benmore-Meridian
 cd Benmore-Meridian
 
-# Install the bm CLI globally
-pipx install ./bm
+# Install bm in editable mode — skills live in the repo, bm finds them automatically
+pip install -e ./bm
 
 # Symlink all 50+ skills into Claude Code
 bm install
@@ -93,6 +93,10 @@ bm doctor
 ```
 
 Open Claude Code in any project — all skills are now live.
+
+> **Why editable install?** `pip install -e ./bm` keeps `bm` linked to this repo so
+> it always finds the `skills/` directory. Running `git pull` in this repo immediately
+> updates all skill content via symlinks — no reinstall needed.
 
 ### Update
 

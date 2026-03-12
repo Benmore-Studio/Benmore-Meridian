@@ -1,6 +1,8 @@
 """Tests for bm.config module."""
+
 from pathlib import Path
-from bm.config import SKILLS_DIR, CLAUDE_SKILLS_DIR, BM_DIR, PLUGIN_MARKERS
+
+from bm.config import BM_DIR, CLAUDE_SKILLS_DIR, PLUGIN_MARKERS, SKILLS_DIR
 
 
 def test_skills_dir_exists() -> None:

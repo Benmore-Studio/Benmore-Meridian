@@ -1,4 +1,5 @@
 """Plugin detection and install guidance."""
+
 from __future__ import annotations
 
 from pathlib import Path

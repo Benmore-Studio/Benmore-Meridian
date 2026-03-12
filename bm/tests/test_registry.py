@@ -25,12 +25,14 @@ def test_registry_add_and_get(tmp_path: Path) -> None:
 def test_registry_persists(tmp_path: Path) -> None:
     path = tmp_path / "registry.json"
     reg = Registry(path)
-    reg.add(RegistryEntry(
-        name="pdf",
-        installed_path="/tmp/pdf",
-        source=SkillSource.MARKETPLACE,
-        scope=SkillScope.GENERAL,
-    ))
+    reg.add(
+        RegistryEntry(
+            name="pdf",
+            installed_path="/tmp/pdf",
+            source=SkillSource.MARKETPLACE,
+            scope=SkillScope.GENERAL,
+        )
+    )
     reg.save()
 
     reg2 = Registry(path)
@@ -39,12 +41,14 @@ def test_registry_persists(tmp_path: Path) -> None:
 
 def test_registry_remove(tmp_path: Path) -> None:
     reg = Registry(tmp_path / "registry.json")
-    reg.add(RegistryEntry(
-        name="tickets",
-        installed_path="/tmp/tickets",
-        source=SkillSource.REPO,
-        scope=SkillScope.GENERAL,
-    ))
+    reg.add(
+        RegistryEntry(
+            name="tickets",
+            installed_path="/tmp/tickets",
+            source=SkillSource.REPO,
+            scope=SkillScope.GENERAL,
+        )
+    )
     reg.remove("tickets")
     assert reg.get("tickets") is None
 

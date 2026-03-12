@@ -1,4 +1,5 @@
 """git pull + reinstall."""
+
 from __future__ import annotations
 
 import subprocess

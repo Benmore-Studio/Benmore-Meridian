@@ -1,4 +1,5 @@
 """Local registry: tracks all installed skills in ~/.bm/registry.json."""
+
 from __future__ import annotations
 
 import json
@@ -29,12 +30,19 @@ class Registry:
             )
 
     def save(self) -> None:
+        """Persist registry to disk. Call explicitly after batch operations."""
         self._file.parent.mkdir(parents=True, exist_ok=True)
         data = {name: asdict(entry) for name, entry in self._entries.items()}
         self._file.write_text(json.dumps(data, indent=2, default=str))
 
     def add(self, entry: RegistryEntry) -> None:
+        """Add or update one entry. Does NOT auto-save; call save() when done."""
         self._entries[entry.name] = entry
+
+    def batch_add(self, entries: list[RegistryEntry]) -> None:
+        """Add multiple entries and save once."""
+        for entry in entries:
+            self._entries[entry.name] = entry
         self.save()
 
     def remove(self, name: str) -> None:

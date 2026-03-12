@@ -1,8 +1,14 @@
 """Tests for bm data models."""
+
 from pathlib import Path
+
 from bm.models import (
-    SkillEntry, SkillScope, SkillSource, SkillStatus,
-    InstallResult, RegistryEntry,
+    InstallResult,
+    RegistryEntry,
+    SkillEntry,
+    SkillScope,
+    SkillSource,
+    SkillStatus,
 )
 
 

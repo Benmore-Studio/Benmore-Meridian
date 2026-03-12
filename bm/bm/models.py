@@ -1,34 +1,39 @@
 """Core data models for bm — enums and dataclasses only."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 
-class SkillScope(str, Enum):
+class SkillScope(StrEnum):
     """Whether a skill is universal or tied to a specific project."""
+
     GENERAL = "general"
     PROJECT = "project"
 
 
-class SkillSource(str, Enum):
+class SkillSource(StrEnum):
     """Where a skill came from."""
+
     REPO = "repo"
     MARKETPLACE = "marketplace"
     EXTERNAL = "external"
 
 
-class InstallResult(str, Enum):
+class InstallResult(StrEnum):
     """Result of installing a skill."""
+
     SYMLINKED = "symlinked"
     COPIED = "copied"
     FAILED = "failed"
     SKIPPED = "skipped"
 
 
-class SkillStatus(str, Enum):
+class SkillStatus(StrEnum):
     """Current installation status of a skill."""
+
     SYMLINKED = "symlinked"
     COPIED = "copied"
     MISSING = "missing"
@@ -38,6 +43,7 @@ class SkillStatus(str, Enum):
 @dataclass
 class SkillEntry:
     """A skill discovered in the repository."""
+
     name: str
     path: Path
     scope: SkillScope = SkillScope.GENERAL
@@ -55,6 +61,7 @@ class SkillEntry:
 @dataclass
 class RegistryEntry:
     """A skill tracked in the local registry."""
+
     name: str
     installed_path: str  # str so JSON-serializable
     source: SkillSource
