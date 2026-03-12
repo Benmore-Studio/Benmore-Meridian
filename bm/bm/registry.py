@@ -6,6 +6,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from bm.dryrun import DryRunContext
 from bm.models import InstallMethod, RegistryEntry, SkillScope, SkillSource
 
 
@@ -31,15 +32,24 @@ class Registry:
         """Add or update one entry. Does NOT auto-save; call save() when done."""
         self._entries[entry.name] = entry
 
-    def batch_add(self, entries: list[RegistryEntry]) -> None:
-        """Add multiple entries and save once."""
+    def batch_add(
+        self, entries: list[RegistryEntry], ctx: DryRunContext | None = None
+    ) -> None:
+        """Add multiple entries and save once. Records ops if ctx.dry_run=True."""
+        _ctx = ctx or DryRunContext()
         for entry in entries:
-            self._entries[entry.name] = entry
-        self.save()
+            _ctx.record("registry_add", entry.name)
+            if not _ctx.dry_run:
+                self._entries[entry.name] = entry
+        if not _ctx.dry_run:
+            self.save()
 
-    def remove(self, name: str) -> None:
-        self._entries.pop(name, None)
-        self.save()
+    def remove(self, name: str, ctx: DryRunContext | None = None) -> None:
+        _ctx = ctx or DryRunContext()
+        _ctx.record("registry_remove", name)
+        if not _ctx.dry_run:
+            self._entries.pop(name, None)
+            self.save()
 
     def get(self, name: str) -> RegistryEntry | None:
         return self._entries.get(name)
@@ -47,17 +57,24 @@ class Registry:
     def list_all(self) -> list[RegistryEntry]:
         return list(self._entries.values())
 
-    def sync(self, claude_skills_dir: Path, repo_skills_dir: Path | None = None) -> None:
+    def sync(
+        self,
+        claude_skills_dir: Path,
+        repo_skills_dir: Path | None = None,
+        ctx: DryRunContext | None = None,
+    ) -> None:
         """
         Scan ~/.claude/skills/ and reconcile registry.
         Detects source: REPO (symlink into repo), MARKETPLACE (symlink into .agents),
         EXTERNAL (plain dir or symlink elsewhere).
         Always updates install_method and source for existing entries.
         """
+        _ctx = ctx or DryRunContext()
         if not claude_skills_dir.exists():
             return
 
         repo_root = repo_skills_dir.parent if repo_skills_dir else None
+        updated: dict[str, RegistryEntry] = {}
 
         for entry_path in claude_skills_dir.iterdir():
             if not entry_path.is_dir() and not entry_path.is_symlink():
@@ -79,7 +96,7 @@ class Registry:
                 install_method = InstallMethod.COPY
 
             existing = self._entries.get(name)
-            self._entries[name] = RegistryEntry(
+            new_entry = RegistryEntry(
                 name=name,
                 installed_path=str(entry_path),
                 source=source,
@@ -89,5 +106,10 @@ class Registry:
                 version=existing.version if existing else "1.0.0",
                 install_method=install_method,
             )
+            verb = "registry_add" if name not in self._entries else "registry_update"
+            _ctx.record(verb, name)
+            updated[name] = new_entry
 
-        self.save()
+        if not _ctx.dry_run:
+            self._entries.update(updated)
+            self.save()

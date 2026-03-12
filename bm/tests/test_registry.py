@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from bm.models import RegistryEntry, SkillScope, SkillSource
+from bm.dryrun import DryRunContext
+from bm.models import InstallMethod, RegistryEntry, SkillScope, SkillSource
 from bm.registry import Registry
 
 
@@ -51,6 +52,49 @@ def test_registry_remove(tmp_path: Path) -> None:
     )
     reg.remove("tickets")
     assert reg.get("tickets") is None
+
+
+def test_batch_add_dry_run_records_ops_but_does_not_write(tmp_path: Path) -> None:
+    reg_file = tmp_path / "registry.json"
+    reg = Registry(reg_file)
+    entry = RegistryEntry(
+        name="my-skill",
+        installed_path=str(tmp_path / "my-skill"),
+        source=SkillSource.REPO,
+        scope=SkillScope.GENERAL,
+        install_method=InstallMethod.SYMLINK,
+    )
+    ctx = DryRunContext(dry_run=True)
+    reg.batch_add([entry], ctx=ctx)
+
+    assert not reg_file.exists()  # nothing written
+    assert len(ctx.ops) == 1
+    assert ctx.ops[0].verb == "registry_add"
+    assert "my-skill" in ctx.ops[0].target
+
+
+def test_remove_dry_run_records_op_but_does_not_write(tmp_path: Path) -> None:
+    reg_file = tmp_path / "registry.json"
+    reg = Registry(reg_file)
+    entry = RegistryEntry(
+        name="my-skill",
+        installed_path=str(tmp_path / "my-skill"),
+        source=SkillSource.REPO,
+        scope=SkillScope.GENERAL,
+        install_method=InstallMethod.SYMLINK,
+    )
+    reg.add(entry)
+    reg.save()
+
+    ctx = DryRunContext(dry_run=True)
+    reg.remove("my-skill", ctx=ctx)
+
+    # Registry file still has entry
+    reg2 = Registry(reg_file)
+    assert reg2.get("my-skill") is not None
+    # Op recorded
+    assert len(ctx.ops) == 1
+    assert ctx.ops[0].verb == "registry_remove"
 
 
 def test_registry_sync_detects_external(tmp_path: Path) -> None:
