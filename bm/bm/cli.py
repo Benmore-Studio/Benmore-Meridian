@@ -45,6 +45,130 @@ app.add_typer(tools_app, name="tools")
 
 console = Console()
 
+
+# ── Dashboard (no-subcommand handler) ────────────────────────────────────────
+
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context) -> None:
+    """Benmore skill manager for Claude Code."""
+    if ctx.invoked_subcommand is not None:
+        return
+    _render_dashboard()
+
+
+def _render_dashboard() -> None:
+    """Render the Rich-formatted bm dashboard."""
+    from bm import __version__
+
+    # ── Gather stats ──────────────────────────────────────────────────────────
+    skills = discover_skills(SKILLS_DIR)
+    skill_statuses = [check_skill_status(s, CLAUDE_SKILLS_DIR) for s in skills]
+    installed_skills = sum(
+        1
+        for st in skill_statuses
+        if st in (SkillStatus.SYMLINKED, SkillStatus.COPIED)
+    )
+    total_skills = len(skills)
+
+    total_tools = len(TOOLS)
+    missing_tools = [name for name, tool in TOOLS.items() if not tool.is_installed()]
+    installed_tools = total_tools - len(missing_tools)
+
+    plugin_status = get_plugin_status()
+    total_plugins = len(plugin_status)
+    installed_plugins = sum(1 for ok in plugin_status.values() if ok)
+
+    # ── Header panel ──────────────────────────────────────────────────────────
+    skill_icon = "\u2705" if installed_skills == total_skills else "\u26a0"
+    tool_icon = "\u2705" if not missing_tools else "\u26a0"
+    plugin_icon = "\u2705" if installed_plugins == total_plugins else "\u26a0"
+
+    header = (
+        f"  Skills: {installed_skills}/{total_skills} {skill_icon}   "
+        f"\u2502   Tools: {installed_tools}/{total_tools} {tool_icon}   "
+        f"\u2502   Plugins: {installed_plugins}/{total_plugins} {plugin_icon}"
+    )
+    console.print(
+        Panel(
+            header,
+            title=f"[bold]bm \u00b7 Benmore Skill Manager v{__version__}[/bold]",
+            border_style="cyan",
+        )
+    )
+
+    # ── Warnings ──────────────────────────────────────────────────────────────
+    if missing_tools:
+        names = ", ".join(missing_tools)
+        console.print(
+            f"\n[yellow]\u26a0  {len(missing_tools)} tools missing:[/yellow] {names}"
+        )
+        console.print("   [dim]\u2192 bm tools install[/dim]")
+
+    missing_plugins = [name for name, ok in plugin_status.items() if not ok]
+    if missing_plugins:
+        names = ", ".join(missing_plugins)
+        console.print(
+            f"\n[yellow]\u26a0  {len(missing_plugins)} plugins missing:[/yellow] {names}"
+        )
+        console.print("   [dim]\u2192 bm plugins[/dim]")
+
+    missing_skill_count = total_skills - installed_skills
+    if missing_skill_count > 0:
+        console.print(
+            f"\n[yellow]\u26a0  {missing_skill_count} skills not installed[/yellow]"
+        )
+        console.print("   [dim]\u2192 bm install[/dim]")
+
+    # ── Command reference sections ────────────────────────────────────────────
+    def _cmd(command: str, description: str) -> None:
+        console.print(f"  [cyan]{command:<30}[/cyan] [dim]{description}[/dim]")
+
+    console.print()
+    console.rule("[bold]Getting Started[/bold]")
+    console.print()
+    _cmd("bm setup", "Install everything: skills, tools, plugins")
+    _cmd("bm doctor", "Full health check \u2014 find and fix problems")
+    _cmd("bm update", "Git pull latest + reinstall all skills")
+
+    console.print()
+    console.rule("[bold]Skills[/bold]")
+    console.print()
+    _cmd("bm install", "Symlink all skills \u2192 ~/.claude/skills/")
+    _cmd("bm skill list", "Browse all available skills")
+    _cmd("bm skill info <name>", "Details on a specific skill")
+    _cmd("bm skill add <name>", "Create a new skill from scratch")
+    _cmd("bm skill write <name>", "Interactive skill builder with prompts")
+    _cmd("bm skill remove <name>", "Uninstall a skill")
+    _cmd("bm skill generalize <name>", "Promote project skill \u2192 general")
+
+    console.print()
+    console.rule("[bold]Tools[/bold]")
+    console.print()
+    _cmd("bm tools list", "Show dev tools (ripgrep, bat, fzf, etc.)")
+    _cmd("bm tools install", "Install all missing tools via brew/apt")
+    _cmd("bm tools install <name>", "Install a specific tool")
+
+    console.print()
+    console.rule("[bold]Plugins[/bold]")
+    console.print()
+    _cmd("bm plugins", "Check Superpowers + Double Shot Latte")
+
+    console.print()
+    console.rule("[bold]Registry[/bold]")
+    console.print()
+    _cmd("bm registry list", "Show all tracked skills")
+    _cmd("bm registry sync", "Detect externally installed skills")
+
+    console.print()
+    console.rule("[bold]Options[/bold]")
+    console.print()
+    _cmd("--json", "Machine-readable output (status, skill list)")
+    _cmd("--dry-run", "Preview changes without writing")
+    _cmd("--rsync", "Force file copy instead of symlinks")
+    console.print()
+
+
 _STATUS_ICON: dict[SkillStatus, str] = {
     SkillStatus.SYMLINKED: "✅",
     SkillStatus.COPIED: "⚙️ ",
@@ -259,28 +383,224 @@ def plugins() -> None:
 
 
 @app.command()
-def doctor() -> None:
-    """Full health check: skills + plugins + registry."""
-    console.rule("[bold]bm doctor[/]")
+def doctor(
+    yes: bool = typer.Option(False, "--yes", "-y", help="Auto-fix without prompting"),
+) -> None:
+    """Full health check — find and fix problems."""
+    issues = 0
+
+    # ── Skills ────────────────────────────────────────────────────────────────
+    console.rule("[bold]Skills[/]")
     skills = discover_skills(SKILLS_DIR)
-    counts: dict[SkillStatus, int] = {s: 0 for s in SkillStatus}
-    for skill in skills:
-        counts[check_skill_status(skill, CLAUDE_SKILLS_DIR)] += 1
     total = len(skills)
-    healthy = counts[SkillStatus.SYMLINKED] + counts[SkillStatus.COPIED]
-    console.print(f"Skills: [bold]{healthy}/{total}[/] installed")
-    if counts[SkillStatus.MISSING] or counts[SkillStatus.BROKEN]:
-        console.print(
-            f"  [yellow]→ run [bold]bm install[/bold] to fix "
-            f"{counts[SkillStatus.MISSING]} missing, {counts[SkillStatus.BROKEN]} broken[/]"
-        )
+    broken: list[SkillEntry] = []
+    for skill in skills:
+        st = check_skill_status(skill, CLAUDE_SKILLS_DIR)
+        if st in (SkillStatus.MISSING, SkillStatus.BROKEN):
+            broken.append(skill)
+
+    healthy = total - len(broken)
+    console.print(f"  {healthy}/{total} installed")
+
+    if broken:
+        names = [s.name for s in broken]
+        console.print(f"  [yellow]⚠  {len(broken)} broken:[/] {', '.join(names)}")
+        do_fix = yes or typer.confirm("  Fix?", default=True)
+        if do_fix:
+            CLAUDE_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+            reg = Registry(REGISTRY_FILE)
+            new_entries: list[RegistryEntry] = []
+            for skill in broken:
+                result = install_skill(skill, CLAUDE_SKILLS_DIR)
+                if result != InstallResult.FAILED:
+                    new_entries.append(
+                        RegistryEntry(
+                            name=skill.name,
+                            installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
+                            source=skill.source,
+                            scope=skill.scope,
+                            project=skill.project,
+                            install_method=(
+                                InstallMethod.SYMLINK
+                                if result == InstallResult.SYMLINKED
+                                else InstallMethod.COPY
+                            ),
+                        )
+                    )
+            reg.batch_add(new_entries)
+            fixed = [e.name for e in new_entries]
+            if fixed:
+                console.print(f"  [green]✅ Reinstalled {', '.join(fixed)}[/]")
+            failed = [s.name for s in broken if s.name not in fixed]
+            if failed:
+                console.print(f"  [red]❌ Failed: {', '.join(failed)}[/]")
+                issues += len(failed)
+        else:
+            issues += len(broken)
+    else:
+        console.print(f"  [green]✅ All {total} skills healthy[/]")
+
+    # ── Tools ─────────────────────────────────────────────────────────────────
+    console.rule("[bold]Tools[/]")
+    all_tools = list(TOOLS.values())
+    missing_tools = [t for t in all_tools if not t.is_installed()]
+    installed_count = len(all_tools) - len(missing_tools)
+
+    console.print(f"  {installed_count}/{len(all_tools)} installed")
+
+    if missing_tools:
+        names_t = [t.name for t in missing_tools]
+        console.print(f"  [yellow]⚠  Missing:[/] {', '.join(names_t)}")
+        do_install = yes or typer.confirm("  Install?", default=True)
+        if do_install:
+            fixed_tools: list[str] = []
+            for tool in missing_tools:
+                console.print(f"  [bold]Installing {tool.name}...[/]")
+                success, msg = install_tool(tool)
+                if success:
+                    fixed_tools.append(tool.name)
+                else:
+                    console.print(f"  [red]❌ {tool.name}:[/] {msg}")
+                    issues += 1
+            if fixed_tools:
+                console.print(f"  [green]✅ Installed {', '.join(fixed_tools)}[/]")
+        else:
+            issues += len(missing_tools)
+    else:
+        console.print(f"  [green]✅ All {len(all_tools)} tools installed[/]")
+
+    # ── Plugins ───────────────────────────────────────────────────────────────
+    console.rule("[bold]Plugins[/]")
     plugin_status = get_plugin_status()
     for pname, ok in plugin_status.items():
-        console.print(f"Plugin {'✅' if ok else '⚠️ '} {pname}")
-    if not all(plugin_status.values()):
-        console.print("  [yellow]→ run [bold]bm plugins[/bold] for instructions[/]")
-    if healthy == total and all(plugin_status.values()):
-        console.print("\n[bold green]Everything looks great! 🎉[/]")
+        if ok:
+            console.print(f"  [green]✅ {pname}[/]")
+        else:
+            console.print(f"  [yellow]⚠  {pname}[/]")
+            guide = format_install_guide(pname)
+            for line in guide.splitlines():
+                console.print(f"     → {line}")
+            issues += 1
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    console.print()
+    if issues == 0:
+        console.print("[bold green]Everything looks great! 🎉[/]")
+    else:
+        console.print(f"[yellow]⚠  {issues} issue(s) remaining[/]")
+
+
+@app.command()
+def setup(
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without changes"),
+) -> None:
+    """Install everything: skills, tools, and check plugins (one-shot setup)."""
+    ctx = DryRunContext(dry_run=dry_run)
+
+    if dry_run:
+        console.print("[bold]bm setup[/] [dim](dry-run)[/]\n")
+    else:
+        console.print("[bold]bm setup[/]\n")
+
+    # ── 1. Prerequisites ─────────────────────────────────────────────────────
+    try:
+        from bm.prereqs import check_prereqs
+
+        prereqs = check_prereqs()
+        console.print("[bold]📋 Prerequisites[/]")
+        for prereq, installed in prereqs:
+            if installed:
+                console.print(f"  ✅ {prereq.name}")
+            else:
+                cmd = prereq.get_install_command()
+                console.print(f"  ⚠️  {prereq.name}")
+                if cmd:
+                    console.print(f"     → {cmd}")
+        console.print()
+    except ImportError:
+        pass
+
+    # ── 2. Install skills ─────────────────────────────────────────────────────
+    console.print("[bold]📦 Installing skills...[/]")
+    CLAUDE_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+    skills = discover_skills(SKILLS_DIR)
+    reg = Registry(REGISTRY_FILE)
+
+    new_entries: list[RegistryEntry] = []
+    success_count = 0
+    for skill in skills:
+        result = install_skill(skill, CLAUDE_SKILLS_DIR, ctx=ctx)
+        if result != InstallResult.FAILED:
+            success_count += 1
+            new_entries.append(
+                RegistryEntry(
+                    name=skill.name,
+                    installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
+                    source=skill.source,
+                    scope=skill.scope,
+                    project=skill.project,
+                    install_method=(
+                        InstallMethod.SYMLINK
+                        if result == InstallResult.SYMLINKED
+                        else InstallMethod.COPY
+                    ),
+                )
+            )
+    reg.batch_add(new_entries, ctx=ctx)
+    console.print(f"  ✅ {success_count} skills → {CLAUDE_SKILLS_DIR}")
+    console.print()
+
+    # ── 3. Install missing tools ──────────────────────────────────────────────
+    console.print("[bold]🛠  Installing missing tools...[/]")
+    missing_tools_list = [t for t in TOOLS.values() if not t.is_installed()]
+
+    if not missing_tools_list:
+        console.print("  ✅ All tools installed")
+    else:
+        if dry_run:
+            for tool in missing_tools_list:
+                ctx.record("install_tool", tool.name)
+            console.print(f"  [dim]Would install {len(missing_tools_list)} tools[/]")
+        else:
+            if not yes:
+                names_list = ", ".join(t.name for t in missing_tools_list)
+                console.print(f"  Missing: {names_list}")
+                typer.confirm(f"Install {len(missing_tools_list)} missing tools?", abort=True)
+            for tool in missing_tools_list:
+                success, msg = install_tool(tool)
+                if success:
+                    console.print(f"  ✅ {tool.name} installed")
+                else:
+                    console.print(f"  ❌ {tool.name}: {msg}")
+    console.print()
+
+    # ── 4. Check plugins ──────────────────────────────────────────────────────
+    console.print("[bold]🔌 Plugins:[/]")
+    plugin_status = get_plugin_status()
+    for pname, installed in plugin_status.items():
+        if installed:
+            console.print(f"  ✅ {pname}")
+        else:
+            console.print(f"  ⚠️  {pname}")
+            guide = format_install_guide(pname)
+            for line in guide.splitlines():
+                if line.strip().startswith("claude "):
+                    console.print(f"     → {line.strip()}")
+                    break
+    console.print()
+
+    # ── 5. Summary ────────────────────────────────────────────────────────────
+    total_tools = len(TOOLS)
+    installed_tools = sum(1 for t in TOOLS.values() if t.is_installed())
+
+    if dry_run:
+        ctx.render(console)
+    else:
+        console.print(
+            f"[bold green]✅ Setup complete![/] "
+            f"{success_count} skills, {installed_tools}/{total_tools} tools"
+        )
 
 
 # ── skill sub-commands ─────────────────────────────────────────────────────────
