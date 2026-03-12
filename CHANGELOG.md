@@ -6,11 +6,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### In Progress
-- Additional deployment platform guides (AWS, Vercel, Railway, Fly.io)
-- Video walkthroughs for complex setups
-- Interactive LSP configuration playground
-- Security best practices comprehensive guide
+---
+
+## [v1.0.0] — 2026-03-11
+
+### Added — `bm` CLI (Benmore Skill Manager)
+
+New Python CLI package at `bm/` — install via `pipx install ./bm`.
+
+**Core commands:**
+- `bm install [--rsync]` — symlinks all repo skills into `~/.claude/skills/`; copytree fallback for restrictive systems
+- `bm status [--json]` — rich table of skill status (symlinked / copied / missing / broken); `--json` for agent use
+- `bm update [name]` — `git pull --ff-only` + reinstall one or all skills
+- `bm plugins` — detects Superpowers + Double Shot Latte; prints install guide for missing plugins
+- `bm doctor` — full health check: skills + plugins + summary
+
+**Skill lifecycle commands:**
+- `bm skill add <name> [--project p]` — create general or project-scoped skill with SKILL.md stub
+- `bm skill list [--project p] [--json]` — list skills, filter by project
+- `bm skill generalize <name>` — promote project skill → general (moves file, re-symlinks, updates registry)
+- `bm skill info <name>` — show path, scope, status, source, description
+
+**Registry commands:**
+- `bm registry sync` — scan `~/.claude/skills/` and reconcile `~/.bm/registry.json`; source detection: REPO / MARKETPLACE / EXTERNAL
+- `bm registry list [--json]` — list all registered skills
+
+**27 unit tests** — models, config, installer, registry, status — all passing; mypy strict 0 errors.
+
+### Added — 29 new skills
+
+**Marketplace snapshots (16)** from Double Shot Latte:
+`ai-seo`, `django-celery-expert`, `fastapi-templates`, `find-skills`, `mcp-builder`, `pdf`, `programmatic-seo`, `receiving-code-review`, `release-notes`, `remotion-best-practices`, `seo-audit`, `stripe-integration`, `vercel-cli`, `vercel-react-best-practices`, `web-design-guidelines`, `xlsx`
+
+**Locally-owned (6)**:
+`audit-trail`, `gdpr-compliance`, `multi-tenant-guard`, `presentation-maker`, `productionize-app`, `tickets`
+
+**PCS microservice skills (7)** — project-scoped in `skills/pcs/`:
+`pcs-add-endpoint`, `pcs-add-kafka-event`, `pcs-integration-test`, `pcs-kong-route`, `pcs-migration`, `pcs-new-service`, `pcs-pr-review`
+
+### Added — Repo files
+
+- `bm/pyproject.toml`, `bm/Makefile`, `bm/pyrightconfig.json`, `bm/.pre-commit-config.yaml`
+- `skills/pcs/README.md` — project skill lifecycle docs
+- `AGENTS.md` — Claude Code integration guide with JSON schemas
+- `CHANGELOG.md` updated to Keep a Changelog format
+- `LICENSE` — MIT
+- `.github/dependabot.yml` — weekly updates for pip + github-actions
+
+### Changed
+
+- `skills/README.md` — `bm install` quickstart at top
+- `skills/SKILLS_INVENTORY.md` — full inventory of all 50+ skills with categories
 
 ---
 
