@@ -8,6 +8,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## v1.3.0 — 2026-03-14
+
+### New Commands
+- **`bm suggest [path]`** — Scan a project directory and print a ranked table of relevant skills based on detected stack (Django, Celery, Stripe, React, etc.). Zero API cost, pure static analysis.
+- **`bm context [path]`** — Generate a markdown snippet for pasting into CLAUDE.md with detected stack + top 5 recommended skills. Use `--copy` to copy to clipboard.
+- **`bm explore [path]`** — Deep project scan that writes a full `docs/bm-suggestions.md` report with ranked skills and reasoning.
+- **`bm debrief`** — Headless post-session skill discovery: reads recent git history and surfaces candidate skills worth codifying. Use `--since <tag|date>` to control look-back window.
+
+### New Features
+- **Dashboard update badge** — `bm` dashboard now checks if a newer version is available on `origin` and shows `⚠ update available — run bm update` when behind.
+- **`bm update` changelog diff** — After pulling, displays the CHANGELOG section for what changed in a Rich panel.
+- **GitHub Actions release automation** — New `.github/workflows/release.yml` auto-bumps version and creates GitHub Releases on every merge to `main`.
+
+### Architecture
+- New `bm/bm/skill_matcher.py`: `SkillMatcher` class with project signal detection and skill scoring.
+- New `bm/bm/debrief.py`: Headless `run_debrief()` with heuristic git-log analysis and cursor persistence.
+- `bm/bm/updater.py`: Added `get_current_tag()`, `get_remote_tag()`, `is_update_available()`, `get_changelog_section()`.
+
+---
+
 ## v1.1.0 — 2026-03-12
 
 ### New Commands
