@@ -649,6 +649,21 @@ bm doctor -y                     # short form of --yes
 bm plugins                       # check Superpowers + Double Shot Latte status
 ```
 
+**Discovery (v1.3.0+):**
+
+```bash
+bm suggest [path]                # scan project → ranked skill suggestions (static, no API)
+bm suggest [path] --top 5        # limit to top 5 suggestions
+bm suggest [path] --json         # machine-readable output for agents
+bm context [path]                # generate CLAUDE.md snippet with stack + top 5 skills
+bm context [path] --copy         # copy snippet to clipboard
+bm explore [path]                # deep scan → writes docs/bm-suggestions.md report
+bm debrief                       # surface skill candidates from recent git history
+bm debrief --since v1.2.0        # look back to a specific tag
+bm debrief --limit 30            # scan last 30 commits (default: 15)
+bm debrief --json                # machine-readable output for agents
+```
+
 **Skill management:**
 
 ```bash
@@ -778,6 +793,10 @@ When working on this repo, Claude should suggest `bm` commands in these situatio
 | Creating a skill interactively | `bm skill write <name>` |
 | Checking what dev tools are missing | `bm tools list` |
 | Need machine-readable output | Add `--json` to status, skill list, or registry list |
+| Starting work on a new project | `bm suggest .` to see relevant skills |
+| Setting up CLAUDE.md for a project | `bm context .` to generate the stack snippet |
+| Want a full skill recommendation report | `bm explore .` writes docs/bm-suggestions.md |
+| End of a session with new patterns | `bm debrief` to surface skill candidates |
 
 ### JSON Output for Agents
 
