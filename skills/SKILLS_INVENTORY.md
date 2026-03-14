@@ -10,7 +10,7 @@ pipx install ./bm && bm install
 
 ---
 
-## General Skills (50 total)
+## General Skills (51 total)
 
 ### 🚀 Production & Deployment
 
@@ -92,6 +92,7 @@ pipx install ./bm && bm install
 | `nano_banana` | Locally owned | ✅ Active | Image generation via Gemini 2.5 Flash |
 | `gh_issue` | Locally owned | ✅ Active | GitHub issue management |
 | `github-issue-gen` | Locally owned | ✅ Active | GitHub issue generator |
+| `creating-user-flows` | Locally owned | ✅ Active | User flow diagrams (Mermaid) for Discovery phase — .md + .html deliverables |
 | `project-primer` | Locally owned | ✅ Active | Pre-kickoff project primer for client engagements |
 | `realtime-socket-react-query` | Locally owned | ✅ Active | Real-time React Query + WebSockets |
 

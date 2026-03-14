@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PROJECT_NAME}} - {{FLOW_NAME}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#1e3a5f',
+                primaryTextColor: '#ffffff',
+                primaryBorderColor: '#60a5fa',
+                lineColor: '#60a5fa',
+                secondaryColor: '#0f2744',
+                tertiaryColor: '#162d50',
+                background: '#0a1628',
+                mainBkg: '#1e3a5f',
+                secondBkg: '#0f2744',
+                border1: '#3b82f6',
+                border2: '#1e40af',
+                arrowheadColor: '#60a5fa',
+                fontFamily: 'Inter, sans-serif',
+                fontSize: '14px',
+                textColor: '#ffffff',
+                nodeTextColor: '#ffffff'
+            }
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a1628 0%, #1a2744 25%, #0f2d4a 50%, #1a3a5c 75%, #0d1a2d 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 60px 30px;
+            color: #ffffff;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* ============================================
+           HEADER
+           ============================================ */
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .logo {
+            margin-bottom: 24px;
+        }
+
+        .logo img {
+            width: 60px;
+            height: 60px;
+            opacity: 0.9;
+        }
+
+        h1 {
+            font-size: 2.75rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffffff 0%, #60a5fa 50%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 400;
+            letter-spacing: 0.02em;
+            word-wrap: break-word;
+        }
+
+        .version-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(96, 165, 250, 0.1) 100%);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #60a5fa;
+            margin-top: 16px;
+        }
+
+        /* ============================================
+           SECTIONS
+           ============================================ */
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-header {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #60a5fa;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-header::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(96, 165, 250, 0.4) 0%, rgba(96, 165, 250, 0.1) 50%, transparent 100%);
+        }
+
+        /* ============================================
+           CARD TYPES
+           ============================================ */
+
+        /* Base Card (Blue) */
+        .card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(96, 165, 250, 0.3) 50%, transparent 100%);
+        }
+
+        .card h3 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #60a5fa;
+            margin-bottom: 14px;
+            word-wrap: break-word;
+        }
+
+        .card h4 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #93c5fd;
+            margin-bottom: 10px;
+            margin-top: 16px;
+            word-wrap: break-word;
+        }
+
+        .card h4:first-of-type {
+            margin-top: 0;
+        }
+
+        .card p {
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 12px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .card p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Feature Card (Green) */
+        .feature-card {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(52, 211, 153, 0.3) 50%, transparent 100%);
+        }
+
+        .feature-card h3 {
+            color: #34d399;
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            word-wrap: break-word;
+        }
+
+        .feature-card h4 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6ee7b7;
+            margin-bottom: 10px;
+            margin-top: 16px;
+        }
+
+        .feature-card p {
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 12px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .feature-card p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Warning Card (Amber) */
+        .warning-card {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(245, 158, 11, 0.03) 100%);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .warning-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(251, 191, 36, 0.3) 50%, transparent 100%);
+        }
+
+        .warning-card h3 {
+            color: #fbbf24;
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            word-wrap: break-word;
+        }
+
+        .warning-card h4 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #fcd34d;
+            margin-bottom: 10px;
+            margin-top: 16px;
+        }
+
+        .warning-card p {
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 12px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .warning-card p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Error Card (Red) */
+        .error-card {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.03) 100%);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .error-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(239, 68, 68, 0.3) 50%, transparent 100%);
+        }
+
+        .error-card h3 {
+            color: #ef4444;
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            word-wrap: break-word;
+        }
+
+        .error-card p {
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 12px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .error-card p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Highlight Card (Blue left-border accent) */
+        .highlight-card {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(96, 165, 250, 0.05) 100%);
+            border-left: 3px solid #60a5fa;
+            border-radius: 0 12px 12px 0;
+            padding: 24px 28px;
+            margin-bottom: 30px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .highlight-card .label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #60a5fa;
+            margin-bottom: 12px;
+        }
+
+        .highlight-card p {
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 12px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .highlight-card p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* ============================================
+           LISTS
+           ============================================ */
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            padding: 8px 0;
+            padding-left: 22px;
+            position: relative;
+            color: rgba(255, 255, 255, 0.85);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        li::before {
+            content: "\2192";
+            position: absolute;
+            left: 0;
+            color: #60a5fa;
+            font-size: 0.9rem;
+        }
+
+        /* ============================================
+           GRIDS
+           ============================================ */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        /* ============================================
+           STAT CARDS
+           ============================================ */
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #60a5fa 0%, #3b82f6 50%, #1e40af 100%);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            word-wrap: break-word;
+        }
+
+        /* ============================================
+           FLOW STEPS
+           ============================================ */
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .flow-step:last-child {
+            border-bottom: none;
+        }
+
+        .flow-number {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .flow-content h4 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #ffffff;
+            margin-bottom: 6px;
+            word-wrap: break-word;
+        }
+
+        .flow-content p {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.65);
+            margin: 0;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* ============================================
+           DIVIDER
+           ============================================ */
+        .divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, rgba(96, 165, 250, 0.3) 20%, rgba(96, 165, 250, 0.3) 80%, transparent 100%);
+            margin: 50px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 40px;
+            background: radial-gradient(ellipse, rgba(96, 165, 250, 0.15) 0%, transparent 70%);
+        }
+
+        /* ============================================
+           DIAGRAM CONTAINER (for Mermaid charts)
+           ============================================ */
+        .diagram-container {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 30px 0;
+            overflow-x: auto;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 768px) {
+            body {
+                padding: 40px 20px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .grid, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
+
+            .card, .feature-card, .warning-card, .error-card {
+                padding: 20px;
+            }
+        }
+
+        /* ============================================
+           PRINT STYLES
+           ============================================ */
+        @media print {
+            body {
+                background: white;
+                color: #1a1a1a;
+                padding: 20px;
+            }
+
+            .card, .highlight-card, .feature-card, .warning-card, .error-card {
+                background: #f8f9fa;
+                border-color: #dee2e6;
+            }
+
+            h1 {
+                background: none;
+                -webkit-text-fill-color: #1a1a1a;
+                color: #1a1a1a;
+            }
+
+            .section-header, .card h3, .stat-value {
+                color: #1a4480;
+                -webkit-text-fill-color: #1a4480;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- ============================================
+             HEADER
+             ============================================ -->
+        <div class="header">
+            <div class="logo">
+                <img src="https://benmore.tech/static/images/og_image.png" alt="Benmore">
+            </div>
+            <h1>{{FLOW_TITLE}}</h1>
+            <p class="subtitle">{{PROJECT_NAME}}</p>
+            <span class="version-badge">{{VERSION}}</span>
+        </div>
+
+        <!-- ============================================
+             KEY TAKEAWAYS (highlight-card)
+             ============================================ -->
+        <div class="highlight-card">
+            <div class="label">Key Workflow Principles</div>
+            <ul>
+                <li>{{PRINCIPLE_1}}</li>
+                <li>{{PRINCIPLE_2}}</li>
+                <!-- Add more as needed -->
+            </ul>
+        </div>
+
+        <!-- ============================================
+             WORKFLOW VISUALIZATION (diagram-container)
+             ============================================ -->
+        <div class="section">
+            <div class="section-header">Complete Workflow Visualization</div>
+            <div class="diagram-container">
+                <pre class="mermaid">
+flowchart TD
+    Start([Start]) --> Step1[First Step]
+    Step1 --> Decision{Decision?}
+    Decision -->|Yes| PathA[Path A]
+    Decision -->|No| PathB[Path B]
+    PathA --> End([End])
+    PathB --> End
+
+    classDef startEnd fill:#34d399,stroke:#059669,color:#000
+    classDef important fill:#fbbf24,stroke:#d97706,color:#000
+
+    class Start,End startEnd
+                </pre>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- ============================================
+             WORKFLOW STEPS (flow-step)
+             ============================================ -->
+        <div class="section">
+            <div class="section-header">Workflow Steps Breakdown</div>
+
+            <div class="flow-step">
+                <div class="flow-number">1</div>
+                <div class="flow-content">
+                    <h4>{{STEP_TITLE}}</h4>
+                    <p>{{STEP_DESCRIPTION}}</p>
+                </div>
+            </div>
+
+            <!-- Repeat for each step -->
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- ============================================
+             FEATURE SECTIONS (feature-card, card, warning-card)
+             ============================================ -->
+        <div class="section">
+            <div class="section-header">{{SECTION_NAME}}</div>
+
+            <!-- Use feature-card for positive features -->
+            <div class="feature-card">
+                <h3>{{FEATURE_TITLE}}</h3>
+                <p>{{FEATURE_DESCRIPTION}}</p>
+            </div>
+
+            <!-- Use card for general info -->
+            <div class="card">
+                <h3>{{INFO_TITLE}}</h3>
+                <p>{{INFO_DESCRIPTION}}</p>
+            </div>
+
+            <!-- Use warning-card for constraints/important notes -->
+            <div class="warning-card">
+                <h3>{{WARNING_TITLE}}</h3>
+                <p>{{WARNING_DESCRIPTION}}</p>
+            </div>
+
+            <!-- Use error-card for error states/critical warnings -->
+            <div class="error-card">
+                <h3>{{ERROR_TITLE}}</h3>
+                <p>{{ERROR_DESCRIPTION}}</p>
+            </div>
+
+            <!-- Use grid for side-by-side cards -->
+            <div class="grid">
+                <div class="card">
+                    <h3>Left Card</h3>
+                    <p>Content</p>
+                </div>
+                <div class="card">
+                    <h3>Right Card</h3>
+                    <p>Content</p>
+                </div>
+            </div>
+
+            <!-- Use stat-card inside grids for metrics -->
+            <div class="grid grid-3">
+                <div class="stat-card">
+                    <div class="stat-value">{{VALUE}}</div>
+                    <div class="stat-label">{{LABEL}}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- ============================================
+             ADDITIONAL DIAGRAMS (if needed)
+             ============================================ -->
+        <div class="section">
+            <div class="section-header">{{DIAGRAM_SECTION_NAME}}</div>
+            <div class="diagram-container">
+                <pre class="mermaid">
+flowchart TD
+    %% Additional diagram here
+                </pre>
+            </div>
+        </div>
+
+        <!-- ============================================
+             DESIGN PRINCIPLES (warning-cards)
+             ============================================ -->
+        <div class="section">
+            <div class="section-header">Design Principles</div>
+
+            <div class="warning-card">
+                <h3>{{PRINCIPLE_TITLE}}</h3>
+                <p>{{PRINCIPLE_DESCRIPTION}}</p>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
