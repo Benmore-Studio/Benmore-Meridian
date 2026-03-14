@@ -33,7 +33,9 @@ from bm.plugins import format_install_guide, get_plugin_status
 from bm.registry import Registry
 from bm.status import check_skill_status
 from bm.tools import TOOLS, install_tool
-from bm.updater import git_pull
+from bm.debrief import run_debrief
+from bm.skill_matcher import SkillMatcher
+from bm.updater import get_changelog_section, git_pull, is_update_available
 
 app = typer.Typer(name="bm", help="Benmore skill manager", add_completion=False)
 skill_app = typer.Typer(help="Manage individual skills")
@@ -96,6 +98,15 @@ def _render_dashboard() -> None:
             border_style="cyan",
         )
     )
+
+    # ── Update check ─────────────────────────────────────────────────────────
+    try:
+        if is_update_available():
+            console.print(
+                "\n[bold yellow]⚠ update available[/bold yellow] — run [bold]bm update[/bold]"
+            )
+    except Exception:
+        pass  # never crash the dashboard on network issues
 
     # ── Warnings ──────────────────────────────────────────────────────────────
     if missing_tools:
@@ -303,6 +314,17 @@ def update(
             console.print(f"[red]git pull failed:[/]\n{output}")
             raise typer.Exit(1)
         console.print(f"[green]{output.strip()}[/]")
+
+        # Show changelog if version advanced
+        changelog = get_changelog_section()
+        if changelog.strip():
+            console.print(
+                Panel(
+                    changelog,
+                    title="[bold]What's new[/bold]",
+                    border_style="green",
+                )
+            )
     else:
         console.print("[dim]Dry-run: skipping git pull[/]")
 
@@ -363,6 +385,148 @@ def update(
 
     if dry_run:
         ctx.render(console)
+
+
+@app.command("suggest")
+def suggest(
+    path: Path = typer.Argument(Path("."), help="Project directory to scan"),
+    top: int = typer.Option(8, "--top", "-n", help="Number of suggestions to show"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+) -> None:
+    """Scan a project and suggest relevant skills based on detected stack."""
+    matcher = SkillMatcher(SKILLS_DIR, CLAUDE_SKILLS_DIR)
+    suggestions = matcher.scan(path.resolve(), top=top)
+
+    if not suggestions:
+        console.print("[dim]No matching skills detected for this project.[/dim]")
+        raise typer.Exit(0)
+
+    if json_output:
+        import json as _json
+        console.print(_json.dumps([{"name": s.name, "reason": s.reason, "status": s.status, "score": s.score} for s in suggestions]))
+        return
+
+    table = Table(title=f"Skill Suggestions for [cyan]{path}[/cyan]", box=box.ROUNDED)
+    table.add_column("Rank", style="dim", width=5)
+    table.add_column("Skill", style="bold cyan")
+    table.add_column("Why")
+    table.add_column("Status")
+
+    for i, s in enumerate(suggestions, 1):
+        status_str = "[green]installed ✓[/green]" if s.status == "installed" else "[dim]bm install[/dim]"
+        table.add_row(str(i), s.name, s.reason, status_str)
+
+    console.print(table)
+
+
+@app.command("context")
+def context(
+    path: Path = typer.Argument(Path("."), help="Project directory to scan"),
+    copy: bool = typer.Option(False, "--copy", "-c", help="Copy output to clipboard"),
+) -> None:
+    """Generate a CLAUDE.md snippet with detected stack and recommended skills."""
+    matcher = SkillMatcher(SKILLS_DIR, CLAUDE_SKILLS_DIR)
+    suggestions = matcher.scan(path.resolve(), top=5)
+    summary = matcher.stack_summary(path.resolve())
+
+    skill_names = ", ".join(s.name for s in suggestions) if suggestions else "none detected"
+
+    snippet = f"""## Project Stack (auto-detected by bm context)
+- {summary}
+- Recommended skills: {skill_names}
+"""
+
+    console.print(snippet)
+
+    if copy:
+        import platform
+        import subprocess as _sp
+        cmd = {"Darwin": "pbcopy", "Linux": "xclip -selection clipboard", "Windows": "clip"}.get(platform.system())
+        if cmd:
+            _sp.run(cmd.split(), input=snippet.encode(), check=False)
+            console.print("[green]✓ Copied to clipboard[/green]")
+        else:
+            console.print("[yellow]Clipboard not supported on this platform[/yellow]")
+
+
+@app.command("explore")
+def explore(
+    path: Path = typer.Argument(Path("."), help="Project directory to scan"),
+    output: Path = typer.Option(Path("docs/bm-suggestions.md"), "--output", "-o", help="Output file path"),
+) -> None:
+    """Deep project scan — writes a skill suggestion report to docs/bm-suggestions.md."""
+    from bm.config import REPO_ROOT
+    matcher = SkillMatcher(SKILLS_DIR, CLAUDE_SKILLS_DIR)
+    suggestions = matcher.scan(path.resolve(), top=20)
+    summary = matcher.stack_summary(path.resolve())
+
+    lines = [
+        f"# bm explore — Skill Suggestions",
+        f"",
+        f"**Scanned:** `{path.resolve()}`  ",
+        f"**Date:** {__import__('datetime').date.today()}  ",
+        f"**Detected stack:** {summary}",
+        f"",
+        f"## Ranked Suggestions",
+        f"",
+        f"| Rank | Skill | Reason | Status |",
+        f"|------|-------|--------|--------|",
+    ]
+    for i, s in enumerate(suggestions, 1):
+        lines.append(f"| {i} | `{s.name}` | {s.reason} | {s.status} |")
+
+    installed = [s for s in suggestions if s.status == "installed"]
+    available = [s for s in suggestions if s.status == "available"]
+
+    if available:
+        lines += ["", "## Install Commands", ""]
+        lines += [f"```bash"] + [f"bm install  # then symlink {s.name}" for s in available[:5]] + ["```"]
+
+    if installed:
+        lines += ["", "## Already Installed", ""]
+        lines += [f"- `{s.name}`" for s in installed]
+
+    report = "\n".join(lines)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(report)
+
+    console.print(f"[green]✓ Report written to[/green] [cyan]{output}[/cyan]")
+    console.print(f"  Detected: [bold]{summary}[/bold]")
+    console.print(f"  Suggestions: {len(suggestions)} skills ({len(installed)} installed, {len(available)} available)")
+
+
+@app.command("debrief")
+def debrief_cmd(
+    limit: int = typer.Option(15, "--limit", "-n", help="Number of commits to scan"),
+    since: str = typer.Option("", "--since", help="Look back to this git ref or ISO date"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+) -> None:
+    """Scan recent git history and surface candidate skills worth codifying."""
+    from bm.config import REPO_ROOT
+    candidates = run_debrief(REPO_ROOT, limit=limit, since=since or None)
+
+    if not candidates:
+        console.print("[dim]No reusable patterns detected in recent commits.[/dim]")
+        raise typer.Exit(0)
+
+    if json_output:
+        import json as _json
+        console.print(_json.dumps([{"name": c.name, "rationale": c.rationale, "score": c.score, "command": c.command} for c in candidates]))
+        return
+
+    rows = "\n".join(
+        f"  [bold cyan]{i}. {c.name}[/bold cyan]  [dim]score: {c.score}[/dim]\n"
+        f"     {c.rationale}\n"
+        f"     [dim]→ {c.command}[/dim]"
+        for i, c in enumerate(candidates, 1)
+    )
+    console.print(
+        Panel(
+            rows,
+            title=f"[bold]bm debrief[/bold] — {len(candidates)} skill candidate(s) from last {limit} commits",
+            border_style="cyan",
+        )
+    )
 
 
 @app.command()
