@@ -120,8 +120,9 @@ class SkillMatcher:
     # ------------------------------------------------------------------
 
     def _build_keyword_index(self) -> None:
-        """Populate self._keyword_index from each skill's SKILL.md."""
-        self._keyword_index = {}
+        """Populate self._keyword_index from each skill's SKILL.md (cached after first call)."""
+        if self._keyword_index:
+            return
         if not self._skills_dir.is_dir():
             return
         for skill_md in self._skills_dir.rglob("SKILL.md"):
@@ -251,7 +252,11 @@ class SkillMatcher:
         if (path / "frontend").is_dir():
             add("frontend", "frontend/ directory")
             add("react", "frontend/ directory")
-            add("nextjs", "frontend/ directory")
+            if (
+                (path / "frontend" / "next.config.js").exists()
+                or (path / "frontend" / "next.config.ts").exists()
+            ):
+                add("nextjs", "frontend/next.config.js")
 
         # Makefile
         if (path / "Makefile").exists():

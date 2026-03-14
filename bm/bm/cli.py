@@ -35,7 +35,7 @@ from bm.status import check_skill_status
 from bm.tools import TOOLS, install_tool
 from bm.debrief import run_debrief
 from bm.skill_matcher import SkillMatcher
-from bm.updater import get_changelog_section, git_pull, is_update_available
+from bm.updater import get_changelog_section, get_current_tag, get_remote_tag, git_pull, is_update_available
 
 app = typer.Typer(name="bm", help="Benmore skill manager", add_completion=False)
 skill_app = typer.Typer(help="Manage individual skills")
@@ -152,6 +152,14 @@ def _render_dashboard() -> None:
     _cmd("bm skill write <name>", "Interactive skill builder with prompts")
     _cmd("bm skill remove <name>", "Uninstall a skill")
     _cmd("bm skill generalize <name>", "Promote project skill \u2192 general")
+
+    console.print()
+    console.rule("[bold]Discovery[/bold]")
+    console.print()
+    _cmd("bm suggest [path]", "Suggest skills based on project stack (zero API cost)")
+    _cmd("bm context [path]", "Generate CLAUDE.md snippet with stack + skill recommendations")
+    _cmd("bm explore [path]", "Deep scan — write docs/bm-suggestions.md report")
+    _cmd("bm debrief", "Surface skill candidates from recent git history")
 
     console.print()
     console.rule("[bold]Tools[/bold]")
@@ -316,7 +324,9 @@ def update(
         console.print(f"[green]{output.strip()}[/]")
 
         # Show changelog if version advanced
-        changelog = get_changelog_section()
+        local_tag = get_current_tag() or ""
+        remote_tag = get_remote_tag() or ""
+        changelog = get_changelog_section(from_tag=local_tag, to_tag=remote_tag)
         if changelog.strip():
             console.print(
                 Panel(
@@ -402,8 +412,7 @@ def suggest(
         raise typer.Exit(0)
 
     if json_output:
-        import json as _json
-        console.print(_json.dumps([{"name": s.name, "reason": s.reason, "status": s.status, "score": s.score} for s in suggestions]))
+        console.print(json.dumps([{"name": s.name, "reason": s.reason, "status": s.status, "score": s.score} for s in suggestions]))
         return
 
     table = Table(title=f"Skill Suggestions for [cyan]{path}[/cyan]", box=box.ROUNDED)
@@ -510,8 +519,7 @@ def debrief_cmd(
         raise typer.Exit(0)
 
     if json_output:
-        import json as _json
-        console.print(_json.dumps([{"name": c.name, "rationale": c.rationale, "score": c.score, "command": c.command} for c in candidates]))
+        console.print(json.dumps([{"name": c.name, "rationale": c.rationale, "score": c.score, "command": c.command} for c in candidates]))
         return
 
     rows = "\n".join(

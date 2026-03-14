@@ -31,6 +31,15 @@ def reinstall_all(
     }
 
 
+_UPDATE_CACHE_FILE = Path.home() / ".bm" / "update_check_cache"
+_UPDATE_CACHE_TTL_HOURS = 24
+
+
+def _parse_semver(tag: str) -> tuple[int, ...]:
+    """Parse a semver tag string like 'v1.2.3' into a tuple of ints."""
+    return tuple(int(x) for x in tag.lstrip("v").split("."))
+
+
 def get_current_tag(repo_root: Path = REPO_ROOT) -> str | None:
     """Return the current git tag (e.g. 'v1.2.0'), or None if no tags exist."""
     try:
@@ -75,7 +84,7 @@ def get_remote_tag(repo_root: Path = REPO_ROOT) -> str | None:
             raw = tag.lstrip("v")
             parts = raw.split(".")
             if len(parts) == 3 and all(p.isdigit() for p in parts):
-                semver = tuple(int(p) for p in parts)
+                semver = _parse_semver(tag)
                 tags.append(semver)
                 tag_strings[semver] = tag
 
@@ -92,23 +101,43 @@ def get_remote_tag(repo_root: Path = REPO_ROOT) -> str | None:
 
 
 def is_update_available(repo_root: Path = REPO_ROOT) -> bool:
-    """Return True if remote has a newer tag than local HEAD."""
+    """Return True if remote has a newer tag than local HEAD.
+
+    Result is cached in ~/.bm/update_check_cache for 24 hours to avoid
+    a network round-trip on every `bm` invocation.
+    """
+    import time
+
+    # Check TTL cache
+    if _UPDATE_CACHE_FILE.exists():
+        try:
+            cached = _UPDATE_CACHE_FILE.read_text().strip().split(":")
+            if len(cached) == 2:
+                ts, result = float(cached[0]), cached[1] == "1"
+                if time.time() - ts < _UPDATE_CACHE_TTL_HOURS * 3600:
+                    return result
+        except (ValueError, OSError):
+            pass
+
     local_tag = get_current_tag(repo_root)
     remote_tag = get_remote_tag(repo_root)
 
     if remote_tag is None:
         return False
 
-    local_raw = (local_tag or "v0.0.0").lstrip("v")
-    remote_raw = remote_tag.lstrip("v")
-
     try:
-        local_tuple = tuple(int(x) for x in local_raw.split("."))
-        remote_tuple = tuple(int(x) for x in remote_raw.split("."))
+        available = _parse_semver(remote_tag) > _parse_semver(local_tag or "v0.0.0")
     except ValueError:
         return False
 
-    return remote_tuple > local_tuple
+    # Persist result with timestamp
+    try:
+        _UPDATE_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _UPDATE_CACHE_FILE.write_text(f"{time.time()}:{'1' if available else '0'}")
+    except OSError:
+        pass
+
+    return available
 
 
 def get_changelog_section(

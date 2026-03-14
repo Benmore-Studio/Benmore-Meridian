@@ -6,6 +6,8 @@ from pathlib import Path
 import re
 import subprocess
 
+from bm.config import CLAUDE_SKILLS_DIR
+
 
 CURSOR_FILE = Path.home() / ".bm" / "debrief_cursor"
 
@@ -41,17 +43,14 @@ def save_cursor(timestamp: str) -> None:
 
 
 def _run_git(args: list[str]) -> str | None:
-    """Run a git command and return stdout, or None on failure."""
+    """Run a git command and return stdout, or None on non-zero exit or error."""
     try:
-        result = subprocess.run(
-            args,
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
+        result = subprocess.run(args, capture_output=True, text=True, timeout=15)
         if result.returncode != 0:
             return None
         return result.stdout
+    except FileNotFoundError:
+        return None  # git not installed — propagate as None, caller must not save cursor
     except Exception:
         return None
 
@@ -67,10 +66,9 @@ def _to_slug(phrase: str) -> str:
 
 def _existing_skill_names() -> set[str]:
     """Return set of slugs already installed in ~/.claude/skills/."""
-    skills_dir = Path.home() / ".claude" / "skills"
-    if not skills_dir.exists():
+    if not CLAUDE_SKILLS_DIR.exists():
         return set()
-    return {p.name for p in skills_dir.iterdir() if p.is_dir() or p.is_symlink()}
+    return {p.name for p in CLAUDE_SKILLS_DIR.iterdir() if p.is_dir() or p.is_symlink()}
 
 
 def run_debrief(
@@ -92,13 +90,11 @@ def run_debrief(
 
     log_output = _run_git(log_args)
     if not log_output:
-        save_cursor(datetime.now().isoformat())
-        return []
+        return []  # git unavailable or not a repo — don't advance cursor
 
     commits = [line.strip() for line in log_output.strip().splitlines() if line.strip()]
     if len(commits) < 3:
-        save_cursor(datetime.now().isoformat())
-        return []
+        return []  # not enough history — don't advance cursor
 
     # Determine diff range
     oldest_hash = commits[-1].split()[0]
@@ -106,7 +102,6 @@ def run_debrief(
     diff_range = f"{oldest_hash}~1..{newest_hash}"
 
     # Get changed files and added files
-    stat_output = _run_git(["git", "-C", str(repo_root), "diff", diff_range, "--stat"]) or ""
     names_output = _run_git(["git", "-C", str(repo_root), "diff", diff_range, "--name-only"]) or ""
     added_output = _run_git(
         ["git", "-C", str(repo_root), "diff", diff_range, "--name-only", "--diff-filter=A"]
@@ -115,7 +110,6 @@ def run_debrief(
     added_files: set[str] = set(added_output.strip().splitlines())
 
     # Count CLAUDE.md line additions
-    claude_md_bonus = 0
     claude_diff = _run_git(
         ["git", "-C", str(repo_root), "diff", diff_range, "--", "CLAUDE.md"]
     ) or ""
