@@ -35,7 +35,19 @@
       "Bash(bm plugins:*)",
       "Bash(bm skill:*)",
       "Bash(bm registry:*)",
-      "Bash(bm tools:*)"
+      "Bash(bm tools:*)",
+      "Bash(git pull:*)",
+      "Bash(cd /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian/bm && python -c \"from bm.skill_matcher import SkillMatcher; from bm.debrief import run_debrief; from bm.updater import is_update_available, get_changelog_section; print\\('imports OK'\\)\")",
+      "Bash(python -c \"from bm.cli import app; print\\('CLI OK'\\)\")",
+      "Bash(cd /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian/bm && python -m bm --help 2>&1 | head -30)",
+      "Bash(cd /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian/bm && python -m bm 2>&1)",
+      "Bash(cd /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian/bm && python -c \"from bm.cli import app; from bm.debrief import run_debrief; from bm.skill_matcher import SkillMatcher; from bm.updater import is_update_available; print\\('all OK'\\)\")",
+      "Bash(git ls-tree:*)",
+      "Bash(find:*)",
+      "Bash(cd bm:*)",
+      "Bash(ls:*)",
+      "Bash(git fetch:*)",
+      "Bash(python:*)"
     ]
   }
 }
