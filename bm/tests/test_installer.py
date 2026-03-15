@@ -174,3 +174,40 @@ def test_remove_skill_raises_for_external_skill(
 
     with pytest.raises(ValueError, match="external"):
         remove_skill(skill_name, tmp_claude_skills, reg, DryRunContext())
+
+
+# ── Circular symlink guards ──────────────────────────────────────────────────
+
+
+def test_discover_skips_symlinks_in_skills_dir(tmp_skills_dir: Path) -> None:
+    """Symlinks inside skills/ should be skipped — only real directories are skills."""
+    # Create a symlink that points to an existing skill (simulates the bug)
+    real_skill = tmp_skills_dir / "vercel-cli"
+    symlink = tmp_skills_dir / "vercel-cli-link"
+    symlink.symlink_to(real_skill)
+
+    skills = discover_skills(tmp_skills_dir)
+    names = [e.name for e in skills]
+    assert "vercel-cli-link" not in names
+    assert "vercel-cli" in names  # real one still discovered
+
+
+def test_discover_skips_symlinks_in_project_dir(tmp_skills_dir: Path) -> None:
+    """Symlinks inside project containers (e.g. skills/pcs/) should also be skipped."""
+    pcs_dir = tmp_skills_dir / "pcs"
+    real_skill = pcs_dir / "pcs-migration"
+    symlink = pcs_dir / "pcs-migration-link"
+    symlink.symlink_to(real_skill)
+
+    skills = discover_skills(tmp_skills_dir)
+    names = [e.name for e in skills]
+    assert "pcs-migration-link" not in names
+    assert "pcs-migration" in names
+
+
+def test_install_refuses_circular_target(tmp_skills_dir: Path) -> None:
+    """install_skill must refuse when target dir is inside the source tree."""
+    skill = next(e for e in discover_skills(tmp_skills_dir) if e.name == "vercel-cli")
+    # Try to install INTO the source skills directory itself — would create a loop
+    result = install_skill(skill, tmp_skills_dir)
+    assert result == InstallResult.FAILED

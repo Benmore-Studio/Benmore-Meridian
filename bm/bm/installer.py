@@ -61,9 +61,26 @@ def discover_skills(skills_dir: Path) -> list[SkillEntry]:
         if not child.is_dir() or child.name.startswith("."):
             continue
 
+        # Safety: skip symlinks in the source directory — real skills are always
+        # plain directories, never symlinks.  Symlinks here indicate a previous
+        # broken install that leaked links back into the repo (the root cause of
+        # the circular-symlink corruption in commit 484cdfb).
+        if child.is_symlink():
+            _err.print(
+                f"[yellow]Warning:[/] Skipping symlink '{child.name}' in {skills_dir} "
+                f"(expected a real directory, not a symlink)"
+            )
+            continue
+
         if _is_project_dir(child):
             project_name = child.name
             for skill_dir in sorted(child.iterdir()):
+                if skill_dir.is_symlink():
+                    _err.print(
+                        f"[yellow]Warning:[/] Skipping symlink '{skill_dir.name}' "
+                        f"in {child} (expected a real directory)"
+                    )
+                    continue
                 if skill_dir.is_dir() and not skill_dir.name.startswith("."):
                     entry = SkillEntry(
                         name=skill_dir.name,
@@ -112,6 +129,19 @@ def install_skill(
     """
     _ctx = ctx or DryRunContext()
     target = claude_skills_dir / skill.name
+
+    # Safety: refuse to install if target is inside the source skill tree or
+    # vice-versa — this would create circular symlinks that corrupt the repo.
+    source_resolved = skill.path.resolve()
+    target_parent = claude_skills_dir.resolve()
+    if str(target_parent).startswith(str(source_resolved.parent) + "/") or str(
+        source_resolved
+    ).startswith(str(target_parent) + "/"):
+        _err.print(
+            f"[red]Error:[/] Refusing circular install — target {target_parent} "
+            f"overlaps source {source_resolved.parent}"
+        )
+        return InstallResult.FAILED
 
     if _ctx.dry_run:
         verb = "copy" if force_copy else "symlink"
