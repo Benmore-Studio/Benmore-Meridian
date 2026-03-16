@@ -1,6 +1,7 @@
 ---
 name: threejs-architect
 description: Use when building 3D experiences with Three.js — product configurators, scroll-driven animations, interactive viewers, marketing hero scenes, data visualizations, architecture renderings, 3D UI components. Triggers on requests involving WebGL, Three.js, 3D rendering, GLB/glTF/OBJ/FBX models, scene setup, camera systems, scroll-driven 3D animation, GPU performance optimization, or integrating 3D into React, Next.js, Vue, or vanilla JS projects. Also triggers on terms like configurator, 3D viewer, hero animation, orbit controls, raycasting, or mesh instancing.
+context: fork
 ---
 
 # Three.js Implementation Architect

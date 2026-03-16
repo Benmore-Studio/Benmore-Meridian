@@ -1,6 +1,7 @@
 ---
 name: minimalist-ui-design
 description: This skill provides guidance for implementing the Thor Electric minimalist UI design system. Use this skill when styling Django templates with Tailwind CSS to maintain consistency across the application with clean, professional aesthetics featuring black buttons, light typography, white cards, and Heroicons.
+context: fork
 ---
 
 # Minimalist UI Design System

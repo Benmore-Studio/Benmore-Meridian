@@ -1,6 +1,7 @@
 ---
 name: pcs-pr-review
 description: Use when reviewing pull requests for PCS microservices - covers architecture compliance, multi-tenant safety, Kafka event contracts, Kong route validation, security checks, and test coverage requirements
+context: fork
 ---
 
 # PCS: PR Review

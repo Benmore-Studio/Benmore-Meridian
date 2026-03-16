@@ -1,6 +1,7 @@
 ---
 name: gh_issue
 description: GitHub Issue Generator Skill
+context: fork
 ---
 
 # GitHub Issue Generator Skill

@@ -10,6 +10,7 @@ description: >
   incorporates the user's complexity thoughts and value proposition hypotheses, writes a
   structured PRIMER.md in the project's Discovery directory, then generates a polished
   PRIMER_PRESENTATION.html using the embedded design system below.
+context: fork
 ---
 
 # Project Primer

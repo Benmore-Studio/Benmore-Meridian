@@ -1,6 +1,7 @@
 ---
 name: audit-trail
 description: Use when adding audit logging to API endpoints, database operations, or security events - covers model creation, structured logging, Kafka/event emission, IP/user-agent capture, and correlation ID tracking
+context: fork
 ---
 
 # Audit Trail

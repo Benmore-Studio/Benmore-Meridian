@@ -1,6 +1,7 @@
 ---
 name: multi-tenant-guard
 description: Use when implementing or auditing multi-tenant isolation in shared-database architectures - covers row-level org_id filtering, context propagation, tenant-aware queries, cross-tenant data leak prevention, and isolation testing
+context: fork
 ---
 
 # Multi-Tenant Guard

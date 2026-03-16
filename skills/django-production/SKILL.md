@@ -1,6 +1,7 @@
 ---
 name: django-production
 description: Use when auditing Django codebases for production readiness or implementing production best practices with modern tooling (uv, ruff, pytest, Docker, drf-spectacular). Provides automated detection, gap analysis, and step-by-step implementation with ready-to-use configuration templates.
+context: fork
 ---
 
 # Django Production Readiness Skill

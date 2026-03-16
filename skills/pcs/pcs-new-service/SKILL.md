@@ -1,6 +1,7 @@
 ---
 name: pcs-new-service
 description: Use when creating a new microservice for the PCS backend - scaffolds the complete service directory with FastAPI app, config, models, routers, services, Kafka events, Dockerfile, pyproject.toml, tests, and wires it into Kong and Docker Compose
+context: fork
 ---
 
 # PCS: New Microservice

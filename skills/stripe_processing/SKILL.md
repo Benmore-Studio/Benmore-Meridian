@@ -2,6 +2,7 @@
 name: stripe_processing
 description: Stripe processing skill for onetime payment and subscription with email notification.
 license: Stripe
+context: fork
 ---
 
 ## Overview

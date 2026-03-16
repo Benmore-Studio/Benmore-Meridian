@@ -1,6 +1,7 @@
 ---
 name: pcs-migration
 description: Use when creating or modifying Alembic database migrations for PCS services - covers async engine setup, autogenerate, multi-tenant column requirements, migration ordering, and rollback procedures
+context: fork
 ---
 
 # PCS: Alembic Migration

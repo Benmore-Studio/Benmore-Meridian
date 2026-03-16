@@ -1,6 +1,7 @@
 ---
 name: dependency-security-audit
 description: Comprehensive dependency security auditing and automated fixing for npm, pnpm, yarn, pip, poetry projects. Scans for CVEs, explains vulnerability business impact, applies safe fixes automatically, uses parallel Explore agents for deep codebase analysis, and generates detailed security reports. Use when (1) User asks to "audit security", "check for vulnerabilities", "fix Dependabot issues", "scan dependencies", "security audit"; (2) Before production deployment; (3) After major dependency updates; (4) Quarterly security reviews; (5) When Dependabot alerts are found; (6) User mentions CVEs, security patches, or outdated packages.
+context: fork
 ---
 
 # Dependency Security Audit

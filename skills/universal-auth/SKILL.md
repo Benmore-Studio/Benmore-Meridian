@@ -1,6 +1,7 @@
 ---
 name: universal-auth
 description: Use when adding authentication to any application — mobile, web, SaaS, internal tool, or healthcare system. Triggers on requests for login, signup, 2FA, TOTP, biometric auth, Face ID, fingerprint, JWT, session management, password reset, MFA setup, role-based access, or audit logging. Covers Django, Node/Express, NestJS, Laravel, React Native, Next.js, Flutter. Applies to new projects and retrofitting existing codebases without breaking architecture.
+context: fork
 ---
 
 # Universal Authentication Skill

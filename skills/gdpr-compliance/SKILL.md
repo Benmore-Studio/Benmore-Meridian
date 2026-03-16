@@ -1,6 +1,7 @@
 ---
 name: gdpr-compliance
 description: Use when implementing privacy compliance features - GDPR consent management, data subject access requests (DSARs), data retention policies, right to erasure, data portability, or CCPA/FCRA consent tracking
+context: fork
 ---
 
 # GDPR & Privacy Compliance

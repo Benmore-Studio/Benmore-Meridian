@@ -8,6 +8,7 @@ description: >
   lazygit, delta), or wants fzf-based keybindings for shell history and git.
   Also triggers on: "set up my terminal", "modern CLI tools", "better terminal",
   "fzf setup", "terminal productivity", "dev environment setup".
+context: fork
 ---
 
 # Modern Terminal Setup

@@ -2,6 +2,7 @@
 name: nano_banana
 description: Generates or edits an image using the Gemini 2.5 Flash Image (Nano Banana) model via the API.
 license: Google Generative AI SDK License
+context: fork
 ---
 ## Skill Instructions
 Provide clear, step-by-step instructions for Claude to follow when this skill is invoked. Use specific, action-oriented language.

@@ -1,6 +1,7 @@
 ---
 name: vercel-cli
 description: Deploy, manage, and develop projects on Vercel from the command line
+context: fork
 ---
 
 # Vercel CLI Skill

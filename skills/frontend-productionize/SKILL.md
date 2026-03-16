@@ -8,6 +8,7 @@ description: |
   Performs audits, auto-fixes safe issues, reports complex issues. Generates Markdown report with checklist.
 
   Capabilities: OpenAPI TypeScript integration, code quality audits (ESLint/TS/Prettier), security scanning (secrets/Gitleaks), testing setup (Vitest/Playwright), CI/CD (GitHub Actions), monitoring (Sentry), production configs.
+context: fork
 ---
 
 # Frontend Productionization Skill

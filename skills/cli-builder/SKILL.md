@@ -8,6 +8,7 @@ triggers:
   - CLI with Typer
   - Python CLI
   - terminal tool
+context: fork
 ---
 
 # cli-builder

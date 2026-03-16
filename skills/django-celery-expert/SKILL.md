@@ -1,6 +1,7 @@
 ---
 name: django-celery-expert
 description: Expert Django and Celery guidance for asynchronous task processing. Use when designing background tasks, configuring workers, handling retries and errors, optimizing task performance, implementing periodic tasks, or setting up production monitoring. Follows Celery best practices with Django integration patterns.
+context: fork
 ---
 
 # Django Celery Expert

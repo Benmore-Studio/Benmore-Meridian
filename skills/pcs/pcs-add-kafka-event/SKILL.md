@@ -1,6 +1,7 @@
 ---
 name: pcs-add-kafka-event
 description: Use when adding a new Kafka event to a PCS service - covers topic naming, emitter function, handler registration, consumer setup, and cross-service event contracts
+context: fork
 ---
 
 # PCS: Add Kafka Event

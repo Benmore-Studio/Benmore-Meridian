@@ -1,6 +1,7 @@
 ---
 name: realtime-socket-react-query
 description: Use when implementing real-time updates in a React app that uses React Query (TanStack Query) and WebSockets. Use when adding live data sync, push notifications of backend changes, or replacing polling with socket-driven cache invalidation.
+context: fork
 ---
 
 # Real-Time Updates with WebSockets + React Query

@@ -9,6 +9,7 @@ description: >
   signed Git release tag and GitHub Release. Use when asked to "productionize", "prep for
   release", "add docs and versioning", "make the app production-ready", or any combination
   of docs/license/API-docs/changelog/dependabot/release tasks.
+context: fork
 ---
 
 # Productionize App

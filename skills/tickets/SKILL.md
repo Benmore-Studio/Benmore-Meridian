@@ -1,6 +1,7 @@
 ---
 name: tickets
 description: Custom GitHub Issue Generator Skill
+context: fork
 ---
 
 # Custom GitHub Issue Generator Skill

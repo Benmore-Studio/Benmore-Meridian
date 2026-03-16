@@ -1,6 +1,7 @@
 ---
 name: push-notifications-firebase
 description: Push Notifications Implementation Skill
+context: fork
 ---
 
 # Push Notifications Implementation Skill

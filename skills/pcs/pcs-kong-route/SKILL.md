@@ -1,6 +1,7 @@
 ---
 name: pcs-kong-route
 description: Use when adding or modifying Kong Gateway routes for PCS microservices - covers declarative YAML config, service definitions, route paths, strip_path behavior, health checks, JWT bypass, and plugin configuration
+context: fork
 ---
 
 # PCS: Kong Gateway Route

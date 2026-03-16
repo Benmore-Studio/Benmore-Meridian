@@ -1,6 +1,7 @@
 ---
 name: otp-verification
 description: OTP Verification Implementation Skill
+context: fork
 ---
 
 # OTP Verification Implementation Skill

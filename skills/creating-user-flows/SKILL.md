@@ -5,6 +5,7 @@ compatibility: Requires Claude Code with file write access. HTML output uses Mer
 metadata:
   author: Benmore Technologies
   version: 2.0.0
+context: fork
 ---
 
 # Creating User Flows

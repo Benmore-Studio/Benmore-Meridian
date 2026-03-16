@@ -1,6 +1,7 @@
 ---
 name: mailjet-email-service
 description: Mailjet Email Service Implementation Skill
+context: fork
 ---
 
 # Mailjet Email Service Implementation Skill

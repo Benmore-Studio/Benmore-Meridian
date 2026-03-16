@@ -1,6 +1,7 @@
 ---
 name: presentation_maker
 description: Enhanced Presentation Formatter Skill
+context: fork
 ---
 
 # Enhanced Presentation Formatter Skill

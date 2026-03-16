@@ -1,6 +1,7 @@
 ---
 name: pcs-integration-test
 description: Use when writing integration or unit tests for PCS microservices - covers async test fixtures, SQLite in-memory setup, tenant header helpers, dependency override patterns, Kafka mock strategies, and cross-tenant isolation tests
+context: fork
 ---
 
 # PCS: Integration Tests

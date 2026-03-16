@@ -1,6 +1,7 @@
 ---
 name: pcs-add-endpoint
 description: Use when adding a new CRUD endpoint to any PCS microservice - generates router, schema, service method, audit event, Kafka emission, and test following PCS conventions
+context: fork
 ---
 
 # PCS: Add Endpoint

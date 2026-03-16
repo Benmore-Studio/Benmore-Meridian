@@ -1,6 +1,7 @@
 ---
 name: django-auth-react-native
 description: Complete, production-ready Django authentication system for React Native applications. This skill should be used when building a new Django + React Native project that needs authentication, implementing JWT-based authentication with refresh tokens, adding email verification and OTP functionality, setting up password reset workflows, implementing multi-device session management, building multi-tenant SaaS applications, or migrating from session-based to token-based authentication. Provides complete backend and frontend templates with security best practices built-in.
+context: fork
 ---
 
 # Django Authentication for React Native

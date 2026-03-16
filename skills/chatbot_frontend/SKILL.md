@@ -1,6 +1,7 @@
 ---
 name: chatbot_frontend
 description: AI Chatbot Skill - Enterprise Website Assistant
+context: fork
 ---
 
 # AI Chatbot Skill - Enterprise Website Assistant
