@@ -1173,8 +1173,8 @@ npx playwright install          # Alternative</code></pre>
                 <p><strong>Step 4: Manage</strong></p>
                 <pre><code>/plugin                    # Opens plugin manager
 /plugin list               # List installed
-/plugin enable <name>
-/plugin disable <name></code></pre>
+/plugin enable &lt;name&gt;
+/plugin disable &lt;name&gt;</code></pre>
             </div>
         </div>
 
@@ -1234,9 +1234,9 @@ npx playwright install          # Alternative</code></pre>
                 <p><a href="https://skills.sh" style="color: #60a5fa;">skills.sh</a> is an open registry where developers publish skills.</p>
                 <p><strong>Browse:</strong> Go to skills.sh to search</p>
                 <p><strong>Install:</strong></p>
-                <pre><code>npx skills add <skill-name>
+                <pre><code>npx skills add &lt;skill-name&gt;
 # or
-npx add-skill <repo-name></code></pre>
+npx add-skill &lt;repo-name&gt;</code></pre>
 
                 <h4>2. Superpowers Skills (via Plugin)</h4>
                 <p>When you install Superpowers plugin, you get 20+ built-in skills as slash commands:</p>
@@ -1890,7 +1890,7 @@ npx openapi-typescript ./schema.yaml -o ./types/api.ts</code></pre>
                 <pre><code>import createClient from 'openapi-fetch';
 import type { paths } from './types/api';
 
-const client = createClient<paths>({
+const client = createClient&lt;paths&gt;({
   baseUrl: 'http://localhost:8000/api'
 });
 
