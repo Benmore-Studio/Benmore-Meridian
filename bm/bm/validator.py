@@ -49,7 +49,7 @@ def validate_skill(skill: SkillEntry) -> ValidationResult:
         result.errors.append(f"SKILL.md missing in {skill.path}")
         return result
 
-    fm = _parse_frontmatter(skill_md.read_text())
+    fm = _parse_frontmatter(skill_md.read_text(encoding="utf-8"))
 
     # Required: name
     name_val = fm.get("name", "")

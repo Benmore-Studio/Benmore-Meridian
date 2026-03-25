@@ -2,6 +2,19 @@
 
 from __future__ import annotations
 
+import os
+import sys
+
+# Force UTF-8 mode on Windows to support emoji/unicode output in Rich tables.
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for stream in (sys.stdout, sys.stderr):
+        if stream and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
 import json
 import shutil
 from dataclasses import asdict

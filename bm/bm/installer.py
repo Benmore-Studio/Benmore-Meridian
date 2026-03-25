@@ -20,7 +20,7 @@ def _read_skill_description(skill_path: Path) -> str:
     skill_md = skill_path / "SKILL.md"
     if not skill_md.exists():
         return ""
-    for line in skill_md.read_text().splitlines():
+    for line in skill_md.read_text(encoding="utf-8").splitlines():
         if line.startswith("---") and line != "---":
             break  # end of frontmatter
         if line.startswith("description:"):
