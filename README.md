@@ -8,7 +8,7 @@
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-38%2B%20passing-brightgreen.svg)](#contributing)
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](CHANGELOG.md)
 
 Install 50+ Claude Code skills in one command. Edit once, reflect everywhere via symlinks.
 
@@ -17,6 +17,7 @@ Install 50+ Claude Code skills in one command. Edit once, reflect everywhere via
 ## Table of Contents
 
 - [Highlights](#highlights)
+- [New? Start Here 🚀](#new-start-here-)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Commands](#commands)
@@ -27,6 +28,14 @@ Install 50+ Claude Code skills in one command. Edit once, reflect everywhere via
 - [Repository Structure](#repository-structure)
 - [Guides](#guides)
 - [Contributing](#contributing)
+
+---
+
+## New? Start Here 🚀
+
+**Forward Deployed Engineer?** → [**FDE Onboarding Guide**](onboarding/fde/README.md)
+
+Read the FDE principles, install Ghostty + Raycast, then run `bm setup --yes` — that's it. The CLI handles everything else.
 
 ---
 
@@ -295,6 +304,7 @@ Benmore-Meridian/
 
 | Guide | Description |
 |-------|-------------|
+| [**FDE Onboarding**](onboarding/fde/README.md) | **Start here if you're new — full setup in one command** |
 | [Django Production](guides/django/) | Simple → detailed → comprehensive productionization |
 | [Deployment](guides/deployment/) | Heroku, DigitalOcean (6 ops guides), CI/CD, React Native |
 | [Development Workflow](guides/development/) | Meeting notes → production, Claude Code ecosystem |

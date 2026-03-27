@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## v1.4.0 — 2026-03-26
+
 ### New Skills
 - **`hipaa-compliance-guard`** — Audits HealthTech applications for HIPAA technical safeguards (encryption, audit logs, access controls, breach notification).
 - **`security-compliance-audit`** — Comprehensive security compliance auditing for SOC 2, GDPR, HIPAA frameworks.
@@ -13,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **`feature-alignment`** — Analyzes meeting transcripts and client documents to extract and align features with requirements.
 - **`expo-push-notifications`** — Complete Expo Push Notification setup for React Native (frontend) and Django (backend).
 - **`django-react-2fa`** — Full-stack TOTP two-factor authentication for Django + React/Next.js applications.
+
+### New Guides
+- **`onboarding/fde/`** — Forward Deployed Engineer onboarding guide with setup checklist, tools, and resources.
 
 ### Fixes
 - Resolved UTF-8 encoding errors in `bm` CLI on Windows — explicit encoding for SKILL.md reads and console output.
