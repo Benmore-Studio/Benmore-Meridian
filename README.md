@@ -8,7 +8,7 @@
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-38%2B%20passing-brightgreen.svg)](#contributing)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](CHANGELOG.md)
 
 Install 50+ Claude Code skills in one command. Edit once, reflect everywhere via symlinks.
 
@@ -106,6 +106,16 @@ bm update    # git pull + reinstalls all skills
 | **`bm skill info <name>`** | Show path, scope, status, and source |
 | **`bm skill remove <name> [--dry-run]`** | Uninstall a skill from `~/.claude/skills/` and registry ✨ v1.1 |
 | **`bm skill write <name>`** | Interactively generate a new SKILL.md with guided prompts ✨ v1.1 |
+| **`bm skill add-external <source> --skill <name>`** | Install a skill from plugins/agents directories ✨ v1.3 |
+
+### Discovery ✨ v1.3
+
+| Command | Description |
+|---------|-------------|
+| **`bm suggest [path] [--top N] [--json]`** | Scan project → ranked skill suggestions (static, no API) |
+| **`bm context [path] [--copy]`** | Generate CLAUDE.md snippet with detected stack + top 5 skills |
+| **`bm explore [path]`** | Deep scan → writes `docs/bm-suggestions.md` report |
+| **`bm debrief [--since <tag>] [--limit N] [--json]`** | Surface skill candidates from recent git history |
 
 ### Registry
 
@@ -134,10 +144,12 @@ Skills are markdown files (`SKILL.md`) that give Claude Code domain expertise an
 | Category | Skills |
 |----------|--------|
 | 🚀 Production | `django-production`, `frontend-productionize`, `productionize-app`, `fastapi-templates`, `vercel-cli` |
-| 🔒 Security | `dependency-security-audit`, `audit-trail`, `gdpr-compliance`, `multi-tenant-guard` |
+| 🔒 Security & Compliance | `dependency-security-audit`, `audit-trail`, `gdpr-compliance`, `multi-tenant-guard`, `hipaa-compliance-guard`, `security-compliance-audit`, `healthcare-audit-logger` |
 | 🌐 SEO | `ai-seo`, `seo-audit`, `programmatic-seo` |
+| 📱 Mobile | `django-auth-react-native`, `expo-deployment`, `expo-push-notifications`, `django-react-2fa` |
 | 📄 Documents | `pdf`, `xlsx`, `presentation-maker`, `release-notes` |
 | 🔧 Dev Tools | `mcp-builder`, `modern-terminal-setup`, `skill-creator`, `find-skills` |
+| 🤝 Workflow | `feature-alignment`, `github-pr-review-workflow`, `receiving-code-review` |
 | 💳 Payments | `stripe-integration` |
 | 🏗️ PCS (scoped) | `pcs-migration`, `pcs-new-service`, `pcs-add-endpoint`, + 4 more |
 
