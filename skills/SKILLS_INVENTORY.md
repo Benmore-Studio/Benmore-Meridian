@@ -10,7 +10,7 @@ pipx install ./bm && bm install
 
 ---
 
-## General Skills (51 total)
+## General Skills (54 total)
 
 ### 🚀 Production & Deployment
 
@@ -64,6 +64,7 @@ pipx install ./bm && bm install
 | Skill | Source | Status | Description |
 |-------|--------|--------|-------------|
 | `pdf` | Marketplace | ✅ Active | PDF operations (read, merge, split, create, OCR) |
+| `docx` | External | ✅ Active | Create, read, edit Word documents (.docx) with tables, headings, page numbers, images |
 | `xlsx` | Marketplace | ✅ Active | Spreadsheet file operations (.xlsx/.csv) |
 | `presentation-maker` | Locally owned | ✅ Active | Create presentations programmatically |
 | `presentation_maker` | Locally owned | ✅ Active | Enhanced presentation formatter |
@@ -89,6 +90,8 @@ pipx install ./bm && bm install
 | `push-notifications-firebase` | Locally owned | ✅ Active | Firebase push notifications |
 | `role-based-authentication` | Locally owned | ✅ Active | Role-based auth flow |
 | `mailjet-email-service` | Locally owned | ✅ Active | Mailjet email service implementation |
+| `imap-smtp-email` | External | ✅ Active | Read and send email via IMAP/SMTP — inbox, search, reply, compose, attachments |
+| `video-download` | External | ✅ Active | Download videos from Douyin, Bilibili, YouTube, Instagram, Twitter/X, and 1700+ sites |
 | `nano_banana` | Locally owned | ✅ Active | Image generation via Gemini 2.5 Flash |
 | `gh_issue` | Locally owned | ✅ Active | GitHub issue management |
 | `github-issue-gen` | Locally owned | ✅ Active | GitHub issue generator |
@@ -124,4 +127,4 @@ bm skill add <name> --project <p>   # add project-scoped skill
 bm skill generalize <name>          # promote to general skill
 ```
 
-Last updated: 2026-03-11
+Last updated: 2026-03-27

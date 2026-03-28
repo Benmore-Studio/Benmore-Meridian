@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## v1.5.0 — 2026-03-27
+
+### New Skills
+- **`docx`** — Create, read, edit, and manipulate Word documents (.docx). Supports tables of contents, headings, page numbers, find-and-replace, tracked changes, image insertion, and polished report/memo/letter generation.
+- **`imap-smtp-email`** — Read and send email via IMAP/SMTP. Supports inbox browsing, search, reply, compose, and attachment handling across any email provider.
+- **`video-download`** — Download videos from Douyin, Xiaohongshu, Bilibili, YouTube, Twitter/X, Instagram, and 1700+ sites. Triggers on any video URL share or download request.
+
+### Version Bump
+- `bm` CLI bumped from 1.3.0 → 1.5.0 (catches up to CHANGELOG; v1.4.0 features shipped but package version was not updated).
+
+### Registry
+- Registry synced: 63 repo skills + 1 external (`alpha`) = 64 total entries.
+
+---
+
 ## v1.4.0 — 2026-03-26
 
 ### New Skills
