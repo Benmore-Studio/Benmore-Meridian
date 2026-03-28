@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## v1.5.1 — 2026-03-27
+
+### Features
+- **Auto-install new skills on dashboard** — `bm` (no-args dashboard) now silently installs any repo skills that aren't yet linked into `~/.claude/skills/`. Reports newly installed skills with a `✨` notice. No more "N skills not installed → run bm install" prompts.
+- **`bm update` reports new skills** — When `bm update` pulls in commits that add new skills, it prints `✨ N new skill(s) added: <names>` after reinstalling.
+
+---
+
 ## v1.5.0 — 2026-03-27
 
 ### New Skills

@@ -72,6 +72,43 @@ def main(ctx: typer.Context) -> None:
     _render_dashboard()
 
 
+def _auto_install_new_skills(
+    skills: list[SkillEntry],
+    skill_statuses: list[SkillStatus],
+    reg: Registry,
+) -> list[str]:
+    """Install any repo skills that are not yet linked. Returns names of newly installed skills."""
+    CLAUDE_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+    newly_installed: list[str] = []
+    new_entries: list[RegistryEntry] = []
+
+    for skill, st in zip(skills, skill_statuses):
+        if st in (SkillStatus.SYMLINKED, SkillStatus.COPIED):
+            continue
+        result = install_skill(skill, CLAUDE_SKILLS_DIR)
+        if result != InstallResult.FAILED:
+            newly_installed.append(skill.name)
+            new_entries.append(
+                RegistryEntry(
+                    name=skill.name,
+                    installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
+                    source=skill.source,
+                    scope=skill.scope,
+                    project=skill.project,
+                    install_method=(
+                        InstallMethod.SYMLINK
+                        if result == InstallResult.SYMLINKED
+                        else InstallMethod.COPY
+                    ),
+                )
+            )
+
+    if new_entries:
+        reg.batch_add(new_entries)
+
+    return newly_installed
+
+
 def _render_dashboard() -> None:
     """Render the Rich-formatted bm dashboard."""
     from bm import __version__
@@ -94,6 +131,16 @@ def _render_dashboard() -> None:
     total_plugins = len(plugin_status)
     installed_plugins = sum(1 for ok in plugin_status.values() if ok)
 
+    # ── Auto-install any new skills silently ──────────────────────────────────
+    reg = Registry(REGISTRY_FILE)
+    newly_installed: list[str] = []
+    if installed_skills < total_skills:
+        try:
+            newly_installed = _auto_install_new_skills(skills, skill_statuses, reg)
+            installed_skills += len(newly_installed)
+        except Exception:
+            pass  # never crash the dashboard
+
     # ── Header panel ──────────────────────────────────────────────────────────
     skill_icon = "\u2705" if installed_skills == total_skills else "\u26a0"
     tool_icon = "\u2705" if not missing_tools else "\u26a0"
@@ -111,6 +158,13 @@ def _render_dashboard() -> None:
             border_style="cyan",
         )
     )
+
+    # ── Auto-install notice ───────────────────────────────────────────────────
+    if newly_installed:
+        names = ", ".join(f"[cyan]{n}[/]" for n in newly_installed)
+        console.print(
+            f"\n[bold green]✨ Auto-installed {len(newly_installed)} new skill(s):[/] {names}"
+        )
 
     # ── Update check ─────────────────────────────────────────────────────────
     try:
@@ -136,13 +190,6 @@ def _render_dashboard() -> None:
             f"\n[yellow]\u26a0  {len(missing_plugins)} plugins missing:[/yellow] {names}"
         )
         console.print("   [dim]\u2192 bm plugins[/dim]")
-
-    missing_skill_count = total_skills - installed_skills
-    if missing_skill_count > 0:
-        console.print(
-            f"\n[yellow]\u26a0  {missing_skill_count} skills not installed[/yellow]"
-        )
-        console.print("   [dim]\u2192 bm install[/dim]")
 
     # ── Command reference sections ────────────────────────────────────────────
     def _cmd(command: str, description: str) -> None:
@@ -378,24 +425,27 @@ def update(
             reg.save()
     else:
         skills = discover_skills(SKILLS_DIR)
+        existing_names = {e.name for e in reg.list_all()}
         new_entries: list[RegistryEntry] = []
+        added_names: list[str] = []
         for skill in skills:
             result = install_skill(skill, CLAUDE_SKILLS_DIR, force_copy=rsync, ctx=ctx)
             if result != InstallResult.FAILED:
-                new_entries.append(
-                    RegistryEntry(
-                        name=skill.name,
-                        installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
-                        source=skill.source,
-                        scope=skill.scope,
-                        project=skill.project,
-                        install_method=(
-                            InstallMethod.SYMLINK
-                            if result == InstallResult.SYMLINKED
-                            else InstallMethod.COPY
-                        ),
-                    )
+                entry = RegistryEntry(
+                    name=skill.name,
+                    installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
+                    source=skill.source,
+                    scope=skill.scope,
+                    project=skill.project,
+                    install_method=(
+                        InstallMethod.SYMLINK
+                        if result == InstallResult.SYMLINKED
+                        else InstallMethod.COPY
+                    ),
                 )
+                new_entries.append(entry)
+                if skill.name not in existing_names:
+                    added_names.append(skill.name)
         reg.batch_add(new_entries, ctx=ctx)
         if not dry_run:
             linked = sum(
@@ -405,6 +455,11 @@ def update(
                 1 for e in new_entries if e.install_method == InstallMethod.COPY
             )
             console.print(f"✅ {linked} linked  ⚙️  {copied} copied")
+            if added_names:
+                names = ", ".join(f"[cyan]{n}[/]" for n in added_names)
+                console.print(
+                    f"[bold green]✨ {len(added_names)} new skill(s) added:[/] {names}"
+                )
 
     if dry_run:
         ctx.render(console)
