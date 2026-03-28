@@ -50,7 +50,15 @@
       "Bash(python:*)",
       "Bash(for f:*)",
       "Read(//Users/arkashjain/Desktop/Benmore/Benmore-Meridian/**)",
-      "Bash(python3 -c \"\nimport yaml, glob\n\nfiles = sorted\\(glob.glob\\('skills/**/SKILL.md', recursive=True\\)\\)\nok = 0\nerrors = []\n\nfor fpath in files:\n    with open\\(fpath\\) as f:\n        content = f.read\\(\\)\n    parts = content.split\\('---', 2\\)\n    if len\\(parts\\) < 3:\n        errors.append\\(\\(fpath, 'no frontmatter'\\)\\)\n        continue\n    try:\n        fm = yaml.safe_load\\(parts[1]\\)\n        if fm.get\\('context'\\) == 'fork':\n            ok += 1\n        else:\n            errors.append\\(\\(fpath, f'context={fm.get\\(\\\\\"context\\\\\"\\)}'\\)\\)\n    except Exception as e:\n        errors.append\\(\\(fpath, str\\(e\\)\\)\\)\n\nprint\\(f'{ok}/{len\\(files\\)} valid with context: fork'\\)\nif errors:\n    print\\(f'{len\\(errors\\)} errors:'\\)\n    for path, err in errors:\n        print\\(f'  ✗ {path}: {err}'\\)\n\")"
+      "Bash(python3 -c \"\nimport yaml, glob\n\nfiles = sorted\\(glob.glob\\('skills/**/SKILL.md', recursive=True\\)\\)\nok = 0\nerrors = []\n\nfor fpath in files:\n    with open\\(fpath\\) as f:\n        content = f.read\\(\\)\n    parts = content.split\\('---', 2\\)\n    if len\\(parts\\) < 3:\n        errors.append\\(\\(fpath, 'no frontmatter'\\)\\)\n        continue\n    try:\n        fm = yaml.safe_load\\(parts[1]\\)\n        if fm.get\\('context'\\) == 'fork':\n            ok += 1\n        else:\n            errors.append\\(\\(fpath, f'context={fm.get\\(\\\\\"context\\\\\"\\)}'\\)\\)\n    except Exception as e:\n        errors.append\\(\\(fpath, str\\(e\\)\\)\\)\n\nprint\\(f'{ok}/{len\\(files\\)} valid with context: fork'\\)\nif errors:\n    print\\(f'{len\\(errors\\)} errors:'\\)\n    for path, err in errors:\n        print\\(f'  ✗ {path}: {err}'\\)\n\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(f''''{len\\(data\\)} skills in registry''''\\)\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(f''''{len\\(data\\)} skills total''''\\)\")",
+      "Bash(cp -r ~/.claude/skills/docx /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian/skills/)",
+      "Bash(cp -r ~/.claude/skills/imap-smtp-email /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian/skills/)",
+      "Bash(cp -r ~/.claude/skills/video-download /Users/arkashjain/Desktop/work/benmore/Benmore-Meridian/skills/)",
+      "Bash(git commit:*)",
+      "Bash(git tag:*)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(f''''OK: {len\\(data\\)} skills''''\\)\")"
     ]
   }
 }
