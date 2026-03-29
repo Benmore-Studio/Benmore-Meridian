@@ -9,265 +9,99 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #0a1628 0%, #1a2744 25%, #0f2d4a 50%, #1a3a5c 75%, #0d1a2d 100%);
-            background-attachment: fixed;
-            min-height: 100vh;
-            padding: 60px 30px;
-            color: #ffffff;
-            line-height: 1.7;
+            background-attachment: fixed; min-height: 100vh; padding: 60px 30px; color: #ffffff; line-height: 1.7;
         }
-
         .container { max-width: 1100px; margin: 0 auto; }
-
-        .header {
-            text-align: center;
-            margin-bottom: 50px;
-            padding-bottom: 40px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            position: relative;
-        }
-        .header::before {
-            content: '';
-            position: absolute;
-            top: -60px; left: 50%;
-            transform: translateX(-50%);
-            width: 400px; height: 400px;
-            background: radial-gradient(circle, rgba(96,165,250,0.1) 0%, transparent 70%);
-            pointer-events: none;
-        }
+        .header { text-align: center; margin-bottom: 50px; padding-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); position: relative; }
+        .header::before { content: ''; position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, rgba(96,165,250,0.1) 0%, transparent 70%); pointer-events: none; }
         .logo { margin-bottom: 24px; }
         .logo img { width: 60px; height: 60px; opacity: 0.9; }
-        h1 {
-            font-size: 2.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px;
-            background: linear-gradient(135deg, #ffffff 0%, #60a5fa 50%, #94a3b8 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-        }
+        h1 { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; background: linear-gradient(135deg, #ffffff 0%, #60a5fa 50%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .subtitle { font-size: 1rem; color: rgba(255,255,255,0.5); font-weight: 400; }
-        .version-badge {
-            display: inline-block; margin-top: 14px;
-            padding: 6px 16px;
-            background: linear-gradient(135deg, rgba(96,165,250,0.2), rgba(96,165,250,0.1));
-            border: 1px solid rgba(96,165,250,0.3); border-radius: 20px;
-            font-size: 0.85rem; color: #60a5fa;
-        }
-
+        .version-badge { display: inline-block; margin-top: 14px; padding: 6px 16px; background: linear-gradient(135deg, rgba(96,165,250,0.2), rgba(96,165,250,0.1)); border: 1px solid rgba(96,165,250,0.3); border-radius: 20px; font-size: 0.85rem; color: #60a5fa; }
         .section { margin-bottom: 36px; }
-        .section-header {
-            font-size: 0.85rem; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.1em; color: #60a5fa; margin-bottom: 18px;
-            display: flex; align-items: center; gap: 12px;
-        }
-        .section-header::after {
-            content: ''; flex: 1; height: 1px;
-            background: linear-gradient(90deg, rgba(96,165,250,0.4), transparent);
-        }
-
+        .section-header { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #60a5fa; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; }
+        .section-header::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(96,165,250,0.4), transparent); }
         .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
         .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
-        .stat-card {
-            background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-            padding: 22px; text-align: center; position: relative; overflow: hidden;
-        }
-        .stat-card::after {
-            content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
-            background: linear-gradient(90deg, #60a5fa, #3b82f6, #1e40af);
-        }
-        .stat-card.recommended::after {
-            background: linear-gradient(90deg, #34d399, #10b981, #059669);
-        }
-        .stat-value {
-            font-size: 1.8rem; font-weight: 700; margin-bottom: 4px;
-            background: linear-gradient(135deg, #60a5fa, #93c5fd);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-        }
+        .stat-card { background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 22px; text-align: center; position: relative; overflow: hidden; }
+        .stat-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #60a5fa, #3b82f6, #1e40af); }
+        .stat-card.recommended::after { background: linear-gradient(90deg, #34d399, #10b981, #059669); }
+        .stat-value { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; background: linear-gradient(135deg, #60a5fa, #93c5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .stat-value.green { background: linear-gradient(135deg,#34d399,#10b981); -webkit-background-clip: text; background-clip: text; }
         .stat-value.red { background: linear-gradient(135deg,#f87171,#ef4444); -webkit-background-clip: text; background-clip: text; }
-        .stat-value.amber { background: linear-gradient(135deg,#fbbf24,#f59e0b); -webkit-background-clip: text; background-clip: text; }
         .stat-label { font-size: 0.75rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.05em; }
-
-        .recommended-scope {
-            background: linear-gradient(135deg, rgba(52,211,153,0.08), rgba(16,185,129,0.03));
-            border: 1px solid rgba(52,211,153,0.2); border-radius: 14px;
-            padding: 28px; margin-bottom: 36px;
-        }
+        .recommended-scope { background: linear-gradient(135deg, rgba(52,211,153,0.08), rgba(16,185,129,0.03)); border: 1px solid rgba(52,211,153,0.2); border-radius: 14px; padding: 28px; margin-bottom: 36px; }
         .recommended-scope .section-header { color: #34d399; }
-        .recommended-scope .section-header::after {
-            background: linear-gradient(90deg, rgba(52,211,153,0.4), transparent);
-        }
-        .rec-features-list {
-            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;
-        }
-        .rec-feature-tag {
-            padding: 5px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 500;
-            background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); color: #34d399;
-            cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
-        }
+        .recommended-scope .section-header::after { background: linear-gradient(90deg, rgba(52,211,153,0.4), transparent); }
+        .rec-features-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+        .rec-feature-tag { padding: 5px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 500; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); color: #34d399; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
         .rec-feature-tag:hover { background: rgba(52,211,153,0.25); border-color: rgba(52,211,153,0.4); }
-        .rec-feature-tag.not-in-scope {
-            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
-            color: rgba(255,255,255,0.35);
-        }
-        .rec-feature-tag.not-in-scope:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
-        .rec-toggle-icon {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 16px; height: 16px; border-radius: 50%; font-size: 0.7rem; font-weight: 700;
-            flex-shrink: 0; line-height: 1;
-        }
-        .rec-toggle-add { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); }
+        .rec-toggle-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; line-height: 1; }
         .rec-toggle-remove { background: rgba(248,113,113,0.2); color: #f87171; }
-        .rec-add-dropdown {
-            position: relative; display: inline-block;
-        }
-        .rec-add-btn {
-            padding: 5px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
-            background: rgba(96,165,250,0.12); border: 1px dashed rgba(96,165,250,0.35);
-            color: #60a5fa; cursor: pointer; font-family: inherit; transition: all 0.2s;
-        }
+        .rec-add-dropdown { position: relative; display: inline-block; }
+        .rec-add-btn { padding: 5px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; background: rgba(96,165,250,0.12); border: 1px dashed rgba(96,165,250,0.35); color: #60a5fa; cursor: pointer; font-family: inherit; transition: all 0.2s; }
         .rec-add-btn:hover { background: rgba(96,165,250,0.22); border-color: rgba(96,165,250,0.5); }
-        .rec-dropdown-menu {
-            position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 100;
-            background: linear-gradient(135deg, #0f1e35, #162840);
-            border: 1px solid rgba(96,165,250,0.25); border-radius: 10px;
-            padding: 8px 0; min-width: 280px; max-height: 300px; overflow-y: auto;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-        }
+        .rec-dropdown-menu { position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 100; background: linear-gradient(135deg, #0f1e35, #162840); border: 1px solid rgba(96,165,250,0.25); border-radius: 10px; padding: 8px 0; min-width: 280px; max-height: 300px; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
         .rec-dropdown-menu::-webkit-scrollbar { width: 5px; }
         .rec-dropdown-menu::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.3); border-radius: 3px; }
-        .rec-dropdown-item {
-            padding: 8px 16px; font-size: 0.82rem; color: rgba(255,255,255,0.7);
-            cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 8px;
-        }
+        .rec-dropdown-item { padding: 8px 16px; font-size: 0.82rem; color: rgba(255,255,255,0.7); cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 8px; }
         .rec-dropdown-item:hover { background: rgba(96,165,250,0.1); color: #ffffff; }
         .rec-dropdown-item .badge { flex-shrink: 0; }
-
-        .budget-gauge-wrap {
-            background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
-            border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
-            padding: 24px 28px; margin-top: 16px;
-        }
+        .budget-gauge-wrap { background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 24px 28px; margin-top: 16px; }
         .gauge-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 10px; }
-        .gauge-track {
-            height: 12px; background: rgba(255,255,255,0.06); border-radius: 6px;
-            position: relative; overflow: visible;
-        }
-        .gauge-fill {
-            height: 100%; border-radius: 6px; transition: width 0.4s ease, background 0.4s ease;
-            background: linear-gradient(90deg, #34d399, #059669);
-        }
-        .gauge-marker {
-            position: absolute; top: -4px; width: 2px; height: 20px;
-            background: rgba(255,255,255,0.4); border-radius: 1px;
-        }
-        .gauge-marker-label {
-            position: absolute; top: 22px; transform: translateX(-50%);
-            font-size: 0.7rem; color: rgba(255,255,255,0.4); white-space: nowrap;
-        }
+        .gauge-track { height: 12px; background: rgba(255,255,255,0.06); border-radius: 6px; position: relative; overflow: visible; }
+        .gauge-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease, background 0.4s ease; }
+        .gauge-marker { position: absolute; top: -4px; width: 2px; height: 20px; background: rgba(255,255,255,0.4); border-radius: 1px; }
+        .gauge-marker-label { position: absolute; top: 22px; transform: translateX(-50%); font-size: 0.7rem; color: rgba(255,255,255,0.4); white-space: nowrap; }
         .gauge-note { margin-top: 18px; font-size: 0.85rem; color: rgba(255,255,255,0.5); text-align: center; }
-
-        /* Timeline Chart */
-        .timeline-section {
-            background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
-            border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
-            padding: 28px; margin-top: 24px;
-        }
+        .timeline-section { background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 28px; margin-top: 24px; }
         .timeline-section .section-header { margin-bottom: 20px; }
         .timeline-scroll-wrap { overflow-x: auto; overflow-y: visible; padding-bottom: 8px; }
         .timeline-scroll-wrap::-webkit-scrollbar { height: 6px; }
         .timeline-scroll-wrap::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 3px; }
         .timeline-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.3); border-radius: 3px; }
         .timeline-inner { min-width: 100%; }
-        .timeline-header-row {
-            display: flex; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 8px; margin-bottom: 4px;
-        }
+        .timeline-header-row { display: flex; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 4px; }
         .timeline-label-col { width: 200px; flex-shrink: 0; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.4); }
         .timeline-bar-col { flex: 1; display: flex; position: relative; min-width: 0; }
-        .timeline-week-marker {
-            text-align: center; font-size: 0.68rem; color: rgba(255,255,255,0.3);
-            border-left: 1px solid rgba(255,255,255,0.06); padding: 2px 0;
-        }
-        .timeline-row {
-            display: flex; align-items: center; padding: 6px 0; min-height: 36px;
-        }
-        .timeline-row-label {
-            width: 200px; flex-shrink: 0; font-size: 0.82rem; color: rgba(255,255,255,0.7);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;
-        }
+        .timeline-week-marker { text-align: center; font-size: 0.68rem; color: rgba(255,255,255,0.3); border-left: 1px solid rgba(255,255,255,0.06); padding: 2px 0; }
+        .timeline-row { display: flex; align-items: center; padding: 6px 0; min-height: 36px; }
+        .timeline-row-label { width: 200px; flex-shrink: 0; font-size: 0.82rem; color: rgba(255,255,255,0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
         .timeline-row-bar-area { flex: 1; position: relative; height: 24px; min-width: 0; }
-        .timeline-bar {
-            position: absolute; height: 20px; border-radius: 4px; top: 2px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.7rem; font-weight: 600; color: rgba(255,255,255,0.9);
-            min-width: 30px; transition: all 0.3s; white-space: nowrap; overflow: hidden;
-        }
+        .timeline-bar { position: absolute; height: 20px; border-radius: 4px; top: 2px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; color: rgba(255,255,255,0.9); min-width: 30px; transition: all 0.3s; white-space: nowrap; overflow: hidden; }
         .timeline-bar.cat-core { background: linear-gradient(135deg, rgba(96,165,250,0.5), rgba(59,130,246,0.4)); border: 1px solid rgba(96,165,250,0.5); }
         .timeline-bar.cat-business { background: linear-gradient(135deg, rgba(52,211,153,0.4), rgba(16,185,129,0.3)); border: 1px solid rgba(52,211,153,0.4); }
         .timeline-bar.cat-enterprise { background: linear-gradient(135deg, rgba(167,139,250,0.4), rgba(139,92,246,0.3)); border: 1px solid rgba(167,139,250,0.4); }
         .timeline-bar.cat-not-included { background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.15); }
-        .timeline-summary {
-            margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.1);
-            display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
-        }
+        .timeline-summary { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
         .timeline-summary-item { font-size: 0.85rem; color: rgba(255,255,255,0.6); }
         .timeline-summary-item strong { color: #60a5fa; font-weight: 700; }
-
-        .controls {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
-        }
+        .controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
         .filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-        .filter-btn {
-            padding: 7px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.6);
-            font-size: 0.82rem; font-weight: 500; cursor: pointer;
-            transition: all 0.2s; font-family: inherit;
-        }
+        .filter-btn { padding: 7px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.6); font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: inherit; }
         .filter-btn:hover { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.3); color: #60a5fa; }
         .filter-btn.active { background: rgba(96,165,250,0.15); border-color: rgba(96,165,250,0.4); color: #60a5fa; }
-        .add-feature-btn {
-            padding: 9px 20px; border-radius: 8px;
-            background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(16,185,129,0.1));
-            border: 1px solid rgba(52,211,153,0.35); color: #34d399;
-            font-size: 0.85rem; font-weight: 600; cursor: pointer;
-            transition: all 0.2s; font-family: inherit; white-space: nowrap;
-        }
+        .add-feature-btn { padding: 9px 20px; border-radius: 8px; background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(16,185,129,0.1)); border: 1px solid rgba(52,211,153,0.35); color: #34d399; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
         .add-feature-btn:hover { background: linear-gradient(135deg,rgba(52,211,153,0.3),rgba(16,185,129,0.15)); }
-
-        .feature-block {
-            border-radius: 12px; margin-bottom: 12px; overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.08);
-            transition: border-color 0.2s, opacity 0.2s;
-        }
+        .feature-block { border-radius: 12px; margin-bottom: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); transition: border-color 0.2s, opacity 0.2s; }
         .feature-block.excluded { opacity: 0.45; }
         .feature-block.category-core { border-left: 3px solid #60a5fa; }
         .feature-block.category-business { border-left: 3px solid #34d399; }
         .feature-block.category-enterprise { border-left: 3px solid #a78bfa; }
         .feature-block.category-not-included { border-left: 3px solid rgba(255,255,255,0.2); }
-
-        .feature-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 18px 22px; cursor: pointer;
-            background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
-            gap: 12px;
-        }
+        .feature-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; cursor: pointer; background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)); gap: 12px; }
         .feature-header:hover { background: linear-gradient(135deg,rgba(96,165,250,0.06),rgba(96,165,250,0.02)); }
-
         .feature-header-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
         .feature-name { font-size: 1rem; font-weight: 600; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .feature-header-right { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
         .feature-meta { text-align: right; }
-        .feature-hours { font-size: 0.9rem; font-weight: 600; color: #93c5fd; display: block; }
-        .feature-cost { font-size: 0.78rem; color: rgba(255,255,255,0.45); display: block; }
-
-        .badge {
-            display: inline-block; padding: 3px 10px; border-radius: 6px;
-            font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-            white-space: nowrap;
-        }
+        .feature-cost-display { font-size: 0.95rem; font-weight: 600; color: #93c5fd; display: block; }
+        .feature-duration { font-size: 0.75rem; color: rgba(255,255,255,0.4); display: block; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
         .badge-core { background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
         .badge-business { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
         .badge-enterprise { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
@@ -275,203 +109,89 @@
         .badge-complexity-low { background: rgba(52,211,153,0.1); color: #34d399; border: 1px solid rgba(52,211,153,0.2); }
         .badge-complexity-med { background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
         .badge-complexity-high { background: rgba(248,113,113,0.1); color: #f87171; border: 1px solid rgba(248,113,113,0.2); }
-
         .toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
         .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
-        .toggle-slider {
-            position: absolute; inset: 0; border-radius: 22px; cursor: pointer;
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
-            transition: all 0.25s;
-        }
-        .toggle-slider::before {
-            content: ''; position: absolute;
-            width: 16px; height: 16px; border-radius: 50%;
-            left: 2px; top: 50%; transform: translateY(-50%);
-            background: rgba(255,255,255,0.4); transition: all 0.25s;
-        }
+        .toggle-slider { position: absolute; inset: 0; border-radius: 22px; cursor: pointer; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); transition: all 0.25s; }
+        .toggle-slider::before { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; left: 2px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.4); transition: all 0.25s; }
         .toggle input:checked + .toggle-slider { background: rgba(96,165,250,0.4); border-color: rgba(96,165,250,0.6); }
         .toggle input:checked + .toggle-slider::before { left: calc(100% - 18px); background: #60a5fa; }
-
         .expand-icon { font-size: 0.75rem; color: rgba(255,255,255,0.3); transition: transform 0.2s; width: 14px; }
         .expand-icon.open { transform: rotate(90deg); }
-
-        .feature-details {
-            padding: 0 22px 22px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005));
-            border-top: 1px solid rgba(255,255,255,0.06);
-        }
+        .feature-details { padding: 0 22px 22px; background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005)); border-top: 1px solid rgba(255,255,255,0.06); }
         .feature-description { color: rgba(255,255,255,0.7); font-size: 0.92rem; padding: 16px 0 12px; }
-
         .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-        .detail-box {
-            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
-            border-radius: 8px; padding: 14px 16px;
-        }
+        .detail-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 14px 16px; }
         .detail-box h5 { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #60a5fa; margin-bottom: 6px; }
         .detail-box p { font-size: 0.88rem; color: rgba(255,255,255,0.7); line-height: 1.5; }
-
         .deps-box { margin-bottom: 16px; }
         .deps-box h5 { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #a78bfa; margin-bottom: 8px; }
-        .dep-tag {
-            display: inline-block; padding: 3px 10px; border-radius: 4px; margin: 2px;
-            background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2);
-            color: #a78bfa; font-size: 0.78rem;
-        }
-
+        .dep-tag { display: inline-block; padding: 3px 10px; border-radius: 4px; margin: 2px; background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); color: #a78bfa; font-size: 0.78rem; }
         .components-section { margin-top: 4px; }
-        .components-header {
-            display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
-        }
+        .components-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
         .components-header h5 { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(255,255,255,0.5); }
-        .add-component-btn {
-            padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
-            background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25);
-            color: #34d399; cursor: pointer; font-family: inherit; transition: all 0.2s;
-        }
+        .add-component-btn { padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25); color: #34d399; cursor: pointer; font-family: inherit; transition: all 0.2s; }
         .add-component-btn:hover { background: rgba(52,211,153,0.18); }
-
-        .component-row {
-            display: flex; align-items: center; gap: 10px;
-            padding: 9px 12px; border-radius: 7px; margin-bottom: 6px;
-            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-            transition: background 0.15s;
-        }
+        .component-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 7px; margin-bottom: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); transition: background 0.15s; }
         .component-row:hover { background: rgba(255,255,255,0.05); }
         .component-name { flex: 1; font-size: 0.88rem; color: rgba(255,255,255,0.8); }
-        .component-hours { font-size: 0.82rem; font-weight: 600; color: #93c5fd; white-space: nowrap; }
-        .delete-btn {
-            width: 22px; height: 22px; border-radius: 4px; border: none;
-            background: rgba(248,113,113,0.12); color: #f87171; cursor: pointer;
-            font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0; transition: background 0.15s; font-family: inherit;
-        }
+        .inline-edit-cost { background: rgba(255,255,255,0.08); border: 1px solid rgba(52,211,153,0.4); border-radius: 4px; color: #34d399; font-size: 0.82rem; font-weight: 600; font-family: inherit; text-align: right; padding: 2px 6px; width: 90px; outline: none; }
+        .inline-edit-cost:focus { border-color: rgba(52,211,153,0.7); background: rgba(255,255,255,0.12); }
+        .delete-btn { width: 22px; height: 22px; border-radius: 4px; border: none; background: rgba(248,113,113,0.12); color: #f87171; cursor: pointer; font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; font-family: inherit; }
         .delete-btn:hover { background: rgba(248,113,113,0.25); }
-
-        .inline-edit {
-            background: rgba(255,255,255,0.08); border: 1px solid rgba(96,165,250,0.4);
-            border-radius: 4px; color: #93c5fd; font-size: 0.82rem; font-weight: 600;
-            font-family: inherit; text-align: center; padding: 2px 4px;
-            width: 60px; outline: none;
-        }
-        .inline-edit:focus { border-color: rgba(96,165,250,0.7); background: rgba(255,255,255,0.12); }
-
-        .feature-actions {
-            display: flex; gap: 10px; margin-top: 16px;
-            padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06);
-        }
-        .action-btn {
-            padding: 6px 16px; border-radius: 7px; font-size: 0.8rem; font-weight: 600;
-            cursor: pointer; font-family: inherit; transition: all 0.2s;
-        }
-        .action-btn.edit {
-            background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.25); color: #60a5fa;
-        }
+        .feature-actions { display: flex; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+        .action-btn { padding: 6px 16px; border-radius: 7px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+        .action-btn.edit { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.25); color: #60a5fa; }
         .action-btn.edit:hover { background: rgba(96,165,250,0.2); }
-        .action-btn.delete {
-            background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); color: #f87171;
-        }
+        .action-btn.delete { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); color: #f87171; }
         .action-btn.delete:hover { background: rgba(248,113,113,0.2); }
-
-        .empty-state {
-            text-align: center; padding: 48px 24px;
-            color: rgba(255,255,255,0.3); font-size: 0.95rem;
-        }
-
-        .modal-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
-            z-index: 1000; display: flex; align-items: center; justify-content: center;
-            padding: 20px;
-        }
-        .modal {
-            background: linear-gradient(135deg, #0f1e35, #162840);
-            border: 1px solid rgba(96,165,250,0.25); border-radius: 14px;
-            padding: 30px; width: 100%; max-width: 580px;
-            max-height: 85vh; overflow-y: auto;
-        }
+        .empty-state { text-align: center; padding: 48px 24px; color: rgba(255,255,255,0.3); font-size: 0.95rem; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .modal { background: linear-gradient(135deg, #0f1e35, #162840); border: 1px solid rgba(96,165,250,0.25); border-radius: 14px; padding: 30px; width: 100%; max-width: 580px; max-height: 85vh; overflow-y: auto; }
         .modal-sm { max-width: 380px; }
         .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
         .modal-header h3 { font-size: 1.15rem; font-weight: 600; color: #ffffff; }
-        .modal-close {
-            background: none; border: none; color: rgba(255,255,255,0.4);
-            font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 2px;
-            transition: color 0.15s;
-        }
+        .modal-close { background: none; border: none; color: rgba(255,255,255,0.4); font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 2px; transition: color 0.15s; }
         .modal-close:hover { color: #ffffff; }
-
         .form-group { margin-bottom: 18px; }
         .form-label { display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.55); margin-bottom: 7px; }
-        .form-input, .form-select, .form-textarea {
-            width: 100%; padding: 10px 14px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 8px; color: #ffffff; font-size: 0.92rem; font-family: inherit;
-            transition: border-color 0.2s;
-        }
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
-            outline: none; border-color: rgba(96,165,250,0.5);
-            background: rgba(255,255,255,0.07);
-        }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; color: #ffffff; font-size: 0.92rem; font-family: inherit; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: rgba(96,165,250,0.5); background: rgba(255,255,255,0.07); }
         .form-select option { background: #0f1e35; color: #ffffff; }
         .form-textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
-        .btn-primary {
-            padding: 9px 22px; border-radius: 8px; font-size: 0.88rem; font-weight: 600;
-            background: linear-gradient(135deg, rgba(96,165,250,0.3), rgba(59,130,246,0.2));
-            border: 1px solid rgba(96,165,250,0.4); color: #60a5fa; cursor: pointer;
-            font-family: inherit; transition: all 0.2s;
-        }
+        .btn-primary { padding: 9px 22px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; background: linear-gradient(135deg, rgba(96,165,250,0.3), rgba(59,130,246,0.2)); border: 1px solid rgba(96,165,250,0.4); color: #60a5fa; cursor: pointer; font-family: inherit; transition: all 0.2s; }
         .btn-primary:hover { background: linear-gradient(135deg,rgba(96,165,250,0.4),rgba(59,130,246,0.3)); }
-        .btn-secondary {
-            padding: 9px 18px; border-radius: 8px; font-size: 0.88rem; font-weight: 500;
-            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.55); cursor: pointer; font-family: inherit; transition: all 0.2s;
-        }
+        .btn-secondary { padding: 9px 18px; border-radius: 8px; font-size: 0.88rem; font-weight: 500; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.55); cursor: pointer; font-family: inherit; transition: all 0.2s; }
         .btn-secondary:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
-        .btn-danger {
-            padding: 9px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
-            background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.25);
-            color: #f87171; cursor: pointer; font-family: inherit; transition: all 0.2s;
-        }
-        .btn-danger:hover { background: rgba(248,113,113,0.2); }
-
-        .divider {
-            height: 2px; margin: 44px 0;
-            background: linear-gradient(90deg, transparent, rgba(96,165,250,0.3), rgba(96,165,250,0.3), transparent);
-        }
-
-        .inline-edit-cost {
-            background: rgba(255,255,255,0.08); border: 1px solid rgba(52,211,153,0.4);
-            border-radius: 4px; color: #34d399; font-size: 0.78rem; font-weight: 600;
-            font-family: inherit; text-align: right; padding: 2px 4px;
-            width: 85px; outline: none;
-        }
-        .inline-edit-cost:focus { border-color: rgba(52,211,153,0.7); background: rgba(255,255,255,0.12); }
-
-        @media (max-width: 700px) {
-            body { padding: 30px 16px; }
-            h1 { font-size: 1.8rem; }
-            .grid-4, .grid-3 { grid-template-columns: repeat(2,1fr); }
-            .detail-grid { grid-template-columns: 1fr; }
-            .form-row { grid-template-columns: 1fr; }
-            .feature-header-left { gap: 8px; }
-            .timeline-label-col, .timeline-row-label { width: 140px; }
-        }
+        .divider { height: 2px; margin: 44px 0; background: linear-gradient(90deg, transparent, rgba(96,165,250,0.3), rgba(96,165,250,0.3), transparent); }
+        .priority-toggle-section { background: linear-gradient(135deg, rgba(96,165,250,0.06), rgba(59,130,246,0.02)); border: 1px solid rgba(96,165,250,0.15); border-radius: 14px; padding: 28px; margin-bottom: 36px; }
+        .priority-toggle-section .section-header { color: #60a5fa; }
+        .priority-toggle-section .section-header::after { background: linear-gradient(90deg, rgba(96,165,250,0.4), transparent); }
+        .priority-tabs { display: flex; gap: 0; margin-top: 16px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+        .priority-tab { flex: 1; padding: 18px 20px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.02); transition: all 0.25s; border: none; font-family: inherit; color: rgba(255,255,255,0.5); position: relative; }
+        .priority-tab:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.1); }
+        .priority-tab:hover { background: rgba(96,165,250,0.06); color: rgba(255,255,255,0.7); }
+        .priority-tab.active { background: rgba(96,165,250,0.12); color: #ffffff; }
+        .priority-tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+        .priority-tab .tab-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+        .priority-tab .tab-value { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+        .priority-tab .tab-detail { font-size: 0.78rem; color: rgba(255,255,255,0.4); }
+        .priority-tab.active .tab-label { color: #60a5fa; }
+        .priority-tab.active .tab-detail { color: rgba(255,255,255,0.5); }
+        .priority-description { margin-top: 16px; padding: 16px 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; font-size: 0.88rem; color: rgba(255,255,255,0.6); line-height: 1.6; }
+        @media (max-width: 700px) { body { padding: 30px 16px; } h1 { font-size: 1.8rem; } .grid-4, .grid-3 { grid-template-columns: repeat(2,1fr); } .detail-grid { grid-template-columns: 1fr; } .form-row { grid-template-columns: 1fr; } .feature-header-left { gap: 8px; } .timeline-label-col, .timeline-row-label { width: 140px; } }
     </style>
 </head>
 <body>
 <div class="container">
-
     <div class="header">
-        <div class="logo">
-            <img src="https://benmore.tech/static/images/og_image.png" alt="Benmore">
-        </div>
+        <div class="logo"><img src="https://benmore.tech/static/images/og_image.png" alt="Benmore"></div>
         <h1>Feature Alignment</h1>
         <p class="subtitle" id="project-subtitle"></p>
         <span class="version-badge" id="project-date"></span>
     </div>
 
-    <!-- Recommended Scope -->
     <div class="recommended-scope" id="recommended-scope-section">
         <div class="section-header">Recommended Scope</div>
         <div class="grid-3" id="rec-stats"></div>
@@ -479,52 +199,31 @@
     </div>
     <div id="rec-dropdown-backdrop" style="display:none;position:fixed;inset:0;z-index:99;" onclick="closeRecDropdown()"></div>
 
+    <div class="priority-toggle-section">
+        <div class="section-header">What's the Priority?</div>
+        <div class="priority-tabs" id="priority-tabs"></div>
+    </div>
+
     <div class="section">
         <div class="section-header">Budget Overview</div>
         <div class="grid-4">
-            <div class="stat-card">
-                <div class="stat-value" id="stat-features">0</div>
-                <div class="stat-label">Included Features</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat-hours">0h</div>
-                <div class="stat-label">Estimated Hours</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat-cost">$0</div>
-                <div class="stat-label">Estimated Cost</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="stat-status">--</div>
-                <div class="stat-label">Budget Status</div>
-            </div>
+            <div class="stat-card"><div class="stat-value" id="stat-features">0</div><div class="stat-label">Included Features</div></div>
+            <div class="stat-card"><div class="stat-value" id="stat-timeline">--</div><div class="stat-label">Estimated Timeline</div></div>
+            <div class="stat-card"><div class="stat-value" id="stat-cost">$0</div><div class="stat-label">Estimated Cost</div></div>
+            <div class="stat-card"><div class="stat-value" id="stat-status">--</div><div class="stat-label">Budget Status</div></div>
         </div>
-
         <div class="budget-gauge-wrap">
-            <div class="gauge-labels">
-                <span>$0</span>
-                <span id="gauge-label-mid"></span>
-                <span id="gauge-label-max"></span>
-            </div>
-            <div class="gauge-track" id="gauge-track">
-                <div class="gauge-fill" id="gauge-fill"></div>
-                <div class="gauge-marker" id="gauge-min-marker">
-                    <span class="gauge-marker-label" id="gauge-min-label"></span>
-                </div>
-                <div class="gauge-marker" id="gauge-max-marker">
-                    <span class="gauge-marker-label" id="gauge-max-label"></span>
-                </div>
+            <div class="gauge-labels"><span>$0</span><span id="gauge-label-mid">$0</span><span id="gauge-label-max">$0</span></div>
+            <div class="gauge-track">
+                <div class="gauge-fill" id="gauge-fill" style="width:0%"></div>
+                <div class="gauge-marker" id="gauge-min-marker" style="left:0%"><span class="gauge-marker-label" id="gauge-min-label">$0</span></div>
+                <div class="gauge-marker" id="gauge-max-marker" style="left:0%"><span class="gauge-marker-label" id="gauge-max-label">$0</span></div>
             </div>
             <div class="gauge-note" id="gauge-note"></div>
         </div>
-
-        <!-- Timeline Chart -->
-        <div class="timeline-section" id="timeline-section">
-            <div class="section-header">Project Timeline (40 hrs/week)</div>
-            <div id="timeline-chart"></div>
-        </div>
     </div>
 
+    <div class="timeline-section"><div class="section-header">Development Timeline</div><div id="timeline-chart"></div></div>
     <div class="divider"></div>
 
     <div class="controls">
@@ -537,760 +236,245 @@
         </div>
         <button class="add-feature-btn" onclick="openFeatureModal()">+ Add Feature</button>
     </div>
-
     <div id="features-container"></div>
 
-</div>
-
-<!-- Add/Edit Feature Modal -->
-<div class="modal-overlay" id="feature-modal" style="display:none" onclick="handleOverlayClick(event,'feature-modal')">
-    <div class="modal" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3 id="feature-modal-title">Add Feature</h3>
-            <button class="modal-close" onclick="closeModal('feature-modal')">&times;</button>
+    <div class="modal-overlay" id="feature-modal" style="display:none" onclick="handleOverlayClick(event,'feature-modal')">
+        <div class="modal">
+            <div class="modal-header"><h3 id="feature-modal-title">Add Feature</h3><button class="modal-close" onclick="closeModal('feature-modal')">&times;</button></div>
+            <form onsubmit="submitFeature(event)">
+                <div class="form-group"><label class="form-label">Feature Name</label><input class="form-input" id="f-name" required></div>
+                <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="f-description"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="f-category"><option value="core">Core MVP</option><option value="business">Business</option><option value="enterprise">Enterprise</option><option value="not-included">Not Included</option></select></div>
+                    <div class="form-group"><label class="form-label">Complexity (1-10)</label><input class="form-input" id="f-complexity" type="number" min="1" max="10" value="5"></div>
+                </div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Duration (weeks)</label><input class="form-input" id="f-duration" type="number" min="0.5" step="0.5" value="2"></div><div class="form-group"></div></div>
+                <div class="form-group"><label class="form-label">Necessity</label><textarea class="form-textarea" id="f-necessity"></textarea></div>
+                <div class="form-group"><label class="form-label">Risks</label><textarea class="form-textarea" id="f-risks"></textarea></div>
+                <div class="form-group"><label class="form-label">Dependencies (comma-separated)</label><input class="form-input" id="f-dependencies"></div>
+                <div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('feature-modal')">Cancel</button><button type="submit" class="btn-primary" id="feature-submit-btn">Add Feature</button></div>
+            </form>
         </div>
-        <form onsubmit="submitFeature(event)">
-            <div class="form-group">
-                <label class="form-label">Feature Name</label>
-                <input class="form-input" id="f-name" type="text" placeholder="e.g. User Authentication" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea class="form-textarea" id="f-description" placeholder="What this feature does in 1-2 sentences" required></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Category</label>
-                    <select class="form-select" id="f-category">
-                        <option value="core">Core MVP</option>
-                        <option value="business">Business</option>
-                        <option value="enterprise">Enterprise</option>
-                        <option value="not-included">Not Included</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Complexity (1-10)</label>
-                    <input class="form-input" id="f-complexity" type="number" min="1" max="10" value="5" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Necessity</label>
-                <textarea class="form-textarea" id="f-necessity" placeholder="Why this feature is needed (or not)" style="min-height:60px" required></textarea>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Risks</label>
-                <input class="form-input" id="f-risks" type="text" placeholder="Potential technical or business risks">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Dependencies (comma-separated)</label>
-                <input class="form-input" id="f-dependencies" type="text" placeholder="e.g. Employee Management, Payroll Engine">
-            </div>
-            <div class="form-actions">
-                <button class="btn-secondary" type="button" onclick="closeModal('feature-modal')">Cancel</button>
-                <button class="btn-primary" type="submit" id="feature-submit-btn">Add Feature</button>
-            </div>
-        </form>
     </div>
-</div>
-
-<!-- Add Component Modal -->
-<div class="modal-overlay" id="component-modal" style="display:none" onclick="handleOverlayClick(event,'component-modal')">
-    <div class="modal modal-sm" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3>Add Component</h3>
-            <button class="modal-close" onclick="closeModal('component-modal')">&times;</button>
+    <div class="modal-overlay" id="component-modal" style="display:none" onclick="handleOverlayClick(event,'component-modal')">
+        <div class="modal modal-sm">
+            <div class="modal-header"><h3>Add Component</h3><button class="modal-close" onclick="closeModal('component-modal')">&times;</button></div>
+            <form onsubmit="submitComponent(event)">
+                <div class="form-group"><label class="form-label">Component Name</label><input class="form-input" id="c-name" required></div>
+                <div class="form-group"><label class="form-label">Cost ($)</label><input class="form-input" id="c-cost" type="number" min="0" value="5000" required></div>
+                <div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('component-modal')">Cancel</button><button type="submit" class="btn-primary">Add Component</button></div>
+            </form>
         </div>
-        <form onsubmit="submitComponent(event)">
-            <div class="form-group">
-                <label class="form-label">Component Name</label>
-                <input class="form-input" id="c-name" type="text" placeholder="e.g. Payroll calculation engine" required>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Estimated Hours</label>
-                    <input class="form-input" id="c-hours" type="number" min="1" step="1" value="40" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Estimated Cost ($)</label>
-                    <input class="form-input" id="c-cost" type="number" min="0" value="8000" required>
-                </div>
-            </div>
-            <div class="form-actions">
-                <button class="btn-secondary" type="button" onclick="closeModal('component-modal')">Cancel</button>
-                <button class="btn-primary" type="submit">Add Component</button>
-            </div>
-        </form>
     </div>
 </div>
 
 <script>
-function getStorageKey(name) {
-    return 'featureAlignment_' + name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-}
+function getStorageKey(n){return 'fa_v17_'+n.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase()}
 let STORAGE_KEY;
+const D={
+clientName:"Acme Corp",projectName:"Client Portal",date:"2026-03-28",budgetMin:30000,budgetMax:50000,
+features:[
+// CORE MVP
+{id:1,name:"User Authentication",category:"core",complexity:4,duration:3,
+description:"Complete user authentication system with secure login, registration, password management, and session handling.",
+necessity:"Foundational requirement for any user-facing application. All other features depend on authenticated access.",
+risks:"Security vulnerabilities in auth are critical. Must follow OWASP best practices from day one.",
+dependencies:[],included:true,recommended:true,
+components:[
+{id:1,name:"Login & registration forms",cost:4000},
+{id:2,name:"Password reset flow",cost:2500},
+{id:3,name:"Email verification",cost:3000},
+{id:4,name:"Session management & JWT",cost:2500}
+]},
+// BUSINESS
+{id:2,name:"Dashboard & Analytics",category:"business",complexity:6,duration:5,
+description:"Central dashboard with key metrics, interactive charts, and real-time activity tracking for business insights.",
+necessity:"Core UX value proposition \u2014 gives users a single pane of glass for all key data points.",
+risks:"Complex aggregation queries may need optimization. Chart library selection affects bundle size.",
+dependencies:["User Authentication"],included:true,recommended:true,
+components:[
+{id:5,name:"Dashboard layout & navigation",cost:5000},
+{id:6,name:"Metrics cards",cost:3500},
+{id:7,name:"Chart integration",cost:6000},
+{id:8,name:"Activity feed",cost:4000}
+]},
+// ENTERPRISE
+{id:3,name:"In-App Notifications",category:"enterprise",complexity:7,duration:4,
+description:"Full notification system with in-app alerts, email digests, and push notification support across devices.",
+necessity:"Important for engagement but not launch-critical. Users can rely on email notifications initially.",
+risks:"Push notification setup requires platform-specific configuration (APNS, FCM). Email deliverability depends on domain authentication.",
+dependencies:["User Authentication"],included:false,recommended:false,
+components:[
+{id:9,name:"Notification service backend",cost:7000},
+{id:10,name:"Bell icon & dropdown UI",cost:4000},
+{id:11,name:"Email notification templates",cost:3000},
+{id:12,name:"Push notification setup",cost:5000}
+]}
+]};
 
-// ═══════════════════════════════════════════════════════════════
-// PROJECT DATA — Claude populates this from meeting transcripts
-// Replace clientName, projectName, date, budget, and features[]
-// ═══════════════════════════════════════════════════════════════
-const defaultProjectData = {
-    clientName: "Acme Corp",
-    projectName: "Client Portal",
-    date: "2026-03-24",
-    budgetMin: 15000,
-    budgetMax: 25000,
-    features: [
-        {
-            id: 1,
-            name: "User Authentication",
-            description: "Login, registration, password reset with email verification and session management.",
-            category: "core",
-            necessity: "Required for any user-facing platform. All personalized features depend on this.",
-            complexity: 4,
-            dependencies: [],
-            risks: "OAuth provider integration complexity with Google/Apple providers.",
-            included: true,
-            recommended: true,
-            components: [
-                { id: 1, name: "Login & registration forms", hours: 8, cost: 1200 },
-                { id: 2, name: "Password reset flow", hours: 6, cost: 900 },
-                { id: 3, name: "Email verification", hours: 8, cost: 1200 },
-                { id: 4, name: "Session management & JWT", hours: 6, cost: 900 }
-            ]
-        },
-        {
-            id: 2,
-            name: "Dashboard & Analytics",
-            description: "Overview page showing key metrics, recent activity, and trends with interactive charts.",
-            category: "business",
-            necessity: "Users need a central place to understand their data. Reduces support requests significantly.",
-            complexity: 6,
-            dependencies: ["User Authentication"],
-            risks: "Chart library performance with large datasets; real-time refresh complexity.",
-            included: true,
-            recommended: true,
-            components: [
-                { id: 5, name: "Dashboard layout & navigation", hours: 10, cost: 1500 },
-                { id: 6, name: "Metrics cards (4 KPIs)", hours: 8, cost: 1200 },
-                { id: 7, name: "Chart.js integration", hours: 12, cost: 2400 },
-                { id: 8, name: "Activity feed", hours: 8, cost: 1200 }
-            ]
-        },
-        {
-            id: 3,
-            name: "In-App Notifications",
-            description: "Real-time alerts for key events delivered within the app and via email.",
-            category: "enterprise",
-            necessity: "Enhances engagement but users can check manually. Can be added post-launch without major rework.",
-            complexity: 7,
-            dependencies: ["User Authentication"],
-            risks: "WebSocket infrastructure complexity; may require Redis for pub/sub.",
-            included: false,
-            recommended: false,
-            components: [
-                { id: 9, name: "Notification service (backend)", hours: 14, cost: 2800 },
-                { id: 10, name: "Bell icon & dropdown UI", hours: 8, cost: 1200 },
-                { id: 11, name: "Email notification templates", hours: 6, cost: 900 },
-                { id: 12, name: "Push notification setup", hours: 10, cost: 2000 }
-            ]
-        },
-        {
-            id: 4,
-            name: "Mobile App",
-            description: "Native mobile application for iOS and Android with core feature parity.",
-            category: "not-included",
-            necessity: "High value long-term but responsive web covers MVP. App Store approval adds unpredictable timeline. Separate project.",
-            complexity: 8,
-            dependencies: ["User Authentication", "Dashboard & Analytics"],
-            risks: "App Store/Play Store approval adds 1-4 weeks. Platform-specific bugs require separate QA.",
-            included: false,
-            recommended: false,
-            components: [
-                { id: 13, name: "React Native shell + navigation", hours: 40, cost: 8000 },
-                { id: 14, name: "Mobile-optimized views", hours: 30, cost: 6000 }
-            ]
-        }
-    ]
-};
-// ═══════════════════════════════════════════════════════════════
-// END PROJECT DATA — Everything below is the template engine
-// ═══════════════════════════════════════════════════════════════
-
-
-// Load or initialize data
 let projectData;
-function loadData() {
-    STORAGE_KEY = getStorageKey(defaultProjectData.clientName + '_' + defaultProjectData.projectName);
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            projectData = JSON.parse(saved);
-        } else {
-            projectData = JSON.parse(JSON.stringify(defaultProjectData));
-        }
-    } catch(e) {
-        projectData = JSON.parse(JSON.stringify(defaultProjectData));
-    }
-}
+function loadData(){STORAGE_KEY=getStorageKey(D.clientName+'_'+D.projectName);try{const s=localStorage.getItem(STORAGE_KEY);projectData=s?JSON.parse(s):JSON.parse(JSON.stringify(D))}catch(e){projectData=JSON.parse(JSON.stringify(D))}}
 loadData();
+function saveData(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(projectData))}catch(e){}}
+projectData.features.forEach(f=>{if(f.recommended===undefined)f.recommended=f.included});saveData();
 
-function saveData() {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(projectData));
-    } catch(e) { /* silently fail */ }
+let nextFId=Math.max(0,...projectData.features.map(f=>f.id))+1;
+let nextCId=Math.max(0,...projectData.features.flatMap(f=>f.components.map(c=>c.id)))+1;
+let currentFilter='all',expandedFeatures=new Set(),editingFeatureId=null,addingComponentForFeatureId=null;
+let currentPriority=localStorage.getItem('fa_priority')||'pricing';
+const PRIORITY_MULTIPLIER=1.35; // 35% expedite premium
+
+function getCost(f){return f.components.reduce((s,c)=>s+(c.cost||0),0)}
+function fmt(n){return n.toLocaleString()}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function catBadge(c){const m={'core':['badge-core','Core MVP'],'business':['badge-business','Business'],'enterprise':['badge-enterprise','Enterprise'],'not-included':['badge-not-included','Not Included']};const[cls,l]=m[c]||['badge-core',c];return`<span class="badge ${cls}">${l}</span>`}
+function cxBadge(n){const c=n<=3?'badge-complexity-low':n<=6?'badge-complexity-med':'badge-complexity-high';const l=n<=3?'Low':n<=6?'Med':'High';return`<span class="badge ${c}">Complexity ${n}/10 \u00b7 ${l}</span>`}
+
+function scrollTo(id){currentFilter='all';document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));document.querySelector('.filter-btn').classList.add('active');expandedFeatures.add(id);renderFeatures();setTimeout(()=>{const el=document.getElementById('fb-'+id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.boxShadow='0 0 0 2px rgba(96,165,250,0.6)';setTimeout(()=>{el.style.boxShadow=''},2000)}},50)}
+
+let recOpen=false;
+function toggleRec(id,e){if(e)e.stopPropagation();const f=projectData.features.find(f=>f.id===id);if(f){f.recommended=!f.recommended;saveData();renderRec()}}
+function addRec(id){const f=projectData.features.find(f=>f.id===id);if(f){f.recommended=true;saveData();closeRec();renderRec()}}
+function openRec(e){e.stopPropagation();recOpen=!recOpen;const m=document.getElementById('rec-list'),b=document.getElementById('rec-dropdown-backdrop');if(recOpen){const a=projectData.features.filter(f=>!f.recommended);m.innerHTML=a.length===0?'<div style="padding:12px 16px;color:rgba(255,255,255,0.4);font-size:0.82rem">All features in scope</div>':a.map(f=>`<div class="rec-dropdown-item" onclick="addRec(${f.id})"><span>${esc(f.name)}</span>${catBadge(f.category)}</div>`).join('');m.style.display='block';b.style.display='block'}else{m.style.display='none';b.style.display='none'}}
+function closeRec(){recOpen=false;const m=document.getElementById('rec-list'),b=document.getElementById('rec-dropdown-backdrop');if(m)m.style.display='none';if(b)b.style.display='none'}
+
+function renderRec(){
+const ins=projectData.features.filter(f=>f.recommended),baseCost=ins.reduce((s,f)=>s+getCost(f),0),baseWks=ins.reduce((s,f)=>s+(f.duration||0),0);
+const cost=currentPriority==='timeline'?Math.round(baseCost*PRIORITY_MULTIPLIER):baseCost;
+const wks=currentPriority==='timeline'?Math.round(baseWks*5/7*10)/10:baseWks;
+const mo=(wks/4.33).toFixed(1);
+document.getElementById('rec-stats').innerHTML=`<div class="stat-card recommended"><div class="stat-value green">~${mo} mo</div><div class="stat-label">Estimated Timeline</div></div><div class="stat-card recommended"><div class="stat-value green">$${fmt(cost)}</div><div class="stat-label">Estimated Cost</div></div><div class="stat-card recommended"><div class="stat-value green">${ins.length} / ${projectData.features.length}</div><div class="stat-label">Features in Scope</div></div>`;
+let t='';ins.forEach(f=>{t+=`<span class="rec-feature-tag"><span onclick="scrollTo(${f.id})">${esc(f.name)}</span><span class="rec-toggle-icon rec-toggle-remove" onclick="toggleRec(${f.id},event)">\u00d7</span></span>`});
+if(projectData.features.some(f=>!f.recommended))t+=`<div class="rec-add-dropdown"><button class="rec-add-btn" onclick="openRec(event)">+ Add Feature</button><div class="rec-dropdown-menu" id="rec-list" style="display:none"></div></div>`;
+document.getElementById('rec-features-list').innerHTML=t}
+
+function renderStats(){
+const inc=projectData.features.filter(f=>f.included),baseCost=inc.reduce((s,f)=>s+getCost(f),0),baseWks=inc.reduce((s,f)=>s+(f.duration||0),0);
+const cost=currentPriority==='timeline'?Math.round(baseCost*PRIORITY_MULTIPLIER):baseCost;
+const wks=currentPriority==='timeline'?Math.round(baseWks*5/7*10)/10:baseWks;
+const mo=(wks/4.33).toFixed(1);
+document.getElementById('stat-features').textContent=inc.length;
+document.getElementById('stat-timeline').textContent='~'+mo+' mo';
+document.getElementById('stat-cost').textContent='$'+fmt(cost);
+const st=document.getElementById('stat-status');
+st.textContent='TBD';st.className='stat-value'
+renderGauge(cost)}
+
+function renderGauge(cost){
+const mx=cost*1.3||1,pct=Math.min((cost/mx)*100,100),f=document.getElementById('gauge-fill');
+f.style.width=pct+'%';f.style.background='linear-gradient(90deg,#60a5fa,#3b82f6)';
+document.getElementById('gauge-min-marker').style.display='none';
+document.getElementById('gauge-max-marker').style.display='none';
+document.getElementById('gauge-label-mid').textContent='$'+fmt(Math.round(mx*0.5));
+document.getElementById('gauge-label-max').textContent='$'+fmt(Math.round(mx));
+document.getElementById('gauge-note').textContent='Toggle features to explore scope and cost. Budget to be determined with client.'}
+
+function renderTimeline(){
+const inc=projectData.features.filter(f=>f.included);
+if(!inc.length){document.getElementById('timeline-chart').innerHTML='<div class="empty-state">Toggle features on to see the timeline.</div>';return}
+const baseTotalCost=inc.reduce((s,f)=>s+getCost(f),0);
+const totalCost=currentPriority==='timeline'?Math.round(baseTotalCost*PRIORITY_MULTIPLIER):baseTotalCost;
+let cw=0;
+const tl=inc.map(f=>{const bw=f.duration||1;const w=currentPriority==='timeline'?Math.round(bw*5/7*10)/10:bw;const s=cw;cw+=w;return{f,s,w,e:cw}});
+// Use total weeks as the grid — bars and columns share the same coordinate system
+const totalWks=cw;
+const mo=totalWks/4.33;
+const moDisplay=mo.toFixed(1);
+// Show month labels but sized proportionally to their week spans
+const numMonths=Math.floor(mo);
+const mw=60,miw=Math.max(numMonths*mw,400);
+let h=`<div class="timeline-header-row"><div class="timeline-label-col">Feature</div><div class="timeline-bar-col">`;
+// Each month column is proportional to its actual week span within the total
+for(let m=1;m<=numMonths;m++){
+const mStart=(m-1)*4.33;
+const mEnd=Math.min(m*4.33,totalWks);
+const mWidth=((mEnd-mStart)/totalWks)*100;
+h+=`<div class="timeline-week-marker" style="flex:0 0 ${mWidth}%;min-width:0">M${m}</div>`}
+// Remainder partial month if any
+const lastFullEnd=numMonths*4.33;
+if(lastFullEnd<totalWks){const remPct=((totalWks-lastFullEnd)/totalWks)*100;
+h+=`<div class="timeline-week-marker" style="flex:0 0 ${remPct}%;min-width:0"></div>`}
+h+='</div></div>';let r='';
+tl.forEach(t=>{const lp=(t.s/totalWks)*100,wp=Math.max((t.w/totalWks)*100,2),lb=t.w<1?t.w.toFixed(1)+'w':Math.round(t.w)+'w';
+const fc=currentPriority==='timeline'?Math.round(getCost(t.f)*PRIORITY_MULTIPLIER):getCost(t.f);
+r+=`<div class="timeline-row"><div class="timeline-row-label" title="${esc(t.f.name)}">${esc(t.f.name)}</div><div class="timeline-row-bar-area"><div class="timeline-bar cat-${t.f.category}" style="left:${lp}%;width:${wp}%" title="$${fmt(fc)} \u2014 ${lb}">${lb}</div></div></div>`});
+document.getElementById('timeline-chart').innerHTML=`<div class="timeline-scroll-wrap"><div class="timeline-inner" style="min-width:${miw+200}px">${h}${r}</div></div><div class="timeline-summary"><div class="timeline-summary-item"><strong>~${moDisplay} months</strong></div><div class="timeline-summary-item"><strong>$${fmt(totalCost)}</strong> total cost</div></div>`}
+
+function renderFeatures(){
+const ct=document.getElementById('features-container'),fl=currentFilter==='all'?projectData.features:projectData.features.filter(f=>f.category===currentFilter);
+if(!fl.length){ct.innerHTML='<div class="empty-state">No features in this category.</div>';return}
+const gs=[{k:'core',l:'Core MVP'},{k:'business',l:'Business'},{k:'enterprise',l:'Enterprise'},{k:'not-included',l:'Not Included'}];
+let html='';for(const g of gs){const fs=fl.filter(f=>f.category===g.k);if(!fs.length)continue;html+=`<div class="section"><div class="section-header">${g.l}</div>`;fs.forEach(f=>{html+=renderCard(f)});html+='</div>'}
+ct.innerHTML=html}
+
+function renderCard(f){
+const baseCost=getCost(f),cost=currentPriority==='timeline'?Math.round(baseCost*PRIORITY_MULTIPLIER):baseCost;
+const baseDur=f.duration||0,adjDur=currentPriority==='timeline'?Math.round(baseDur*5/7*10)/10:baseDur;
+const exp=expandedFeatures.has(f.id);
+const dur=adjDur?(adjDur<1?adjDur.toFixed(1)+' wk':Math.round(adjDur*10)/10+(adjDur===1?' wk':' wks')):'';
+return`<div class="feature-block category-${f.category} ${f.included?'':'excluded'}" id="fb-${f.id}"><div class="feature-header" onclick="toggleExp(${f.id})"><div class="feature-header-left"><span class="feature-name">${esc(f.name)}</span>${catBadge(f.category)}${cxBadge(f.complexity)}</div><div class="feature-header-right"><div class="feature-meta"><span class="feature-cost-display">$${fmt(cost)}</span><span class="feature-duration">${dur}</span></div><label class="toggle" onclick="event.stopPropagation()"><input type="checkbox" ${f.included?'checked':''} onchange="toggleInc(${f.id})"><span class="toggle-slider"></span></label><span class="expand-icon ${exp?'open':''}">&#9658;</span></div></div>${exp?renderDet(f):''}</div>`}
+
+function renderDet(f){
+const mult=currentPriority==='timeline'?PRIORITY_MULTIPLIER:1;
+const deps=f.dependencies.length?f.dependencies.map(d=>`<span class="dep-tag">${esc(d)}</span>`).join(''):'<span style="color:rgba(255,255,255,0.35);font-size:0.85rem">None</span>';
+const comps=f.components.map(c=>{const displayCost=Math.round((c.cost||0)*mult);return`<div class="component-row"><span class="component-name">${esc(c.name)}</span><input class="inline-edit-cost" type="number" min="0" value="${displayCost}" onchange="updCostAdj(${f.id},${c.id},this.value)" onkeyup="updCostAdj(${f.id},${c.id},this.value)" onclick="event.stopPropagation()"><button class="delete-btn" onclick="delComp(${f.id},${c.id})">\u00d7</button></div>`}).join('');
+return`<div class="feature-details"><p class="feature-description">${esc(f.description)}</p><div class="detail-grid"><div class="detail-box"><h5>Necessity</h5><p>${esc(f.necessity)}</p></div><div class="detail-box"><h5>Risks</h5><p>${esc(f.risks||'None identified')}</p></div></div><div class="deps-box"><h5>Dependencies</h5>${deps}</div><div class="components-section"><div class="components-header"><h5>Components</h5><button class="add-component-btn" onclick="openCompModal(${f.id})">+ Add Component</button></div>${comps||'<p style="color:rgba(255,255,255,0.3);font-size:0.85rem">No components yet.</p>'}</div><div class="feature-actions"><button class="action-btn edit" onclick="openEditModal(${f.id})">Edit</button><button class="action-btn delete" onclick="delFeat(${f.id})">Delete</button></div></div>`}
+
+function updCostAdj(fid,cid,v){const n=parseInt(v);if(isNaN(n)||n<0)return;const f=projectData.features.find(f=>f.id===fid);if(!f)return;const c=f.components.find(c=>c.id===cid);if(!c)return;
+// User edits the displayed (adjusted) value — convert back to base for storage
+const mult=currentPriority==='timeline'?PRIORITY_MULTIPLIER:1;
+c.cost=Math.round(n/mult);
+saveData();renderPriority();renderStats();renderRec();renderTimeline();
+const bl=document.getElementById('fb-'+fid);if(bl){const el=bl.querySelector('.feature-cost-display');const adjCost=Math.round(getCost(f)*mult);if(el)el.textContent='$'+fmt(adjCost)}}
+function toggleExp(id){if(expandedFeatures.has(id))expandedFeatures.delete(id);else expandedFeatures.add(id);renderFeatures()}
+function toggleInc(id){const f=projectData.features.find(f=>f.id===id);if(f){f.included=!f.included;saveData();renderAll()}}
+function delFeat(id){if(!confirm('Remove this feature?'))return;projectData.features=projectData.features.filter(f=>f.id!==id);expandedFeatures.delete(id);saveData();renderAll()}
+function delComp(fid,cid){const f=projectData.features.find(f=>f.id===fid);if(!f)return;f.components=f.components.filter(c=>c.id!==cid);saveData();renderAll()}
+function setFilter(c,b){currentFilter=c;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));b.classList.add('active');renderFeatures()}
+
+function openFeatModal(){editingFeatureId=null;document.getElementById('feature-modal-title').textContent='Add Feature';document.getElementById('feature-submit-btn').textContent='Add Feature';['f-name','f-description','f-necessity','f-risks','f-dependencies'].forEach(id=>document.getElementById(id).value='');document.getElementById('f-category').value='core';document.getElementById('f-complexity').value='5';document.getElementById('f-duration').value='2';openModal('feature-modal')}
+function openFeatureModal(){openFeatModal()}
+function openEditModal(id){const f=projectData.features.find(f=>f.id===id);if(!f)return;editingFeatureId=id;document.getElementById('feature-modal-title').textContent='Edit Feature';document.getElementById('feature-submit-btn').textContent='Save Changes';document.getElementById('f-name').value=f.name;document.getElementById('f-description').value=f.description;document.getElementById('f-category').value=f.category;document.getElementById('f-complexity').value=f.complexity;document.getElementById('f-duration').value=f.duration||2;document.getElementById('f-necessity').value=f.necessity;document.getElementById('f-risks').value=f.risks||'';document.getElementById('f-dependencies').value=f.dependencies.join(', ');openModal('feature-modal')}
+function openEditFeatureModal(id){openEditModal(id)}
+function submitFeature(e){e.preventDefault();const d={name:document.getElementById('f-name').value.trim(),description:document.getElementById('f-description').value.trim(),category:document.getElementById('f-category').value,complexity:parseInt(document.getElementById('f-complexity').value),duration:parseFloat(document.getElementById('f-duration').value)||2,necessity:document.getElementById('f-necessity').value.trim(),risks:document.getElementById('f-risks').value.trim(),dependencies:document.getElementById('f-dependencies').value.split(',').map(s=>s.trim()).filter(Boolean)};if(editingFeatureId!==null){const f=projectData.features.find(f=>f.id===editingFeatureId);if(f)Object.assign(f,d)}else{projectData.features.push({...d,id:nextFId++,included:d.category!=='not-included',recommended:d.category==='core'||d.category==='business',components:[]})}closeModal('feature-modal');saveData();renderAll()}
+function openCompModal(fid){addingComponentForFeatureId=fid;document.getElementById('c-name').value='';document.getElementById('c-cost').value='5000';openModal('component-modal')}
+function openComponentModal(fid){openCompModal(fid)}
+function submitComponent(e){e.preventDefault();const f=projectData.features.find(f=>f.id===addingComponentForFeatureId);if(!f)return;f.components.push({id:nextCId++,name:document.getElementById('c-name').value.trim(),cost:parseInt(document.getElementById('c-cost').value)||0});closeModal('component-modal');expandedFeatures.add(f.id);saveData();renderAll()}
+function openModal(id){document.getElementById(id).style.display='flex'}
+function closeModal(id){document.getElementById(id).style.display='none'}
+function handleOverlayClick(e,id){if(e.target.id===id)closeModal(id)}
+function setPriority(p){currentPriority=p;localStorage.setItem('fa_priority',p);renderAll()}
+
+function getAdjustedCost(baseCost){return currentPriority==='timeline'?Math.round(baseCost*PRIORITY_MULTIPLIER):baseCost}
+function getAdjustedDuration(baseDur){return currentPriority==='timeline'?Math.round(baseDur*5/7*10)/10:baseDur}
+
+function renderPriority(){
+const inc=projectData.features.filter(f=>f.included);
+const baseCost=inc.reduce((s,f)=>s+getCost(f),0);
+const baseWks=inc.reduce((s,f)=>s+(f.duration||0),0);
+const baseMo=(baseWks/4.33).toFixed(1);
+const expCost=Math.round(baseCost*PRIORITY_MULTIPLIER);
+const expWks=Math.round(baseWks*5/7*10)/10;
+const expMo=(expWks/4.33).toFixed(1);
+
+document.getElementById('priority-tabs').innerHTML=`
+<button class="priority-tab ${currentPriority==='pricing'?'active':''}" onclick="setPriority('pricing')">
+<div class="tab-label">Optimize for Pricing</div>
+<div class="tab-value">$${fmt(baseCost)}</div>
+<div class="tab-detail">~${baseMo} months</div>
+</button>
+<button class="priority-tab ${currentPriority==='timeline'?'active':''}" onclick="setPriority('timeline')">
+<div class="tab-label">Optimize for Speed</div>
+<div class="tab-value">~${expMo} months</div>
+<div class="tab-detail">$${fmt(expCost)} (+35% expedite)</div>
+</button>`;
+
 }
 
-let nextFeatureId = Math.max(0, ...projectData.features.map(f => f.id)) + 1;
-let nextComponentId = Math.max(0, ...projectData.features.flatMap(f => f.components.map(c => c.id))) + 1;
-let currentFilter = 'all';
-let expandedFeatures = new Set();
-let editingFeatureId = null;
-let addingComponentForFeatureId = null;
+function renderAll(){renderPriority();renderRec();renderStats();renderTimeline();renderFeatures()}
 
-// Migration: ensure all components have a cost field, and features have recommended field
-function migrateData() {
-    projectData.features.forEach(f => {
-        f.components.forEach(c => {
-            if (c.cost === undefined || c.cost === null) {
-                c.cost = c.hours * (projectData.hourlyRate || 200);
-            }
-        });
-        if (f.recommended === undefined) {
-            f.recommended = f.included;
-        }
-    });
-    delete projectData.hourlyRate;
-    saveData();
-}
-migrateData();
-
-function getFeatureHours(f) { return f.components.reduce((s, c) => s + c.hours, 0); }
-function getFeatureCost(f) { return f.components.reduce((s, c) => s + (c.cost || 0), 0); }
-
-function getCategoryBadge(cat) {
-    const map = {
-        'core': ['badge-core','Core MVP'],
-        'business': ['badge-business','Business'],
-        'enterprise': ['badge-enterprise','Enterprise'],
-        'not-included': ['badge-not-included','Not Included']
-    };
-    const [cls, label] = map[cat] || ['badge-core', cat];
-    return `<span class="badge ${cls}">${label}</span>`;
-}
-
-function getComplexityBadge(n) {
-    const cls = n <= 3 ? 'badge-complexity-low' : n <= 6 ? 'badge-complexity-med' : 'badge-complexity-high';
-    const label = n <= 3 ? 'Low' : n <= 6 ? 'Med' : 'High';
-    return `<span class="badge ${cls}">Complexity ${n}/10 \u00b7 ${label}</span>`;
-}
-
-function fmt(n) { return n.toLocaleString(); }
-
-function scrollToFeature(id) {
-    // Set filter to 'all' so the feature is visible
-    currentFilter = 'all';
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector('.filter-btn').classList.add('active');
-    // Expand the feature
-    expandedFeatures.add(id);
-    renderFeatures();
-    // Scroll to it
-    setTimeout(() => {
-        const el = document.getElementById('fb-' + id);
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.style.boxShadow = '0 0 0 2px rgba(96,165,250,0.6)';
-            setTimeout(() => { el.style.boxShadow = ''; }, 2000);
-        }
-    }, 50);
-}
-
-let recDropdownOpen = false;
-
-function toggleRecFeature(id, e) {
-    if (e) e.stopPropagation();
-    const f = projectData.features.find(f => f.id === id);
-    if (f) {
-        f.recommended = !f.recommended;
-        saveData();
-        renderRecommendedScope();
-    }
-}
-
-function addToRecommended(id) {
-    const f = projectData.features.find(f => f.id === id);
-    if (f) {
-        f.recommended = true;
-        saveData();
-        closeRecDropdown();
-        renderRecommendedScope();
-    }
-}
-
-function openRecDropdown(e) {
-    e.stopPropagation();
-    recDropdownOpen = !recDropdownOpen;
-    const menu = document.getElementById('rec-dropdown-list');
-    const backdrop = document.getElementById('rec-dropdown-backdrop');
-    if (recDropdownOpen) {
-        // Build list of features NOT in recommended scope
-        const available = projectData.features.filter(f => !f.recommended);
-        if (available.length === 0) {
-            menu.innerHTML = '<div style="padding:12px 16px;color:rgba(255,255,255,0.4);font-size:0.82rem;">All features are in scope</div>';
-        } else {
-            menu.innerHTML = available.map(f =>
-                `<div class="rec-dropdown-item" onclick="addToRecommended(${f.id})">
-                    <span>${escHtml(f.name)}</span>
-                    ${getCategoryBadge(f.category)}
-                </div>`
-            ).join('');
-        }
-        menu.style.display = 'block';
-        backdrop.style.display = 'block';
-    } else {
-        menu.style.display = 'none';
-        backdrop.style.display = 'none';
-    }
-}
-
-function closeRecDropdown() {
-    recDropdownOpen = false;
-    const menu = document.getElementById('rec-dropdown-list');
-    const backdrop = document.getElementById('rec-dropdown-backdrop');
-    if (menu) menu.style.display = 'none';
-    if (backdrop) backdrop.style.display = 'none';
-}
-
-function renderRecommendedScope() {
-    const inScope = projectData.features.filter(f => f.recommended);
-    const hours = inScope.reduce((s, f) => s + getFeatureHours(f), 0);
-    const cost = inScope.reduce((s, f) => s + getFeatureCost(f), 0);
-    const weeks = Math.ceil(hours / 40);
-
-    document.getElementById('rec-stats').innerHTML = `
-        <div class="stat-card recommended">
-            <div class="stat-value green">${weeks} weeks</div>
-            <div class="stat-label">Estimated Timeline (40h/wk)</div>
-        </div>
-        <div class="stat-card recommended">
-            <div class="stat-value green">$${fmt(cost)}</div>
-            <div class="stat-label">Estimated Cost</div>
-        </div>
-        <div class="stat-card recommended">
-            <div class="stat-value green">${inScope.length} / ${projectData.features.length}</div>
-            <div class="stat-label">Features in Scope</div>
-        </div>
-    `;
-
-    let tagsHtml = '';
-    inScope.forEach(f => {
-        tagsHtml += `<span class="rec-feature-tag" title="Click name to view, x to remove">
-            <span onclick="scrollToFeature(${f.id})">${escHtml(f.name)}</span>
-            <span class="rec-toggle-icon rec-toggle-remove" onclick="toggleRecFeature(${f.id}, event)" title="Remove from scope">\u00d7</span>
-        </span>`;
-    });
-
-    // Add button with dropdown
-    const hasAvailable = projectData.features.some(f => !f.recommended);
-    if (hasAvailable) {
-        tagsHtml += `<div class="rec-add-dropdown">
-            <button class="rec-add-btn" onclick="openRecDropdown(event)">+ Add Feature</button>
-            <div class="rec-dropdown-menu" id="rec-dropdown-list" style="display:none"></div>
-        </div>`;
-    }
-
-    document.getElementById('rec-features-list').innerHTML = tagsHtml;
-}
-
-function renderStats() {
-    const included = projectData.features.filter(f => f.included);
-    const hours = included.reduce((s, f) => s + getFeatureHours(f), 0);
-    const cost = included.reduce((s, f) => s + getFeatureCost(f), 0);
-
-    document.getElementById('stat-features').textContent = included.length;
-    document.getElementById('stat-hours').textContent = hours.toLocaleString() + 'h';
-    document.getElementById('stat-cost').textContent = '$' + fmt(cost);
-
-    const statusEl = document.getElementById('stat-status');
-    if (cost <= projectData.budgetMin) {
-        statusEl.textContent = 'Under';
-        statusEl.className = 'stat-value green';
-    } else if (cost <= projectData.budgetMax) {
-        statusEl.textContent = 'On Track';
-        statusEl.className = 'stat-value';
-    } else {
-        statusEl.textContent = 'Over';
-        statusEl.className = 'stat-value red';
-    }
-
-    renderGauge(cost);
-}
-
-function renderGauge(cost) {
-    const maxDisplay = Math.max(projectData.budgetMax * 1.6, cost * 1.1);
-    const pct = Math.min((cost / maxDisplay) * 100, 100);
-    const fill = document.getElementById('gauge-fill');
-    fill.style.width = pct + '%';
-    if (cost <= projectData.budgetMin) {
-        fill.style.background = 'linear-gradient(90deg,#34d399,#059669)';
-    } else if (cost <= projectData.budgetMax) {
-        fill.style.background = 'linear-gradient(90deg,#60a5fa,#3b82f6)';
-    } else {
-        fill.style.background = 'linear-gradient(90deg,#f87171,#dc2626)';
-    }
-
-    const minPct = (projectData.budgetMin / maxDisplay) * 100;
-    const maxPct = (projectData.budgetMax / maxDisplay) * 100;
-    document.getElementById('gauge-min-marker').style.left = minPct + '%';
-    document.getElementById('gauge-max-marker').style.left = maxPct + '%';
-    document.getElementById('gauge-min-label').textContent = '$' + fmt(projectData.budgetMin);
-    document.getElementById('gauge-max-label').textContent = '$' + fmt(projectData.budgetMax);
-    document.getElementById('gauge-label-mid').textContent = '$' + fmt(Math.round(maxDisplay * 0.5));
-    document.getElementById('gauge-label-max').textContent = '$' + fmt(Math.round(maxDisplay));
-
-    const diff = cost - projectData.budgetMax;
-    if (cost <= projectData.budgetMin) {
-        document.getElementById('gauge-note').textContent = '$' + fmt(projectData.budgetMin - cost) + ' under minimum estimate';
-    } else if (cost <= projectData.budgetMax) {
-        document.getElementById('gauge-note').textContent = '$' + fmt(projectData.budgetMax - cost) + ' remaining in budget';
-    } else {
-        document.getElementById('gauge-note').textContent = '$' + fmt(diff) + ' over stated budget \u2014 this is a multi-phase engagement. Use toggles to explore phased scope.';
-    }
-}
-
-function renderTimeline() {
-    const included = projectData.features.filter(f => f.included);
-    if (included.length === 0) {
-        document.getElementById('timeline-chart').innerHTML = '<div class="empty-state">Toggle features on to see the timeline.</div>';
-        return;
-    }
-
-    const totalHours = included.reduce((s, f) => s + getFeatureHours(f), 0);
-    const totalCost = included.reduce((s, f) => s + getFeatureCost(f), 0);
-
-    // Build sequential timeline
-    let currentWeek = 0;
-    const timeline = included.map(f => {
-        const hours = getFeatureHours(f);
-        const weeks = Math.max(Math.round((hours / 40) * 10) / 10, 0.25);
-        const start = currentWeek;
-        currentWeek += weeks;
-        return { feature: f, start, weeks, end: currentWeek };
-    });
-
-    const weekCount = Math.ceil(currentWeek);
-
-    // Decide marker strategy: use months if > 20 weeks, otherwise weeks
-    const useMonths = weekCount > 20;
-    const markerCount = useMonths ? Math.ceil(weekCount / 4.33) : weekCount;
-    const markerWidth = useMonths ? 60 : 40; // min px per marker
-    const minInnerWidth = Math.max(markerCount * markerWidth, 400);
-
-    let headerHtml = `<div class="timeline-header-row"><div class="timeline-label-col">Feature</div><div class="timeline-bar-col">`;
-    if (useMonths) {
-        for (let m = 1; m <= markerCount; m++) {
-            const w = Math.min(Math.round(m * 4.33), weekCount);
-            headerHtml += `<div class="timeline-week-marker" style="flex:1;min-width:${markerWidth}px">M${m}<br><span style="font-size:0.6rem;opacity:0.5">W${w}</span></div>`;
-        }
-    } else {
-        for (let w = 1; w <= weekCount; w++) {
-            headerHtml += `<div class="timeline-week-marker" style="flex:1;min-width:${markerWidth}px">W${w}</div>`;
-        }
-    }
-    headerHtml += '</div></div>';
-
-    let rowsHtml = '';
-    timeline.forEach(t => {
-        const leftPct = (t.start / weekCount) * 100;
-        const widthPct = Math.max((t.weeks / weekCount) * 100, 2);
-        const catClass = 'cat-' + t.feature.category;
-        const weekLabel = t.weeks < 1 ? t.weeks.toFixed(1) + 'w' : Math.round(t.weeks) + 'w';
-        rowsHtml += `
-            <div class="timeline-row">
-                <div class="timeline-row-label" title="${escHtml(t.feature.name)}">${escHtml(t.feature.name)}</div>
-                <div class="timeline-row-bar-area">
-                    <div class="timeline-bar ${catClass}" style="left:${leftPct}%;width:${widthPct}%" title="${getFeatureHours(t.feature)}h \u2014 ${weekLabel}">${weekLabel}</div>
-                </div>
-            </div>`;
-    });
-
-    const months = (currentWeek / 4.33).toFixed(1);
-    document.getElementById('timeline-chart').innerHTML = `
-        <div class="timeline-scroll-wrap">
-            <div class="timeline-inner" style="min-width:${minInnerWidth + 200}px">
-                ${headerHtml}
-                ${rowsHtml}
-            </div>
-        </div>
-        <div class="timeline-summary">
-            <div class="timeline-summary-item"><strong>${fmt(totalHours)}h</strong> total hours</div>
-            <div class="timeline-summary-item"><strong>${Math.ceil(currentWeek)} weeks</strong> (~${months} months)</div>
-            <div class="timeline-summary-item"><strong>40 hrs/week</strong> dedicated resource</div>
-            <div class="timeline-summary-item"><strong>$${fmt(totalCost)}</strong> total cost</div>
-        </div>
-    `;
-}
-
-function renderFeatures() {
-    const container = document.getElementById('features-container');
-    const filtered = currentFilter === 'all'
-        ? projectData.features
-        : projectData.features.filter(f => f.category === currentFilter);
-
-    if (filtered.length === 0) {
-        container.innerHTML = '<div class="empty-state">No features in this category.</div>';
-        return;
-    }
-
-    const groups = [
-        { key: 'core', label: 'Core MVP' },
-        { key: 'business', label: 'Business' },
-        { key: 'enterprise', label: 'Enterprise' },
-        { key: 'not-included', label: 'Not Included' }
-    ];
-
-    let html = '';
-    for (const g of groups) {
-        const feats = filtered.filter(f => f.category === g.key);
-        if (!feats.length) continue;
-        html += `<div class="section"><div class="section-header">${g.label}</div>`;
-        feats.forEach(f => { html += renderFeatureCard(f); });
-        html += '</div>';
-    }
-    container.innerHTML = html;
-}
-
-function renderFeatureCard(f) {
-    const hours = getFeatureHours(f);
-    const cost = getFeatureCost(f);
-    const expanded = expandedFeatures.has(f.id);
-
-    return `
-    <div class="feature-block category-${f.category} ${f.included ? '' : 'excluded'}" id="fb-${f.id}">
-        <div class="feature-header" onclick="toggleExpand(${f.id})">
-            <div class="feature-header-left">
-                <span class="feature-name">${escHtml(f.name)}</span>
-                ${getCategoryBadge(f.category)}
-                ${getComplexityBadge(f.complexity)}
-            </div>
-            <div class="feature-header-right">
-                <div class="feature-meta">
-                    <span class="feature-hours">${hours.toLocaleString()}h</span>
-                    <span class="feature-cost">$${fmt(cost)}</span>
-                </div>
-                <label class="toggle" onclick="event.stopPropagation()">
-                    <input type="checkbox" ${f.included ? 'checked' : ''} onchange="toggleInclude(${f.id})">
-                    <span class="toggle-slider"></span>
-                </label>
-                <span class="expand-icon ${expanded ? 'open' : ''}">&#9658;</span>
-            </div>
-        </div>
-        ${expanded ? renderDetails(f) : ''}
-    </div>`;
-}
-
-function renderDetails(f) {
-    const depsHtml = f.dependencies.length
-        ? f.dependencies.map(d => `<span class="dep-tag">${escHtml(d)}</span>`).join('')
-        : '<span style="color:rgba(255,255,255,0.35);font-size:0.85rem">None</span>';
-
-    const compsHtml = f.components.map(c => `
-        <div class="component-row">
-            <span class="component-name">${escHtml(c.name)}</span>
-            <input class="inline-edit" type="number" min="0" step="1" value="${c.hours}"
-                onchange="updateComponentField(${f.id},${c.id},'hours',this.value)"
-                onkeyup="updateComponentField(${f.id},${c.id},'hours',this.value)"
-                onclick="event.stopPropagation()" title="Edit hours">
-            <input class="inline-edit-cost" type="number" min="0" value="${c.cost || 0}"
-                onchange="updateComponentField(${f.id},${c.id},'cost',this.value)"
-                onkeyup="updateComponentField(${f.id},${c.id},'cost',this.value)"
-                onclick="event.stopPropagation()" title="Edit cost">
-            <button class="delete-btn" onclick="deleteComponent(${f.id},${c.id})" title="Remove">\u00d7</button>
-        </div>`).join('');
-
-    return `
-    <div class="feature-details">
-        <p class="feature-description">${escHtml(f.description)}</p>
-        <div class="detail-grid">
-            <div class="detail-box">
-                <h5>Necessity</h5>
-                <p>${escHtml(f.necessity)}</p>
-            </div>
-            <div class="detail-box">
-                <h5>Risks</h5>
-                <p>${escHtml(f.risks || 'None identified')}</p>
-            </div>
-        </div>
-        <div class="deps-box">
-            <h5>Dependencies</h5>
-            ${depsHtml}
-        </div>
-        <div class="components-section">
-            <div class="components-header">
-                <h5>Components</h5>
-                <button class="add-component-btn" onclick="openComponentModal(${f.id})">+ Add Component</button>
-            </div>
-            ${compsHtml || '<p style="color:rgba(255,255,255,0.3);font-size:0.85rem">No components yet.</p>'}
-        </div>
-        <div class="feature-actions">
-            <button class="action-btn edit" onclick="openEditFeatureModal(${f.id})">Edit</button>
-            <button class="action-btn delete" onclick="deleteFeature(${f.id})">Delete</button>
-        </div>
-    </div>`;
-}
-
-function updateComponentField(featureId, componentId, field, val) {
-    const num = parseInt(val);
-    if (isNaN(num) || num < 0) return;
-    const f = projectData.features.find(f => f.id === featureId);
-    if (!f) return;
-    const c = f.components.find(c => c.id === componentId);
-    if (!c) return;
-    c[field] = num;
-    saveData();
-    // Update top-level stats without full re-render (preserves input focus)
-    renderStats();
-    renderRecommendedScope();
-    renderTimeline();
-    // Update the feature header
-    const block = document.getElementById('fb-' + featureId);
-    if (block) {
-        const hoursEl = block.querySelector('.feature-hours');
-        const costEl = block.querySelector('.feature-cost');
-        if (hoursEl) hoursEl.textContent = getFeatureHours(f).toLocaleString() + 'h';
-        if (costEl) costEl.textContent = '$' + fmt(getFeatureCost(f));
-    }
-}
-
-function toggleExpand(id) {
-    if (expandedFeatures.has(id)) expandedFeatures.delete(id);
-    else expandedFeatures.add(id);
-    renderFeatures();
-}
-
-function toggleInclude(id) {
-    const f = projectData.features.find(f => f.id === id);
-    if (f) { f.included = !f.included; saveData(); renderAll(); }
-}
-
-function deleteFeature(id) {
-    if (!confirm('Remove this feature?')) return;
-    projectData.features = projectData.features.filter(f => f.id !== id);
-    expandedFeatures.delete(id);
-    saveData();
-    renderAll();
-}
-
-function deleteComponent(featureId, componentId) {
-    const f = projectData.features.find(f => f.id === featureId);
-    if (!f) return;
-    f.components = f.components.filter(c => c.id !== componentId);
-    saveData();
-    renderAll();
-}
-
-function setFilter(cat, btn) {
-    currentFilter = cat;
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    renderFeatures();
-}
-
-function openFeatureModal() {
-    editingFeatureId = null;
-    document.getElementById('feature-modal-title').textContent = 'Add Feature';
-    document.getElementById('feature-submit-btn').textContent = 'Add Feature';
-    document.getElementById('f-name').value = '';
-    document.getElementById('f-description').value = '';
-    document.getElementById('f-category').value = 'core';
-    document.getElementById('f-complexity').value = '5';
-    document.getElementById('f-necessity').value = '';
-    document.getElementById('f-risks').value = '';
-    document.getElementById('f-dependencies').value = '';
-    openModal('feature-modal');
-}
-
-function openEditFeatureModal(id) {
-    const f = projectData.features.find(f => f.id === id);
-    if (!f) return;
-    editingFeatureId = id;
-    document.getElementById('feature-modal-title').textContent = 'Edit Feature';
-    document.getElementById('feature-submit-btn').textContent = 'Save Changes';
-    document.getElementById('f-name').value = f.name;
-    document.getElementById('f-description').value = f.description;
-    document.getElementById('f-category').value = f.category;
-    document.getElementById('f-complexity').value = f.complexity;
-    document.getElementById('f-necessity').value = f.necessity;
-    document.getElementById('f-risks').value = f.risks || '';
-    document.getElementById('f-dependencies').value = f.dependencies.join(', ');
-    openModal('feature-modal');
-}
-
-function submitFeature(e) {
-    e.preventDefault();
-    const data = {
-        name: document.getElementById('f-name').value.trim(),
-        description: document.getElementById('f-description').value.trim(),
-        category: document.getElementById('f-category').value,
-        complexity: parseInt(document.getElementById('f-complexity').value),
-        necessity: document.getElementById('f-necessity').value.trim(),
-        risks: document.getElementById('f-risks').value.trim(),
-        dependencies: document.getElementById('f-dependencies').value.split(',').map(s => s.trim()).filter(Boolean)
-    };
-
-    if (editingFeatureId !== null) {
-        const f = projectData.features.find(f => f.id === editingFeatureId);
-        if (f) Object.assign(f, data);
-    } else {
-        projectData.features.push({ ...data, id: nextFeatureId++, included: data.category !== 'not-included', components: [] });
-    }
-
-    closeModal('feature-modal');
-    saveData();
-    renderAll();
-}
-
-function openComponentModal(featureId) {
-    addingComponentForFeatureId = featureId;
-    document.getElementById('c-name').value = '';
-    document.getElementById('c-hours').value = '40';
-    document.getElementById('c-cost').value = '8000';
-    openModal('component-modal');
-}
-
-function submitComponent(e) {
-    e.preventDefault();
-    const f = projectData.features.find(f => f.id === addingComponentForFeatureId);
-    if (!f) return;
-    f.components.push({
-        id: nextComponentId++,
-        name: document.getElementById('c-name').value.trim(),
-        hours: parseInt(document.getElementById('c-hours').value),
-        cost: parseInt(document.getElementById('c-cost').value) || 0
-    });
-    closeModal('component-modal');
-    expandedFeatures.add(f.id);
-    saveData();
-    renderAll();
-}
-
-function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-function handleOverlayClick(e, id) { if (e.target.id === id) closeModal(id); }
-
-function renderAll() {
-    renderRecommendedScope();
-    renderStats();
-    renderTimeline();
-    renderFeatures();
-}
-
-function escHtml(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-document.getElementById('project-subtitle').textContent = projectData.clientName + ' \u00b7 ' + projectData.projectName;
-document.getElementById('project-date').textContent = projectData.date;
+document.getElementById('project-subtitle').textContent=projectData.clientName+' \u00b7 '+projectData.projectName;
+document.getElementById('project-date').textContent=projectData.date;
 renderAll();
 </script>
 </body>

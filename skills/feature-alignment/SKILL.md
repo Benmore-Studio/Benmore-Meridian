@@ -19,6 +19,7 @@ Ask the user for the following. Accept whatever combination they provide:
 2. **Client documents** - PRDs, requirements docs, technical specs, Lovable/Figma exports, schema docs, or any other project artifacts
 3. **Project directory** - Where to save the output HTML file
 
+
 After analyzing the transcripts/documents but BEFORE generating the HTML, you MUST ask the user these questions interactively (do not skip even if partially mentioned in transcripts):
 
 4. **Budget range** - "What is the client's minimum and maximum budget? (e.g., $30k-$50k)" — Always ask because clients may adjust scope up or down regardless of individual feature prices.
@@ -94,112 +95,105 @@ Select which features should be in the **Recommended Scope** — this is your pr
 
 The recommended scope should be a subset that fits within or near the budget range and is achievable within the client's timeline.
 
-### Step 5: Generate the Output
+### Step 5: Present Pricing for Approval
 
-Read the interactive template and populate the `defaultProjectData` JavaScript object with:
+**IMPORTANT: Do NOT generate the HTML document yet.** First, present the full feature evaluation to the user in a clear summary including:
 
-1. `clientName` - From the transcript/docs
-2. `projectName` - Descriptive project name
-3. `date` - Today's date
-4. `budgetMin` / `budgetMax` - From client input or inferred
-5. `features[]` - All evaluated features with components, hours, costs, and recommended flags
+- Each feature name, category, cost, and estimated weeks
+- Component breakdown with cost estimates per component
+- Recommended scope summary with total cost and timeline
+- Budget range context
 
-**IMPORTANT template location:** The template file is at the path the user specifies, or search for `interactive-template.html` in common locations (`~/Downloads/`, project directory, or `references/` folder).
+Ask the user to:
+1. Review and adjust the cost/time estimates if needed
+2. Confirm the recommended scope
+3. Approve the pricing before proceeding
 
-Save the result as `[ProjectName]_Feature_Alignment.html` in the project directory.
+Only proceed to Step 6 after receiving explicit approval from the user.
 
-**Data format:**
+### Step 6: Generate the Output
+
+Read the interactive template at `references/interactive-template.html` and populate the `D` (default data) JavaScript object with the evaluated features and user-approved pricing. Save the result as `[ProjectName]_Feature_Alignment.html` in the project directory.
+
+The template includes:
+- **localStorage persistence** — client changes (toggling features, editing costs) are saved automatically in the browser
+- **Recommended scope panel** — shows the recommended MVP features with total cost/timeline
+- **Expedited development toggle** — "Optimize for Pricing" vs "Optimize for Speed" (35% cost premium, compressed timeline by 5/7)
+- **Budget gauge** — visual indicator of where the current scope sits relative to the budget range
+- **Interactive feature cards** — clients can toggle features on/off, expand details, and edit component costs
+
+**Data format to use:**
 
 ```javascript
-const defaultProjectData = {
+const D = {
     clientName: "Client Name",
     projectName: "Project Name",
-    date: "2026-03-24",
+    date: "2026-03-28",
     budgetMin: 30000,
     budgetMax: 50000,
     features: [
         {
             id: 1,
-            name: "Feature Name",
-            description: "What this feature does.",
+            name: "User Authentication",
+            description: "Login, registration, password reset with email verification.",
             category: "core",
-            necessity: "Why this is needed, referencing client context.",
-            complexity: 7,
-            dependencies: ["Other Feature"],
-            risks: "Key risks identified.",
+            necessity: "Required for any user-facing platform.",
+            complexity: 4,
+            duration: 3,
+            dependencies: [],
+            risks: "OAuth provider integration complexity",
             included: true,
             recommended: true,
             components: [
-                { id: 1, name: "Sub-task name", hours: 40, cost: 8000 },
-                { id: 2, name: "Another sub-task", hours: 60, cost: 12000 }
+                { id: 1, name: "Login & registration forms", cost: 4000 },
+                { id: 2, name: "Password reset flow", cost: 2500 },
+                { id: 3, name: "Email verification", cost: 3000 }
             ]
         }
     ]
 };
 ```
 
-### Step 6: Present Summary
-
-After generating the file, provide a brief summary:
-
-1. **Total features extracted** and how they were categorized
-2. **Recommended scope** - features, total hours, total cost, estimated timeline at 40 hrs/week
-3. **Timeline fit** - whether the recommended scope fits within the client's stated timeline, and if not, what needs to be cut or phased
-4. **Budget fit** - whether the recommended scope is within budget range, and how the client can use the interactive toggles to adjust
-5. **What was deferred** and why
-6. **Key risks** that could affect timeline or cost
-7. **Open questions** - anything unclear from the transcripts that the client should clarify
-
-## Transcript Analysis Tips
-
-When reading meeting transcripts:
-
-- **Client says "must have" / "non-negotiable" / "can't launch without"** → `core`, `recommended: true`
-- **Client says "would be nice" / "eventually" / "Phase 2"** → `enterprise`, `recommended: false`
-- **Client says "not right now" / "too expensive" / "maybe later"** → `not-included`, `recommended: false`
-- **Developer/consultant mentions risk, complexity, or timeline concern** → Capture in `risks` field
-- **Budget numbers mentioned** → Use for `budgetMin`/`budgetMax`
-- **Timeline mentioned ("by June", "90 days")** → Factor into recommended scope sizing
-- **Multiple meetings** → Later meetings may override or clarify earlier ones. Use the most recent position.
+**Key data fields:**
+- `duration` — estimated weeks for the feature (used for timeline calculations)
+- `cost` — on components, not features; feature cost is the sum of its components
+- `included` — whether the feature is toggled on in the interactive tool
+- `recommended` — whether the feature is in the recommended scope panel
+- `category` — determines the tier badge and grouping in the UI
 
 ## Examples
 
-**Example 1: Restaurant HRIS from discovery transcripts**
+**Example 1: Discovery meeting with a SaaS client**
 
-User provides 2 meeting transcripts discussing a restaurant HR/payroll platform. From analysis:
-- Auth, payroll engine, tip management, compliance → `core` (can't run restaurants without these)
-- Documents, PTO, reporting, notifications → `business` (needed for full product but not day-1 critical)
-- Benefits admin, ATS, mobile app, AI chatbot → `enterprise` (high value but too large for MVP)
-- SOC2 certification, California compliance → `not-included` (explicitly deferred by client)
-- Budget discussed as $30k-$43k dedicated, June deadline → size recommended scope accordingly
+User provides a meeting transcript from a discovery call. Actions:
+1. Extract all features mentioned in the transcript
+2. Identify implied requirements (auth, admin panel, etc.)
+3. Categorize: auth + data model → `core`, dashboard + reporting → `business`, AI features → `enterprise`, mobile app → `not-included`
+4. Build recommended scope from core + key business features
+5. Present evaluation with costs to user for approval
+6. After approval, generate interactive HTML
 
-**Example 2: SaaS client portal**
+**Example 2: Budget overrun scenario**
 
-User provides a single meeting transcript. Client wants: auth, dashboard, messaging, AI recommendations, mobile app. Budget $20k-$30k.
-- Auth + Dashboard → `core`
-- Messaging → `business`
-- AI recommendations → `enterprise`
-- Mobile app → `not-included` (separate project, App Store overhead)
-- Recommended scope: auth + dashboard + messaging = ~$24k, fits budget
-
-**Example 3: Budget overrun**
-
-If all recommended features exceed `budgetMax`, present two options:
-1. **Reduced scope** - Move lowest-priority `business` features to `enterprise`
-2. **Phased approach** - Keep all recommended but split into Phase 1 / Phase 2 with separate timelines
-
-Flag this clearly in the output summary and let the client/team decide.
+If the recommended scope exceeds `budgetMax`, adjust by:
+- Moving lowest-priority `business` features to `enterprise`
+- Reducing component scope (e.g., "basic" instead of "advanced" version)
+- Flagging the trade-off clearly in the necessity field
 
 ## Troubleshooting
 
-**Template not found**
-Search for `interactive-template.html` in `~/Downloads/`, the project directory, or ask the user for the path.
+**Template not rendering correctly**
+Cause: `D` has malformed JSON or missing required fields.
+Solution: Ensure all features have `id`, `name`, `category`, `included`, `recommended`, `duration`, and `components` (can be empty array). Verify `budgetMin`, `budgetMax` are numbers (not strings). Each component needs `id`, `name`, and `cost`.
 
 **Component IDs conflict**
-Use sequential IDs starting at 1 across ALL components in the file (not per-feature).
+Cause: Duplicate `id` values across components.
+Solution: Use sequential IDs starting at 1 across all components in the file (not per-feature).
 
-**Features seem too vague**
-If transcripts don't provide enough detail for component-level breakdown, create reasonable sub-tasks based on industry standard patterns and flag them as estimates that need validation.
+**Budget gauge shows 0**
+Cause: All features have `included: false`.
+Solution: Set `included: true` for core and business features before saving.
 
-**Cost vs hours mismatch**
-Hours and costs are independent. A 40-hour task might cost $12,000 (senior developer) or $6,000 (junior). Price based on the skill level required for that specific component.
+**localStorage stale data**
+Cause: Client sees old data after you regenerate the HTML with updated features.
+Solution: The storage key is versioned by client+project name. If you need to force a refresh, change the version prefix in `getStorageKey()` or have the client clear localStorage for the page.
