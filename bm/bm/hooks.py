@@ -36,7 +36,7 @@ def _find_git_hooks_dir(repo_root: Path) -> Path | None:
     git_dir = repo_root / ".git"
     if git_dir.is_file():
         # worktree: .git is a file with "gitdir: <path>"
-        text = git_dir.read_text().strip()
+        text = git_dir.read_text(encoding="utf-8").strip()
         if text.startswith("gitdir:"):
             git_dir = Path(text.split(":", 1)[1].strip())
     if git_dir.is_dir():
@@ -56,19 +56,19 @@ def install_hooks(repo_root: Path) -> list[str]:
     for hook_name, content in HOOKS.items():
         hook_path = hooks_dir / hook_name
         if hook_path.exists():
-            existing = hook_path.read_text()
+            existing = hook_path.read_text(encoding="utf-8")
             if BM_HOOK_MARKER in existing:
                 # Already installed — update in place
-                hook_path.write_text(content)
+                hook_path.write_text(content, encoding="utf-8")
                 hook_path.chmod(0o755)
                 installed.append(hook_name)
                 continue
             # Existing non-bm hook — append
             if not existing.endswith("\n"):
                 existing += "\n"
-            hook_path.write_text(existing + "\n" + content)
+            hook_path.write_text(existing + "\n" + content, encoding="utf-8")
         else:
-            hook_path.write_text(content)
+            hook_path.write_text(content, encoding="utf-8")
 
         hook_path.chmod(0o755)
         installed.append(hook_name)
@@ -88,40 +88,42 @@ def remove_hooks(repo_root: Path) -> list[str]:
         if not hook_path.exists():
             continue
 
-        existing = hook_path.read_text()
+        existing = hook_path.read_text(encoding="utf-8")
         if BM_HOOK_MARKER not in existing:
             continue
 
         lines = existing.splitlines(keepends=True)
-        # Find marker line and check if shebang precedes it
+        # Find the bm hook block boundaries
         marker_idx = next((i for i, l in enumerate(lines) if BM_HOOK_MARKER in l), -1)
         if marker_idx < 0:
             continue
 
-        start_idx = max(0, marker_idx - 1) if marker_idx > 0 and lines[marker_idx - 1].startswith("#!/") else marker_idx
+        # Find where the bm block starts (include shebang if it's ours)
+        bm_start = marker_idx
+        if marker_idx > 0 and lines[marker_idx - 1].startswith("#!/"):
+            bm_start = marker_idx - 1
 
-        # Check if entire file is just our hook
-        if _is_only_bm_hook(lines, start_idx):
+        # Find where the bm block ends (next shebang or EOF)
+        bm_end = len(lines)
+        for i in range(marker_idx + 1, len(lines)):
+            if lines[i].startswith("#!/"):
+                bm_end = i
+                break
+
+        # Extract non-bm content
+        before = lines[:bm_start]
+        after = lines[bm_end:]
+        remaining = before + after
+
+        # If nothing left (or only whitespace), delete the file
+        if not remaining or all(l.strip() == "" for l in remaining):
             hook_path.unlink()
         else:
-            # Remove our hook block, keep other hooks
-            remaining = [l for l in lines if BM_HOOK_MARKER not in l]
-            hook_path.write_text("".join(remaining))
+            hook_path.write_text("".join(remaining), encoding="utf-8")
 
         removed.append(hook_name)
 
     return removed
-
-
-def _is_only_bm_hook(lines: list[str], start_idx: int) -> bool:
-    """Check if hook file contains only bm hook content (no other hooks)."""
-    if start_idx != 0:
-        return False
-    bm_keywords = {"#", "", "if", "fi", "CHECKOUT", "command", "bm"}
-    return all(
-        line.strip() in bm_keywords or any(kw in line for kw in bm_keywords)
-        for line in lines
-    )
 
 
 def hooks_status(repo_root: Path) -> dict[str, bool]:
@@ -132,7 +134,8 @@ def hooks_status(repo_root: Path) -> dict[str, bool]:
 
     return {
         hook_name: (
-            hook_path.exists() and BM_HOOK_MARKER in hook_path.read_text()
+            hook_path.exists()
+            and BM_HOOK_MARKER in hook_path.read_text(encoding="utf-8")
         )
         for hook_name, hook_path in (
             (name, hooks_dir / name) for name in HOOKS
