@@ -29,12 +29,15 @@ def _find_repo_root() -> Path:
 
 REPO_ROOT: Path = _find_repo_root()
 SKILLS_DIR: Path = REPO_ROOT / "skills"
+PROMPTS_DIR: Path = REPO_ROOT / "prompts"
 CLAUDE_DIR: Path = Path.home() / ".claude"
 CLAUDE_SKILLS_DIR: Path = CLAUDE_DIR / "skills"
+CLAUDE_COMMANDS_DIR: Path = CLAUDE_DIR / "commands"
 AGENTS_SKILLS_DIR: Path = Path.home() / ".agents" / "skills"
 PLUGINS_DIR: Path = CLAUDE_DIR / "plugins"
 BM_DIR: Path = Path.home() / ".bm"
 REGISTRY_FILE: Path = BM_DIR / "registry.json"
+PROMPT_REGISTRY_FILE: Path = BM_DIR / "prompts.json"
 
 PLUGIN_MARKERS: dict[str, Path] = {
     "Superpowers": PLUGINS_DIR / "cache" / "claude-plugins-official",
