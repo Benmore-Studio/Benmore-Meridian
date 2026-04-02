@@ -27,11 +27,16 @@ from rich.panel import Panel
 from rich.table import Table
 
 from bm.config import (
+    CLAUDE_COMMANDS_DIR,
     CLAUDE_SKILLS_DIR,
+    PROMPT_REGISTRY_FILE,
+    PROMPTS_DIR,
     REGISTRY_FILE,
+    REPO_ROOT,
     SKILLS_DIR,
 )
 from bm.dryrun import DryRunContext
+from bm.hooks import hooks_status, install_hooks, remove_hooks
 from bm.installer import discover_skills, install_skill, remove_skill
 from bm.models import (
     InstallMethod,
@@ -43,6 +48,14 @@ from bm.models import (
     SkillStatus,
 )
 from bm.plugins import format_install_guide, get_plugin_status
+from bm.prompt_registry import PromptRegistry
+from bm.prompts import (
+    create_prompt,
+    discover_prompts,
+    export_prompt,
+    render_prompt,
+    unexport_prompt,
+)
 from bm.registry import Registry
 from bm.status import check_skill_status
 from bm.tools import TOOLS, install_tool
@@ -54,9 +67,13 @@ app = typer.Typer(name="bm", help="Benmore skill manager", add_completion=False)
 skill_app = typer.Typer(help="Manage individual skills")
 registry_app = typer.Typer(help="Manage skill registry")
 tools_app = typer.Typer(help="Install developer CLI tools")
+prompt_app = typer.Typer(help="Save, search, and reuse prompts")
+hooks_app = typer.Typer(help="Manage git hooks for auto-sync")
 app.add_typer(skill_app, name="skill")
 app.add_typer(registry_app, name="registry")
 app.add_typer(tools_app, name="tools")
+app.add_typer(prompt_app, name="prompt")
+app.add_typer(hooks_app, name="hooks")
 
 console = Console()
 
@@ -131,6 +148,12 @@ def _render_dashboard() -> None:
     total_plugins = len(plugin_status)
     installed_plugins = sum(1 for ok in plugin_status.values() if ok)
 
+    prompts = discover_prompts(PROMPTS_DIR)
+    total_prompts = len(prompts)
+
+    hook_status = hooks_status(REPO_ROOT)
+    hooks_ok = all(hook_status.values())
+
     # ── Auto-install any new skills silently ──────────────────────────────────
     reg = Registry(REGISTRY_FILE)
     newly_installed: list[str] = []
@@ -149,7 +172,8 @@ def _render_dashboard() -> None:
     header = (
         f"  Skills: {installed_skills}/{total_skills} {skill_icon}   "
         f"\u2502   Tools: {installed_tools}/{total_tools} {tool_icon}   "
-        f"\u2502   Plugins: {installed_plugins}/{total_plugins} {plugin_icon}"
+        f"\u2502   Plugins: {installed_plugins}/{total_plugins} {plugin_icon}   "
+        f"\u2502   Prompts: {total_prompts}"
     )
     console.print(
         Panel(
@@ -163,14 +187,14 @@ def _render_dashboard() -> None:
     if newly_installed:
         names = ", ".join(f"[cyan]{n}[/]" for n in newly_installed)
         console.print(
-            f"\n[bold green]✨ Auto-installed {len(newly_installed)} new skill(s):[/] {names}"
+            f"\n[bold green]\u2728 Auto-installed {len(newly_installed)} new skill(s):[/] {names}"
         )
 
     # ── Update check ─────────────────────────────────────────────────────────
     try:
         if is_update_available():
             console.print(
-                "\n[bold yellow]⚠ update available[/bold yellow] — run [bold]bm update[/bold]"
+                "\n[bold yellow]\u26a0 update available[/bold yellow] \u2014 run [bold]bm update[/bold]"
             )
     except Exception:
         pass  # never crash the dashboard on network issues
@@ -191,6 +215,13 @@ def _render_dashboard() -> None:
         )
         console.print("   [dim]\u2192 bm plugins[/dim]")
 
+    if not hooks_ok:
+        console.print(
+            "\n[yellow]\u26a0  Git hooks not installed[/yellow] \u2014 "
+            "skills won't auto-sync on pull"
+        )
+        console.print("   [dim]\u2192 bm hooks install[/dim]")
+
     # ── Command reference sections ────────────────────────────────────────────
     def _cmd(command: str, description: str) -> None:
         console.print(f"  [cyan]{command:<30}[/cyan] [dim]{description}[/dim]")
@@ -198,7 +229,7 @@ def _render_dashboard() -> None:
     console.print()
     console.rule("[bold]Getting Started[/bold]")
     console.print()
-    _cmd("bm setup", "Install everything: skills, tools, plugins")
+    _cmd("bm setup", "Install everything: skills, tools, plugins, hooks")
     _cmd("bm doctor", "Full health check \u2014 find and fix problems")
     _cmd("bm update", "Git pull latest + reinstall all skills")
 
@@ -214,37 +245,54 @@ def _render_dashboard() -> None:
     _cmd("bm skill generalize <name>", "Promote project skill \u2192 general")
 
     console.print()
-    console.rule("[bold]Discovery[/bold]")
+    console.rule("[bold]Prompts[/bold]")
     console.print()
-    _cmd("bm suggest [path]", "Suggest skills based on project stack (zero API cost)")
-    _cmd("bm context [path]", "Generate CLAUDE.md snippet with stack + skill recommendations")
-    _cmd("bm explore [path]", "Deep scan — write docs/bm-suggestions.md report")
-    _cmd("bm debrief", "Surface skill candidates from recent git history")
+    _cmd("bm prompt list", "Browse saved prompts (filter: --tag, --starred)")
+    _cmd("bm prompt add <name>", "Create a reusable prompt template")
+    _cmd("bm prompt search <query>", "Fuzzy-search prompts")
+    _cmd("bm prompt copy <name>", "Render prompt \u2192 clipboard")
+    _cmd("bm prompt export <name>", "Make it a Claude Code /command")
+    _cmd("bm prompt star <name>", "Bookmark a favorite prompt")
 
     console.print()
-    console.rule("[bold]Tools[/bold]")
+    console.rule("[bold]Discovery[/bold]")
+    console.print()
+    _cmd("bm suggest [path]", "Suggest skills for a project (zero API cost)")
+    _cmd("bm context [path]", "CLAUDE.md snippet with stack + skills")
+    _cmd("bm explore [path]", "Deep scan \u2192 docs/bm-suggestions.md")
+    _cmd("bm debrief", "Surface skill candidates from git history")
+
+    console.print()
+    console.rule("[bold]Tools & Hooks[/bold]")
     console.print()
     _cmd("bm tools list", "Show dev tools (ripgrep, bat, fzf, etc.)")
     _cmd("bm tools install", "Install all missing tools via brew/apt")
-    _cmd("bm tools install <name>", "Install a specific tool")
+    _cmd("bm hooks install", "Auto-sync skills on git pull/checkout")
+    _cmd("bm hooks remove", "Remove auto-sync git hooks")
 
     console.print()
-    console.rule("[bold]Plugins[/bold]")
+    console.rule("[bold]Plugins & Registry[/bold]")
     console.print()
     _cmd("bm plugins", "Check Superpowers + Double Shot Latte")
-
-    console.print()
-    console.rule("[bold]Registry[/bold]")
-    console.print()
     _cmd("bm registry list", "Show all tracked skills")
     _cmd("bm registry sync", "Detect externally installed skills")
 
     console.print()
-    console.rule("[bold]Options[/bold]")
-    console.print()
-    _cmd("--json", "Machine-readable output (status, skill list)")
-    _cmd("--dry-run", "Preview changes without writing")
-    _cmd("--rsync", "Force file copy instead of symlinks")
+
+    # ── Tip ───────────────────────────────────────────────────────────────────
+    import random
+
+    tips = [
+        "Save a prompt you reuse often: [bold]bm prompt add my-prompt[/]",
+        "Export prompts as Claude Code /commands: [bold]bm prompt export <name>[/]",
+        "Auto-sync skills on git pull: [bold]bm hooks install[/]",
+        "See what skills fit your project: [bold]bm suggest .[/]",
+        "Star your favorite prompts: [bold]bm prompt star <name>[/]",
+        "Find skills from recent work: [bold]bm debrief[/]",
+        "Generate a CLAUDE.md snippet: [bold]bm context .[/]",
+        "Search prompts fast: [bold]bm prompt search django[/]",
+    ]
+    console.print(f"  [dim]\U0001f4a1 {random.choice(tips)}[/dim]")
     console.print()
 
 
@@ -282,6 +330,7 @@ def install(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show what would be installed without writing"
     ),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Minimal output (for git hooks)"),
 ) -> None:
     """Symlink all repo skills into ~/.claude/skills/ (idempotent)."""
     CLAUDE_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
@@ -289,17 +338,9 @@ def install(
     reg = Registry(REGISTRY_FILE)
     ctx = DryRunContext(dry_run=dry_run)
 
-    title = "Installing Skills" + (" [dim](dry-run)[/]" if dry_run else "")
-    table = Table(title=title, box=box.ROUNDED)
-    table.add_column("Skill", style="cyan")
-    table.add_column("Scope")
-    table.add_column("Result", justify="center")
-
     new_entries: list[RegistryEntry] = []
     for skill in skills:
         result = install_skill(skill, CLAUDE_SKILLS_DIR, force_copy=rsync, ctx=ctx)
-        icon = _RESULT_ICON[result]
-        table.add_row(skill.name, _scope_label(skill), f"{icon} {result.value}")
         if result != InstallResult.FAILED:
             new_entries.append(
                 RegistryEntry(
@@ -316,14 +357,27 @@ def install(
                 )
             )
 
-    console.print(table)
     reg.batch_add(new_entries, ctx=ctx)
+
+    if quiet:
+        return
+
+    title = "Installing Skills" + (" [dim](dry-run)[/]" if dry_run else "")
+    table = Table(title=title, box=box.ROUNDED)
+    table.add_column("Skill", style="cyan")
+    table.add_column("Scope")
+    table.add_column("Result", justify="center")
+    for skill in skills:
+        st = check_skill_status(skill, CLAUDE_SKILLS_DIR)
+        icon = _STATUS_ICON.get(st, "")
+        table.add_row(skill.name, _scope_label(skill), f"{icon} {st.value}")
+    console.print(table)
 
     if dry_run:
         ctx.render(console)
     else:
-        console.print(f"\n[bold green]Done![/] {len(skills)} skills → {CLAUDE_SKILLS_DIR}")
-        console.print("[dim]Run [bold]bm plugins[/] to verify plugin requirements.[/]")
+        console.print(f"\n[bold green]Done![/] {len(skills)} skills \u2192 {CLAUDE_SKILLS_DIR}")
+        console.print("[dim]Tip: run [bold]bm prompt list[/] to see saved prompts.[/]")
 
 
 @app.command()
@@ -516,14 +570,10 @@ def context(
     console.print(snippet)
 
     if copy:
-        import platform
-        import subprocess as _sp
-        cmd = {"Darwin": "pbcopy", "Linux": "xclip -selection clipboard", "Windows": "clip"}.get(platform.system())
-        if cmd:
-            _sp.run(cmd.split(), input=snippet.encode(), check=False)
-            console.print("[green]✓ Copied to clipboard[/green]")
+        if _copy_to_clipboard(snippet):
+            console.print("[green]\u2713 Copied to clipboard[/green]")
         else:
-            console.print("[yellow]Clipboard not supported on this platform[/yellow]")
+            console.print("[yellow]Clipboard not available \u2014 copy the text above manually[/yellow]")
 
 
 @app.command("explore")
@@ -532,7 +582,6 @@ def explore(
     output: Path = typer.Option(Path("docs/bm-suggestions.md"), "--output", "-o", help="Output file path"),
 ) -> None:
     """Deep project scan — writes a skill suggestion report to docs/bm-suggestions.md."""
-    from bm.config import REPO_ROOT
     matcher = SkillMatcher(SKILLS_DIR, CLAUDE_SKILLS_DIR)
     suggestions = matcher.scan(path.resolve(), top=20)
     summary = matcher.stack_summary(path.resolve())
@@ -579,7 +628,6 @@ def debrief_cmd(
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ) -> None:
     """Scan recent git history and surface candidate skills worth codifying."""
-    from bm.config import REPO_ROOT
     candidates = run_debrief(REPO_ROOT, limit=limit, since=since or None)
 
     if not candidates:
@@ -1225,3 +1273,307 @@ def skills_add_external(
                 border_style="yellow",
             )
         )
+
+
+# ── prompt sub-commands ──────────────────────────────────────────────────────
+
+
+def _copy_to_clipboard(text: str) -> bool:
+    """Copy text to system clipboard. Returns True if successful."""
+    import platform
+    import subprocess as sp
+
+    cmds: dict[str, list[str]] = {
+        "Darwin": ["pbcopy"],
+        "Linux": ["xclip", "-selection", "clipboard"],
+        "Windows": ["clip"],
+    }
+    cmd = cmds.get(platform.system())
+    if not cmd:
+        return False
+
+    try:
+        result = sp.run(cmd, input=text.encode(), check=False, capture_output=True)
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def _find_prompt(prompts: list, name: str):
+    """Find a prompt by name. Returns None if not found."""
+    return next((p for p in prompts if p.name == name), None)
+
+
+@prompt_app.command("list")
+def prompt_list(
+    tag: str = typer.Option("", "--tag", "-t", help="Filter by tag"),
+    starred: bool = typer.Option(False, "--starred", help="Show starred only"),
+    popular: bool = typer.Option(False, "--popular", help="Sort by usage count"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Browse saved prompts. Filter by --tag or --starred."""
+    prompts = discover_prompts(PROMPTS_DIR)
+    preg = PromptRegistry(PROMPT_REGISTRY_FILE)
+
+    # Apply filters
+    if tag:
+        tag_lower = tag.lower()
+        prompts = [p for p in prompts if any(tag_lower in t.lower() for t in p.tags)]
+    if starred:
+        starred_names = set(preg.list_starred())
+        prompts = [p for p in prompts if p.name in starred_names]
+
+    # Sort by popularity if requested
+    if popular:
+        popularity = {name: count for name, count in preg.list_by_popularity()}
+        prompts.sort(key=lambda p: popularity.get(p.name, 0), reverse=True)
+
+    if not prompts:
+        console.print("[dim]No prompts found.[/dim]")
+        console.print("  [dim]\u2192 Create one: [bold]bm prompt add my-prompt[/bold][/dim]")
+        return
+
+    if json_output:
+        console.print(
+            json.dumps(
+                [
+                    {
+                        "name": p.name,
+                        "description": p.description,
+                        "tags": p.tags,
+                        "scope": p.scope,
+                        "project": p.project,
+                        "starred": preg.get(p.name).starred,
+                        "use_count": preg.get(p.name).use_count,
+                    }
+                    for p in prompts
+                ],
+                indent=2,
+            )
+        )
+        return
+
+    table = Table(title=f"Saved Prompts ({len(prompts)})", box=box.ROUNDED)
+    table.add_column("Name", style="cyan")
+    table.add_column("Description")
+    table.add_column("Tags", style="dim")
+    table.add_column("\u2605", justify="center", width=3)
+    table.add_column("Uses", justify="right", width=5)
+
+    for p in prompts:
+        state = preg.get(p.name)
+        star = "\u2605" if state.starred else ""
+        tags_str = ", ".join(p.tags[:3]) if p.tags else ""
+        table.add_row(p.name, p.description[:50] or "[dim]\u2014[/]", tags_str, star, str(state.use_count or ""))
+
+    console.print(table)
+    console.print()
+    console.print("  [dim]\u2192 Copy to clipboard: [bold]bm prompt copy <name>[/bold][/dim]")
+    console.print("  [dim]\u2192 Use as /command:    [bold]bm prompt export <name>[/bold][/dim]")
+
+
+@prompt_app.command("add")
+def prompt_add(
+    name: str = typer.Argument(..., help="Prompt name"),
+    project: str = typer.Option("", "--project", "-p", help="Project scope"),
+) -> None:
+    """Create a new reusable prompt template."""
+    dest = create_prompt(
+        name=name,
+        prompts_dir=PROMPTS_DIR,
+        description="",
+        project=project,
+    )
+    console.print(f"[green]\u2705 Created prompt '[cyan]{name}[/cyan]'[/] at {dest}")
+    console.print(f"  [dim]\u2192 Edit {dest}/PROMPT.md with your prompt text[/dim]")
+    console.print(f"  [dim]\u2192 Then run [bold]bm prompt export {name}[/bold] to use as /command[/dim]")
+
+
+@prompt_app.command("info")
+def prompt_info(name: str = typer.Argument(..., help="Prompt name")) -> None:
+    """Show a prompt's full content and metadata."""
+    prompts = discover_prompts(PROMPTS_DIR)
+    prompt = _find_prompt(prompts, name)
+    if not prompt:
+        console.print(f"[red]Prompt '{name}' not found.[/]")
+        raise typer.Exit(1)
+
+    preg = PromptRegistry(PROMPT_REGISTRY_FILE)
+    state = preg.get(name)
+
+    text = (prompt.path / "PROMPT.md").read_text(encoding="utf-8")
+    console.print(f"[bold cyan]{name}[/]")
+    console.print(f"  Description: {prompt.description or '[dim]\u2014[/]'}")
+    console.print(f"  Tags:        {', '.join(prompt.tags) if prompt.tags else '[dim]\u2014[/]'}")
+    console.print(f"  Scope:       {prompt.scope}" + (f" ({prompt.project})" if prompt.project else ""))
+    console.print(f"  Starred:     {'\u2605 yes' if state.starred else 'no'}")
+    console.print(f"  Used:        {state.use_count} time(s)")
+    console.print()
+    console.print(Panel(text, title="PROMPT.md", border_style="dim"))
+
+
+@prompt_app.command("copy")
+def prompt_copy(
+    name: str = typer.Argument(..., help="Prompt name"),
+    args: list[str] = typer.Argument(None, help="Arguments to fill $1, $2, etc."),  # noqa: B008
+) -> None:
+    """Render a prompt with arguments and copy to clipboard."""
+    prompts = discover_prompts(PROMPTS_DIR)
+    prompt = _find_prompt(prompts, name)
+    if not prompt:
+        console.print(f"[red]Prompt '{name}' not found.[/]")
+        raise typer.Exit(1)
+
+    rendered = render_prompt(prompt, args=list(args) if args else None)
+
+    if _copy_to_clipboard(rendered):
+        console.print(f"[green]\u2705 Copied '{name}' to clipboard[/]")
+    else:
+        console.print(rendered)
+        console.print("\n[dim]Clipboard unavailable \u2014 copy the text above manually.[/dim]")
+
+    preg = PromptRegistry(PROMPT_REGISTRY_FILE)
+    preg.record_use(name)
+
+
+@prompt_app.command("search")
+def prompt_search(
+    query: str = typer.Argument(..., help="Search term"),
+    tag: str = typer.Option("", "--tag", "-t", help="Also filter by tag"),
+) -> None:
+    """Fuzzy-search saved prompts by name, description, or tags."""
+    prompts = discover_prompts(PROMPTS_DIR)
+
+    q = query.lower()
+    matches = [
+        p
+        for p in prompts
+        if q in p.name.lower()
+        or q in p.description.lower()
+        or any(q in t.lower() for t in p.tags)
+    ]
+    if tag:
+        matches = [p for p in matches if tag.lower() in [t.lower() for t in p.tags]]
+
+    if not matches:
+        console.print(f"[dim]No prompts matching '{query}'.[/dim]")
+        return
+
+    for p in matches:
+        tags = f" [dim]({', '.join(p.tags)})[/dim]" if p.tags else ""
+        console.print(f"  [cyan]{p.name}[/] \u2014 {p.description or '[dim]no description[/]'}{tags}")
+
+    console.print()
+    console.print(f"  [dim]{len(matches)} result(s). Use [bold]bm prompt info <name>[/bold] for details.[/dim]")
+
+
+@prompt_app.command("export")
+def prompt_export_cmd(
+    name: str = typer.Argument("", help="Prompt name (omit for --all)"),
+    all_prompts: bool = typer.Option(False, "--all", help="Export all prompts"),
+) -> None:
+    """Symlink a prompt into ~/.claude/commands/ so it becomes a /command."""
+    prompts = discover_prompts(PROMPTS_DIR)
+
+    if all_prompts:
+        exported = sum(1 for p in prompts if export_prompt(p, CLAUDE_COMMANDS_DIR))
+        console.print(f"[green]\u2705 Exported {exported} prompt(s)[/] \u2192 {CLAUDE_COMMANDS_DIR}")
+        console.print(f"  [dim]Use them as /commands in Claude Code[/dim]")
+        return
+
+    if not name:
+        console.print("[red]Provide a prompt name or use --all.[/]")
+        raise typer.Exit(1)
+
+    prompt = _find_prompt(prompts, name)
+    if not prompt:
+        console.print(f"[red]Prompt '{name}' not found.[/]")
+        raise typer.Exit(1)
+
+    export_prompt(prompt, CLAUDE_COMMANDS_DIR)
+    console.print(f"[green]\u2705 Exported '{name}'[/] \u2192 {CLAUDE_COMMANDS_DIR / f'{name}.md'}")
+    console.print(f"  [dim]Now use [bold]/{name}[/bold] in Claude Code[/dim]")
+
+
+@prompt_app.command("unexport")
+def prompt_unexport_cmd(
+    name: str = typer.Argument(..., help="Prompt name to remove from /commands"),
+) -> None:
+    """Remove a prompt from ~/.claude/commands/."""
+    if unexport_prompt(name, CLAUDE_COMMANDS_DIR):
+        console.print(f"[green]Removed '/{name}' from Claude Code commands.[/]")
+    else:
+        console.print(f"[dim]'{name}' was not exported.[/dim]")
+
+
+@prompt_app.command("star")
+def prompt_star(name: str = typer.Argument(..., help="Prompt name")) -> None:
+    """Bookmark a favorite prompt."""
+    prompts = discover_prompts(PROMPTS_DIR)
+    if not _find_prompt(prompts, name):
+        console.print(f"[red]Prompt '{name}' not found.[/]")
+        raise typer.Exit(1)
+
+    preg = PromptRegistry(PROMPT_REGISTRY_FILE)
+    preg.star(name)
+    console.print(f"[yellow]\u2605[/] Starred '{name}'")
+    console.print(f"  [dim]\u2192 View starred: [bold]bm prompt list --starred[/bold][/dim]")
+
+
+@prompt_app.command("unstar")
+def prompt_unstar(name: str = typer.Argument(..., help="Prompt name")) -> None:
+    """Remove star from a prompt."""
+    preg = PromptRegistry(PROMPT_REGISTRY_FILE)
+    preg.unstar(name)
+    console.print(f"Unstarred '{name}'")
+
+
+@prompt_app.command("remove")
+def prompt_remove_cmd(name: str = typer.Argument(..., help="Prompt name")) -> None:
+    """Delete a saved prompt."""
+    prompts = discover_prompts(PROMPTS_DIR)
+    prompt = _find_prompt(prompts, name)
+    if not prompt:
+        console.print(f"[red]Prompt '{name}' not found.[/]")
+        raise typer.Exit(1)
+
+    shutil.rmtree(prompt.path)
+    unexport_prompt(name, CLAUDE_COMMANDS_DIR)
+    console.print(f"[green]Removed prompt '{name}'[/]")
+
+
+# ── hooks sub-commands ────────────────────────────────────────────────────────
+
+
+@hooks_app.command("install")
+def hooks_install_cmd() -> None:
+    """Install git hooks so skills auto-sync on pull and branch switch."""
+    installed = install_hooks(REPO_ROOT)
+    if installed:
+        names = ", ".join(installed)
+        console.print(f"[green]\u2705 Installed hooks:[/] {names}")
+        console.print("  [dim]Skills will auto-sync after git pull and branch switch.[/dim]")
+    else:
+        console.print("[yellow]Could not find .git/hooks directory.[/]")
+
+
+@hooks_app.command("remove")
+def hooks_remove_cmd() -> None:
+    """Remove bm auto-sync git hooks."""
+    removed = remove_hooks(REPO_ROOT)
+    if removed:
+        console.print(f"[green]Removed hooks:[/] {', '.join(removed)}")
+    else:
+        console.print("[dim]No bm hooks found to remove.[/dim]")
+
+
+@hooks_app.command("status")
+def hooks_status_cmd() -> None:
+    """Check which bm git hooks are installed."""
+    status = hooks_status(REPO_ROOT)
+    for hook_name, installed in status.items():
+        icon = "\u2705" if installed else "\u274c"
+        console.print(f"  {icon} {hook_name}")
+    if not all(status.values()):
+        console.print()
+        console.print("  [dim]\u2192 Install missing: [bold]bm hooks install[/bold][/dim]")

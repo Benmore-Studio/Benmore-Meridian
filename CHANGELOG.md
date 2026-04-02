@@ -8,6 +8,58 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## v1.6.0 — 2026-04-02
+
+### New Features
+
+- **`bm prompt`** — Save, search, and reuse prompt templates. Prompts live in `prompts/` as `PROMPT.md` files with YAML frontmatter (tags, description, scope). Supports `$1`, `$2`, `$ARGUMENTS` for parameterized templates.
+  - `bm prompt list` — Browse prompts with `--tag`, `--starred`, `--popular` filters
+  - `bm prompt add <name>` — Create a new prompt template
+  - `bm prompt search <query>` — Fuzzy-search by name, description, or tags
+  - `bm prompt info <name>` — Show full prompt content and metadata
+  - `bm prompt copy <name> [args]` — Render with arguments and copy to clipboard
+  - `bm prompt export <name>` — Symlink into `~/.claude/commands/` so it becomes a Claude Code `/command`
+  - `bm prompt export --all` — Export all prompts as slash commands
+  - `bm prompt unexport <name>` — Remove from Claude Code commands
+  - `bm prompt star/unstar <name>` — Bookmark favorite prompts
+  - `bm prompt remove <name>` — Delete a prompt
+- **`bm hooks`** — Git hook management for auto-syncing skills on pull and branch switch.
+  - `bm hooks install` — Install `post-merge` and `post-checkout` hooks that run `bm install --quiet` when `skills/` or `prompts/` change
+  - `bm hooks remove` — Remove bm-managed hooks (preserves other hooks)
+  - `bm hooks status` — Check which hooks are installed
+- **`bm install --quiet`** — Minimal output mode for use in git hooks and automation.
+- **Dashboard tips** — Random helpful tips shown at the bottom of the `bm` dashboard to aid discoverability. Shows prompts count in header panel.
+- **Dashboard warnings** — Shows warning when git hooks aren't installed with install command.
+
+### Starter Prompts
+
+- `productionize-django` — Audit and productionize a Django project
+- `quick-pr-review` — Fast code review focusing on bugs, security, and style
+- `client-kickoff` — Prepare for a new client kickoff meeting
+- `full-pr-review-audit` — Full PR review + audit pipeline with parallel agents
+- `create-project-tickets` — GitHub issues with parent/child via gh CLI
+- `skill-chain-loop` — Automated skill loops with feedback and memory
+
+### Fixes
+
+- **prompt_registry**: Corrupt `~/.bm/prompts.json` no longer crashes the CLI — gracefully starts fresh
+- **prompt_registry**: Atomic writes via tempfile+rename prevent data corruption on concurrent access
+- **prompts**: Broken `PROMPT.md` files (permission errors, bad encoding) are skipped gracefully instead of crashing discovery
+- **prompts**: Export copy fallback now verifies success before returning true
+- **cli**: Clipboard commands use proper list construction (not `cmd.split()`), check return codes, and fallback to printing on failure
+- **hooks**: Per-hook file I/O wrapped in try-except — only claims success on hooks that actually installed
+- **hooks**: UTF-8 encoding on all read/write operations for Windows compatibility
+- **hooks**: Hook block removal uses proper boundary detection instead of fragile keyword matching
+
+### Internal
+
+- New modules: `prompts.py`, `prompt_registry.py`, `hooks.py`
+- Prompt user state stored in `~/.bm/prompts.json` (stars, usage counts)
+- Extracted `_copy_to_clipboard()` and `_find_prompt()` helpers in CLI
+- 22 new tests (84 total, all passing)
+
+---
+
 ## v1.5.1 — 2026-03-27
 
 ### Features
