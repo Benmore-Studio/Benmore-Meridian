@@ -570,14 +570,10 @@ def context(
     console.print(snippet)
 
     if copy:
-        import platform
-        import subprocess as _sp
-        cmd = {"Darwin": "pbcopy", "Linux": "xclip -selection clipboard", "Windows": "clip"}.get(platform.system())
-        if cmd:
-            _sp.run(cmd.split(), input=snippet.encode(), check=False)
-            console.print("[green]✓ Copied to clipboard[/green]")
+        if _copy_to_clipboard(snippet):
+            console.print("[green]\u2713 Copied to clipboard[/green]")
         else:
-            console.print("[yellow]Clipboard not supported on this platform[/yellow]")
+            console.print("[yellow]Clipboard not available \u2014 copy the text above manually[/yellow]")
 
 
 @app.command("explore")
@@ -1287,14 +1283,20 @@ def _copy_to_clipboard(text: str) -> bool:
     import platform
     import subprocess as sp
 
-    cmd = {"Darwin": "pbcopy", "Linux": "xclip -selection clipboard", "Windows": "clip"}.get(
-        platform.system()
-    )
+    cmds: dict[str, list[str]] = {
+        "Darwin": ["pbcopy"],
+        "Linux": ["xclip", "-selection", "clipboard"],
+        "Windows": ["clip"],
+    }
+    cmd = cmds.get(platform.system())
     if not cmd:
         return False
 
-    sp.run(cmd.split(), input=text.encode(), check=False)
-    return True
+    try:
+        result = sp.run(cmd, input=text.encode(), check=False, capture_output=True)
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
 
 
 def _find_prompt(prompts: list, name: str):
@@ -1428,6 +1430,7 @@ def prompt_copy(
         console.print(f"[green]\u2705 Copied '{name}' to clipboard[/]")
     else:
         console.print(rendered)
+        console.print("\n[dim]Clipboard unavailable \u2014 copy the text above manually.[/dim]")
 
     preg = PromptRegistry(PROMPT_REGISTRY_FILE)
     preg.record_use(name)

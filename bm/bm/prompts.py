@@ -71,7 +71,10 @@ def discover_prompts(prompts_dir: Path) -> list[PromptEntry]:
         prompt_file = child / "PROMPT.md"
         if prompt_file.exists():
             # General prompt
-            fm = _parse_frontmatter(prompt_file.read_text(encoding="utf-8"))
+            try:
+                fm = _parse_frontmatter(prompt_file.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue  # skip broken prompts gracefully
             tags = fm.get("tags", [])
             entries.append(
                 PromptEntry(
@@ -89,7 +92,10 @@ def discover_prompts(prompts_dir: Path) -> list[PromptEntry]:
                     continue
                 sub_prompt = sub / "PROMPT.md"
                 if sub_prompt.exists():
-                    fm = _parse_frontmatter(sub_prompt.read_text(encoding="utf-8"))
+                    try:
+                        fm = _parse_frontmatter(sub_prompt.read_text(encoding="utf-8"))
+                    except (OSError, UnicodeDecodeError):
+                        continue
                     tags = fm.get("tags", [])
                     entries.append(
                         PromptEntry(
@@ -140,8 +146,11 @@ def export_prompt(
         target.symlink_to((prompt.path / "PROMPT.md").resolve())
         return True
     except OSError:
-        shutil.copy2(prompt.path / "PROMPT.md", target)
-        return True
+        try:
+            shutil.copy2(prompt.path / "PROMPT.md", target)
+            return True
+        except (OSError, FileNotFoundError):
+            return False
 
 
 def unexport_prompt(

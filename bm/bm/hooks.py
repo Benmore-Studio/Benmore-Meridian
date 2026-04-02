@@ -55,23 +55,26 @@ def install_hooks(repo_root: Path) -> list[str]:
 
     for hook_name, content in HOOKS.items():
         hook_path = hooks_dir / hook_name
-        if hook_path.exists():
-            existing = hook_path.read_text(encoding="utf-8")
-            if BM_HOOK_MARKER in existing:
-                # Already installed — update in place
+        try:
+            if hook_path.exists():
+                existing = hook_path.read_text(encoding="utf-8")
+                if BM_HOOK_MARKER in existing:
+                    # Already installed — update in place
+                    hook_path.write_text(content, encoding="utf-8")
+                    hook_path.chmod(0o755)
+                    installed.append(hook_name)
+                    continue
+                # Existing non-bm hook — append
+                if not existing.endswith("\n"):
+                    existing += "\n"
+                hook_path.write_text(existing + "\n" + content, encoding="utf-8")
+            else:
                 hook_path.write_text(content, encoding="utf-8")
-                hook_path.chmod(0o755)
-                installed.append(hook_name)
-                continue
-            # Existing non-bm hook — append
-            if not existing.endswith("\n"):
-                existing += "\n"
-            hook_path.write_text(existing + "\n" + content, encoding="utf-8")
-        else:
-            hook_path.write_text(content, encoding="utf-8")
 
-        hook_path.chmod(0o755)
-        installed.append(hook_name)
+            hook_path.chmod(0o755)
+            installed.append(hook_name)
+        except (PermissionError, OSError):
+            continue  # skip hooks we can't write — don't claim success
 
     return installed
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,7 +32,11 @@ class PromptRegistry:
             self._load()
 
     def _load(self) -> None:
-        data = json.loads(self._file.read_text(encoding="utf-8"))
+        try:
+            data = json.loads(self._file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+            # Corrupt registry — start fresh rather than crashing
+            return
         for name, d in data.items():
             self._entries[name] = PromptState(
                 starred=d.get("starred", False),
@@ -40,9 +45,23 @@ class PromptRegistry:
             )
 
     def save(self) -> None:
+        """Persist registry atomically (write to temp, then rename)."""
         self._file.parent.mkdir(parents=True, exist_ok=True)
         data = {name: asdict(entry) for name, entry in self._entries.items()}
-        self._file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        try:
+            fd, tmp = tempfile.mkstemp(
+                dir=self._file.parent, prefix=".bm_", suffix=".tmp"
+            )
+            try:
+                with open(fd, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2)
+                Path(tmp).replace(self._file)
+            except Exception:
+                Path(tmp).unlink(missing_ok=True)
+                raise
+        except OSError:
+            # Fallback: direct write if atomic fails (e.g. cross-device)
+            self._file.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     def get(self, name: str) -> PromptState:
         if name not in self._entries:
