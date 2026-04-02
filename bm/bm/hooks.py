@@ -92,24 +92,19 @@ def remove_hooks(repo_root: Path) -> list[str]:
         if BM_HOOK_MARKER not in existing:
             continue
 
-        # If the whole file is our hook, remove it
         lines = existing.splitlines(keepends=True)
-        bm_start = None
-        for i, line in enumerate(lines):
-            if BM_HOOK_MARKER in line:
-                # Back up to the shebang if our hook starts the file
-                bm_start = max(0, i - 1) if i > 0 and lines[i - 1].startswith("#!/") else i
-                break
+        # Find marker line and check if shebang precedes it
+        marker_idx = next((i for i, l in enumerate(lines) if BM_HOOK_MARKER in l), -1)
+        if marker_idx < 0:
+            continue
 
-        if bm_start == 0 and all(
-            line.strip() == "" or line.startswith("#") or "bm" in line or line.startswith("if ")
-            or line.startswith("fi") or line.startswith("CHECKOUT") or line.startswith("command")
-            for line in lines
-        ):
-            # Entire file is our hook — remove
+        start_idx = max(0, marker_idx - 1) if marker_idx > 0 and lines[marker_idx - 1].startswith("#!/") else marker_idx
+
+        # Check if entire file is just our hook
+        if _is_only_bm_hook(lines, start_idx):
             hook_path.unlink()
         else:
-            # Extract our portion and leave the rest
+            # Remove our hook block, keep other hooks
             remaining = [l for l in lines if BM_HOOK_MARKER not in l]
             hook_path.write_text("".join(remaining))
 
@@ -118,17 +113,28 @@ def remove_hooks(repo_root: Path) -> list[str]:
     return removed
 
 
+def _is_only_bm_hook(lines: list[str], start_idx: int) -> bool:
+    """Check if hook file contains only bm hook content (no other hooks)."""
+    if start_idx != 0:
+        return False
+    bm_keywords = {"#", "", "if", "fi", "CHECKOUT", "command", "bm"}
+    return all(
+        line.strip() in bm_keywords or any(kw in line for kw in bm_keywords)
+        for line in lines
+    )
+
+
 def hooks_status(repo_root: Path) -> dict[str, bool]:
     """Check which bm hooks are installed."""
     hooks_dir = _find_git_hooks_dir(repo_root)
     if hooks_dir is None:
         return {name: False for name in HOOKS}
 
-    result: dict[str, bool] = {}
-    for hook_name in HOOKS:
-        hook_path = hooks_dir / hook_name
-        if hook_path.exists() and BM_HOOK_MARKER in hook_path.read_text():
-            result[hook_name] = True
-        else:
-            result[hook_name] = False
-    return result
+    return {
+        hook_name: (
+            hook_path.exists() and BM_HOOK_MARKER in hook_path.read_text()
+        )
+        for hook_name, hook_path in (
+            (name, hooks_dir / name) for name in HOOKS
+        )
+    }

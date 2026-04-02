@@ -32,6 +32,7 @@ def _parse_frontmatter(text: str) -> dict[str, str | list[str]]:
     match = re.match(r"^---\s*\n(.*?)\n---", text, re.DOTALL)
     if not match:
         return {}
+
     result: dict[str, str | list[str]] = {}
     for line in match.group(1).splitlines():
         if ":" not in line:
@@ -39,10 +40,13 @@ def _parse_frontmatter(text: str) -> dict[str, str | list[str]]:
         key, _, val = line.partition(":")
         key = key.strip()
         val = val.strip()
+
         if val.startswith("[") and val.endswith("]"):
-            result[key] = [t.strip().strip("'\"") for t in val[1:-1].split(",") if t.strip()]
+            items = [t.strip().strip("'\"") for t in val[1:-1].split(",") if t.strip()]
+            result[key] = items
         else:
             result[key] = val
+
     return result
 
 

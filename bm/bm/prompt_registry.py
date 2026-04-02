@@ -50,15 +50,18 @@ class PromptRegistry:
         return self._entries[name]
 
     def star(self, name: str) -> None:
-        self.get(name).starred = True
+        state = self.get(name)
+        state.starred = True
         self.save()
 
     def unstar(self, name: str) -> None:
-        self.get(name).starred = False
+        state = self.get(name)
+        state.starred = False
         self.save()
 
     def record_use(self, name: str) -> None:
-        self.get(name).record_use()
+        state = self.get(name)
+        state.record_use()
         self.save()
 
     def list_starred(self) -> list[str]:

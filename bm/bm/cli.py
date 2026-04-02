@@ -1282,6 +1282,26 @@ def skills_add_external(
 # ── prompt sub-commands ──────────────────────────────────────────────────────
 
 
+def _copy_to_clipboard(text: str) -> bool:
+    """Copy text to system clipboard. Returns True if successful."""
+    import platform
+    import subprocess as sp
+
+    cmd = {"Darwin": "pbcopy", "Linux": "xclip -selection clipboard", "Windows": "clip"}.get(
+        platform.system()
+    )
+    if not cmd:
+        return False
+
+    sp.run(cmd.split(), input=text.encode(), check=False)
+    return True
+
+
+def _find_prompt(prompts: list, name: str):
+    """Find a prompt by name. Returns None if not found."""
+    return next((p for p in prompts if p.name == name), None)
+
+
 @prompt_app.command("list")
 def prompt_list(
     tag: str = typer.Option("", "--tag", "-t", help="Filter by tag"),
@@ -1293,14 +1313,18 @@ def prompt_list(
     prompts = discover_prompts(PROMPTS_DIR)
     preg = PromptRegistry(PROMPT_REGISTRY_FILE)
 
+    # Apply filters
     if tag:
-        prompts = [p for p in prompts if tag.lower() in [t.lower() for t in p.tags]]
+        tag_lower = tag.lower()
+        prompts = [p for p in prompts if any(tag_lower in t.lower() for t in p.tags)]
     if starred:
-        starred_names = preg.list_starred()
+        starred_names = set(preg.list_starred())
         prompts = [p for p in prompts if p.name in starred_names]
+
+    # Sort by popularity if requested
     if popular:
-        pop = dict(preg.list_by_popularity())
-        prompts.sort(key=lambda p: pop.get(p.name, 0), reverse=True)
+        popularity = {name: count for name, count in preg.list_by_popularity()}
+        prompts.sort(key=lambda p: popularity.get(p.name, 0), reverse=True)
 
     if not prompts:
         console.print("[dim]No prompts found.[/dim]")
@@ -1367,7 +1391,7 @@ def prompt_add(
 def prompt_info(name: str = typer.Argument(..., help="Prompt name")) -> None:
     """Show a prompt's full content and metadata."""
     prompts = discover_prompts(PROMPTS_DIR)
-    prompt = next((p for p in prompts if p.name == name), None)
+    prompt = _find_prompt(prompts, name)
     if not prompt:
         console.print(f"[red]Prompt '{name}' not found.[/]")
         raise typer.Exit(1)
@@ -1393,21 +1417,14 @@ def prompt_copy(
 ) -> None:
     """Render a prompt with arguments and copy to clipboard."""
     prompts = discover_prompts(PROMPTS_DIR)
-    prompt = next((p for p in prompts if p.name == name), None)
+    prompt = _find_prompt(prompts, name)
     if not prompt:
         console.print(f"[red]Prompt '{name}' not found.[/]")
         raise typer.Exit(1)
 
     rendered = render_prompt(prompt, args=list(args) if args else None)
 
-    import platform
-    import subprocess as _sp
-
-    cmd = {"Darwin": "pbcopy", "Linux": "xclip -selection clipboard", "Windows": "clip"}.get(
-        platform.system()
-    )
-    if cmd:
-        _sp.run(cmd.split(), input=rendered.encode(), check=False)
+    if _copy_to_clipboard(rendered):
         console.print(f"[green]\u2705 Copied '{name}' to clipboard[/]")
     else:
         console.print(rendered)
@@ -1456,10 +1473,7 @@ def prompt_export_cmd(
     prompts = discover_prompts(PROMPTS_DIR)
 
     if all_prompts:
-        exported = 0
-        for p in prompts:
-            if export_prompt(p, CLAUDE_COMMANDS_DIR):
-                exported += 1
+        exported = sum(1 for p in prompts if export_prompt(p, CLAUDE_COMMANDS_DIR))
         console.print(f"[green]\u2705 Exported {exported} prompt(s)[/] \u2192 {CLAUDE_COMMANDS_DIR}")
         console.print(f"  [dim]Use them as /commands in Claude Code[/dim]")
         return
@@ -1468,7 +1482,7 @@ def prompt_export_cmd(
         console.print("[red]Provide a prompt name or use --all.[/]")
         raise typer.Exit(1)
 
-    prompt = next((p for p in prompts if p.name == name), None)
+    prompt = _find_prompt(prompts, name)
     if not prompt:
         console.print(f"[red]Prompt '{name}' not found.[/]")
         raise typer.Exit(1)
@@ -1493,9 +1507,10 @@ def prompt_unexport_cmd(
 def prompt_star(name: str = typer.Argument(..., help="Prompt name")) -> None:
     """Bookmark a favorite prompt."""
     prompts = discover_prompts(PROMPTS_DIR)
-    if not any(p.name == name for p in prompts):
+    if not _find_prompt(prompts, name):
         console.print(f"[red]Prompt '{name}' not found.[/]")
         raise typer.Exit(1)
+
     preg = PromptRegistry(PROMPT_REGISTRY_FILE)
     preg.star(name)
     console.print(f"[yellow]\u2605[/] Starred '{name}'")
@@ -1514,7 +1529,7 @@ def prompt_unstar(name: str = typer.Argument(..., help="Prompt name")) -> None:
 def prompt_remove_cmd(name: str = typer.Argument(..., help="Prompt name")) -> None:
     """Delete a saved prompt."""
     prompts = discover_prompts(PROMPTS_DIR)
-    prompt = next((p for p in prompts if p.name == name), None)
+    prompt = _find_prompt(prompts, name)
     if not prompt:
         console.print(f"[red]Prompt '{name}' not found.[/]")
         raise typer.Exit(1)
