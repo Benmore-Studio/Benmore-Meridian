@@ -20,7 +20,7 @@ Install 50+ Claude Code skills in one command. Edit once, reflect everywhere via
 - [New? Start Here 🚀](#new-start-here-)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Commands](#commands)
+- [Commands](#commands) — Core, Skills, Discovery, Prompts, Hooks, Tools
 - [Skills](#skills)
 - [Plugin Ecosystem](#plugin-ecosystem)
 - [Developer Tools](#developer-tools)
@@ -48,6 +48,9 @@ Read the FDE principles, install Ghostty + Raycast, then run `bm setup --yes` �
 - **Claude-native JSON output** — every command supports `--json` so agents can query `bm status --json` directly.
 - **Plugin guidance** — `bm plugins` detects [Superpowers](#plugin-ecosystem) and [Double Shot Latte](#plugin-ecosystem) and walks you through any missing installs.
 - **Zero config** — path constants computed from repo root at import time; works from any directory.
+- 📝 **Saved prompts** — save, search, star, and reuse prompt templates. Export as Claude Code `/commands`.
+- 🔄 **Auto-sync hooks** — git hooks auto-run `bm install` on pull/checkout when skills or prompts change.
+- 💡 **Dashboard tips** — random helpful hints shown on `bm` dashboard so you discover features without reading docs.
 
 ---
 
@@ -132,6 +135,29 @@ bm update    # git pull + reinstalls all skills
 |---------|-------------|
 | **`bm registry sync [--dry-run]`** | Scan `~/.claude/skills/` and reconcile registry |
 | **`bm registry list [--json]`** | List all registered skills |
+
+### Prompts ✨ v1.6
+
+| Command | Description |
+|---------|-------------|
+| **`bm prompt list [--tag T] [--starred] [--popular] [--json]`** | Browse saved prompts with filters |
+| **`bm prompt add <name> [-p project]`** | Create a reusable prompt template |
+| **`bm prompt search <query> [--tag T]`** | Fuzzy-search prompts by name, description, or tags |
+| **`bm prompt info <name>`** | Show full prompt content and metadata |
+| **`bm prompt copy <name> [args...]`** | Render with arguments → clipboard |
+| **`bm prompt export <name> / --all`** | Symlink → `~/.claude/commands/` (becomes `/command`) |
+| **`bm prompt unexport <name>`** | Remove from Claude Code commands |
+| **`bm prompt star/unstar <name>`** | Bookmark favorite prompts |
+| **`bm prompt remove <name>`** | Delete a prompt |
+
+### Hooks ✨ v1.6
+
+| Command | Description |
+|---------|-------------|
+| **`bm hooks install`** | Install `post-merge` + `post-checkout` hooks for auto-sync |
+| **`bm hooks remove`** | Remove bm-managed hooks (preserves others) |
+| **`bm hooks status`** | Check which hooks are installed |
+| **`bm install --quiet`** | Silent mode for hooks and automation |
 
 ### Tools
 

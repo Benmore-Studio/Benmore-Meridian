@@ -61,8 +61,15 @@ guides/
 ├── toolkit/
 │   ├── README.md                     # Toolkit overview
 │   └── 01-toolkit-checklist.md       # Development environment setup
-└── team/
-    └── .gitkeep                      # Team guides (currently empty/placeholder)
+├── team/
+│   └── .gitkeep                      # Team guides (currently empty/placeholder)
+└── prompts/                           # Saved prompt templates (v1.6.0+)
+    ├── productionize-django/PROMPT.md
+    ├── quick-pr-review/PROMPT.md
+    ├── client-kickoff/PROMPT.md
+    ├── full-pr-review-audit/PROMPT.md
+    ├── create-project-tickets/PROMPT.md
+    └── skill-chain-loop/PROMPT.md
 ```
 
 ### File Naming Convention
@@ -691,6 +698,35 @@ bm tools install                 # install all missing tools (via brew/apt)
 bm tools install ripgrep bat     # install specific tools by name
 ```
 
+**Prompts (v1.6.0+):**
+
+```bash
+bm prompt list                   # browse saved prompts (filter: --tag, --starred, --popular)
+bm prompt list --tag django      # filter by tag
+bm prompt list --starred         # show favorites only
+bm prompt list --json            # machine-readable output
+bm prompt add <name>             # create a new prompt template
+bm prompt add <name> -p pcs     # project-scoped prompt
+bm prompt search <query>         # fuzzy-search prompts by name/desc/tags
+bm prompt info <name>            # show full prompt content + metadata
+bm prompt copy <name> [args]     # render with args → clipboard
+bm prompt export <name>          # symlink → ~/.claude/commands/ (becomes /command)
+bm prompt export --all           # export all prompts as Claude Code /commands
+bm prompt unexport <name>        # remove from Claude Code commands
+bm prompt star <name>            # bookmark a favorite
+bm prompt unstar <name>          # remove bookmark
+bm prompt remove <name>          # delete a prompt
+```
+
+**Hooks (v1.6.0+):**
+
+```bash
+bm hooks install                 # install post-merge + post-checkout git hooks
+bm hooks remove                  # remove bm-managed hooks (preserves others)
+bm hooks status                  # check which hooks are installed
+bm install --quiet               # silent mode (used by hooks, no Rich output)
+```
+
 **Registry:**
 
 ```bash
@@ -776,6 +812,50 @@ skills/
         └── SKILL.md
 ```
 
+### ASCII Flow: Prompt Export to Claude Code /commands
+
+```
+bm prompt export <name>
+     │
+     ▼
+discover_prompts(prompts/)
+     │
+     ▼
+find prompt by name
+     │
+     ▼
+~/.claude/commands/<name>.md
+  symlink → prompts/<name>/PROMPT.md
+     │
+     ▼
+/<name> now works as a Claude Code slash command
+     │
+     ▼
+bm prompt export --all  ← exports ALL prompts at once
+```
+
+### ASCII Flow: Git Hook Auto-Sync
+
+```
+git pull (or branch switch)
+     │
+     ▼
+.git/hooks/post-merge fires
+     │
+     ▼
+git diff --name-only HEAD@{1} HEAD
+     │
+     ▼
+skills/ or prompts/ changed?
+     │ yes                  │ no
+     ▼                      ▼
+bm install --quiet &      (nothing)
+     │
+     ▼
+symlinks updated silently
+registry.json updated
+```
+
 ### Proactive Hints for Claude
 
 When working on this repo, Claude should suggest `bm` commands in these situations:
@@ -797,6 +877,12 @@ When working on this repo, Claude should suggest `bm` commands in these situatio
 | Setting up CLAUDE.md for a project | `bm context .` to generate the stack snippet |
 | Want a full skill recommendation report | `bm explore .` writes docs/bm-suggestions.md |
 | End of a session with new patterns | `bm debrief` to surface skill candidates |
+| Have a prompt you reuse often | `bm prompt add <name>` to save it |
+| Want prompts as Claude /commands | `bm prompt export --all` to sync globally |
+| Searching for a saved prompt | `bm prompt search <query>` for fuzzy search |
+| Skills not syncing after git pull | `bm hooks install` to enable auto-sync |
+| Checking hook status | `bm hooks status` to verify auto-sync is active |
+| Bookmarking a favorite prompt | `bm prompt star <name>` |
 
 ### JSON Output for Agents
 
@@ -804,6 +890,7 @@ When working on this repo, Claude should suggest `bm` commands in these situatio
 bm status --json         # → [{name, status, scope, project}, ...]
 bm registry list --json  # → [{name, source, scope, install_method, ...}, ...]
 bm skill list --json     # → [{name, scope, project, path}, ...]
+bm prompt list --json    # → [{name, description, tags, starred, use_count}, ...]
 ```
 
 ---

@@ -36,11 +36,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `productionize-django` — Audit and productionize a Django project
 - `quick-pr-review` — Fast code review focusing on bugs, security, and style
 - `client-kickoff` — Prepare for a new client kickoff meeting
+- `full-pr-review-audit` — Full PR review + audit pipeline with parallel agents
+- `create-project-tickets` — GitHub issues with parent/child via gh CLI
+- `skill-chain-loop` — Automated skill loops with feedback and memory
+
+### Fixes
+
+- **prompt_registry**: Corrupt `~/.bm/prompts.json` no longer crashes the CLI — gracefully starts fresh
+- **prompt_registry**: Atomic writes via tempfile+rename prevent data corruption on concurrent access
+- **prompts**: Broken `PROMPT.md` files (permission errors, bad encoding) are skipped gracefully instead of crashing discovery
+- **prompts**: Export copy fallback now verifies success before returning true
+- **cli**: Clipboard commands use proper list construction (not `cmd.split()`), check return codes, and fallback to printing on failure
+- **hooks**: Per-hook file I/O wrapped in try-except — only claims success on hooks that actually installed
+- **hooks**: UTF-8 encoding on all read/write operations for Windows compatibility
+- **hooks**: Hook block removal uses proper boundary detection instead of fragile keyword matching
 
 ### Internal
 
 - New modules: `prompts.py`, `prompt_registry.py`, `hooks.py`
 - Prompt user state stored in `~/.bm/prompts.json` (stars, usage counts)
+- Extracted `_copy_to_clipboard()` and `_find_prompt()` helpers in CLI
 - 22 new tests (84 total, all passing)
 
 ---
