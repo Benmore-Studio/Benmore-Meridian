@@ -6,9 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## v1.7.0 — 2026-04-04
+
 ### New Skills
 
-- **`qa-plan`** — Generate QA test plans from code changes. Analyzes git diffs, traces 2-hop blast radius across modules, risk-scores each area (Likelihood x Impact), and outputs a prioritized markdown test plan with smoke checklist and exit criteria. Project-agnostic.
+- **`qa-plan`** — Generate QA test plans from code changes. Analyzes git diffs, traces 2-hop blast radius across modules, risk-scores each area (Likelihood x Impact), and outputs a prioritized markdown test plan with smoke checklist and exit criteria. Project-agnostic. Reviewed by 5 parallel agents (PR review, code review, critical audit, productionize, simplify).
+
+### New Prompts
+
+- `create-research-primer` — Generate pre-kickoff research primers for client engagements
+- `what-to-build` — Brainstorm what to build next based on project context
+
+### New Training Materials
+
+- [**Claude Code Training Deck**](https://drive.google.com/file/d/1PduyHPnj0tO2y_3Bja5qtzY5Ze2OUYal/view?usp=drive_link) — Comprehensive training presentation for onboarding engineers to Claude Code workflows, skills, and best practices
+
+### Housekeeping
+
+- Cleaned up all stale branches (6 deleted) and closed Dependabot PRs
+- Bumped skills inventory to 55 total
 
 ---
 

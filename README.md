@@ -8,9 +8,9 @@
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-38%2B%20passing-brightgreen.svg)](#contributing)
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](CHANGELOG.md)
 
-Install 50+ Claude Code skills in one command. Edit once, reflect everywhere via symlinks.
+Install 55+ Claude Code skills in one command. Edit once, reflect everywhere via symlinks.
 
 ---
 
@@ -71,7 +71,7 @@ pip install -e ./bm
 ## Quick Start
 
 ```bash
-# Symlink all 50+ skills into Claude Code
+# Symlink all 55+ skills into Claude Code
 bm install
 
 # Verify skill status
@@ -316,7 +316,7 @@ Benmore-Meridian/
 │   │   └── models.py      # All dataclasses and enums
 │   ├── tests/             # 38+ tests, mypy strict, ruff clean
 │   └── README.md          # Full bm command reference + architecture
-├── skills/                # 50+ Claude Code skills (symlinked to ~/.claude/skills/)
+├── skills/                # 55+ Claude Code skills (symlinked to ~/.claude/skills/)
 ├── guides/                # Developer onboarding documentation
 │   ├── django/            # Production readiness (3 complementary guides)
 │   ├── deployment/        # Heroku, DigitalOcean, CI/CD, React Native
@@ -336,6 +336,7 @@ Benmore-Meridian/
 | [Development Workflow](guides/development/) | Meeting notes → production, Claude Code ecosystem |
 | [PR Review](guides/review/) | AI-assisted review + GitHub Projects setup |
 | [Developer Toolkit](guides/toolkit/) | Environment setup checklist (ripgrep, gh, uv, etc.) |
+| [**Claude Code Training**](https://drive.google.com/file/d/1PduyHPnj0tO2y_3Bja5qtzY5Ze2OUYal/view?usp=drive_link) | **Training deck for onboarding engineers to Claude Code workflows and skills** |
 
 ## Contributing
 
