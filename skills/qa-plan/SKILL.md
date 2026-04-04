@@ -17,15 +17,13 @@ Systematically generate QA test plans from code changes by tracing blast radius,
 
 ## Input Modes
 
-The skill accepts flexible input and auto-detects what you gave it:
+The skill accepts flexible input. Detection priority (first match wins):
 
-| Input | Detection | Example |
-|-------|-----------|---------|
-| No args | Reads unstaged + staged git diff | `/qa-plan` |
-| Branch name | Arg matches a git branch | `/qa-plan fix/custom-drugs` |
-| Module/directory | Arg matches a project directory | `/qa-plan health` |
-| PR number | Starts with `#` or is numeric | `/qa-plan #419` |
-| Freeform | Anything else — matched against files/modules | `/qa-plan "the offline sync changes"` |
+1. **PR number**: starts with `#` or is purely numeric → `/qa-plan #419`
+2. **Branch name**: `git rev-parse --verify <arg>` succeeds → `/qa-plan fix/custom-drugs`
+3. **Module/directory**: directory exists in the project → `/qa-plan health`
+4. **Freeform**: anything else — matched against files/modules → `/qa-plan "the offline sync changes"`
+5. **No args** (default): reads unstaged + staged git diff → `/qa-plan`
 
 ## Workflow
 
@@ -47,10 +45,13 @@ DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@
 # Working tree changes (staged + unstaged) vs HEAD
 git diff HEAD
 
+# Also capture untracked files (new files not yet git-added)
+git ls-files --others --exclude-standard
+
 # If empty (clean tree), fall back to branch commits vs default branch
 git diff ${DEFAULT_BRANCH}...HEAD
 ```
-If both are empty, inform the user: "No changes detected. Specify a branch, module, or PR number."
+**Early exit**: If all diffs are empty and no untracked files exist, report "No changes detected. Specify a branch, module, or PR number." and STOP.
 
 **For branch comparison:**
 ```bash
@@ -125,26 +126,17 @@ Find and catalog:
 - Cross-module import graph for changed files
 ```
 
-Combine Agent A + B outputs into a **Project Context Record**:
-
-```
-PROJECT CONTEXT
-===============
-Framework:        [e.g., Django 5.2 + DRF]
-Mobile:           [e.g., React Native + Expo]
-Database:         [e.g., PostgreSQL]
-Key patterns:     [e.g., multi-tenant via middleware, FIFO inventory, RBAC]
-Test location:    [e.g., <module>/tests/]
-Signal map:       [model → signals that fire]
-Middleware:       [ordered list]
-Hot spots:        [areas with recent bug history]
-```
+**Degraded mode** (no CLAUDE.md or docs found):
+- Infer framework from `package.json` / `requirements.txt` / `Gemfile` / `go.mod`
+- Infer architecture from directory structure
+- Note "Project Context: INFERRED (no documentation found)" in the output header
+- Blast radius analysis in Step 3 will have reduced confidence — flag this in caveats
 
 ---
 
 ### Step 3: Blast Radius Analysis (2-Hop)
 
-Launch **parallel Explore subagents** — one per changed file — to trace dependencies outward.
+Launch **parallel Explore subagents** to trace dependencies outward. Cap at **10 subagents max**. If >20 changed files, group by module and launch one agent per module. If subagents are unavailable, execute sequentially.
 
 **Hop 1 — Direct Dependencies:**
 
@@ -294,20 +286,13 @@ Generate test cases using the coverage depth from Step 4:
 
 #### Section 5: Regression Test Cases
 
-Separate section for tests derived from Hop 2 blast radius. These test areas NOT directly changed but potentially affected. If the project has known historically buggy areas in the blast radius, always include regression tests for those.
+Tests for areas found via **Hop 2 only** (indirect blast radius — not directly changed, not a direct caller). Same table format, `Type = regression`. Always include regressions for historically buggy areas in the blast radius.
 
-Same table format as Section 4, with `Type = regression`.
+**Disambiguation**: Section 4 covers Hop 0 (changed code) and Hop 1 (direct callers/callees). Section 5 covers Hop 2 only. Section 6 covers cross-cutting edge cases not specific to a single feature area.
 
 #### Section 6: Edge Cases & Negative Tests
 
-Dedicated section for boundary values, error states, and adversarial inputs:
-- Zero, null, empty string, negative values
-- Duplicate submissions / race conditions
-- Maximum length inputs
-- Invalid foreign key references
-- Concurrent access to the same resource
-
-Same table format as Section 4, with `Type = edge`.
+Cross-cutting boundary conditions that span multiple feature areas: zero/null/empty, duplicate submissions, race conditions, max-length inputs, invalid FK references. Same table format, `Type = edge`.
 
 #### Section 7: Security / Multi-Tenant Checks (CONDITIONAL)
 
@@ -335,7 +320,7 @@ Tests for:
 
 #### Section 9: Smoke Test Checklist
 
-A quick-pass checkbox list drawn from P0 and P1 test cases. Maximum 15 items. Format:
+A quick-pass checkbox list drawn from P0 and P1 test cases. 5-15 items (scale to change size). Format:
 
 ```markdown
 ## Smoke Test Checklist
@@ -365,22 +350,14 @@ What must pass before the change can ship:
 
 ### Step 6: Save & Report
 
-1. **Save** the QA plan to `docs/QA-PLAN-{YYYY-MM-DD}-{slug}.md`
-   - `{slug}` = kebab-case summary of the change (e.g., `custom-drugs-uuid-fix`, `health-module`, `release-v1.8.0`)
+1. **Create** `docs/` directory if it doesn't exist: `mkdir -p docs/`
 
-2. **Print summary** to terminal:
-   ```
-   QA Plan saved to docs/QA-PLAN-{date}-{slug}.md
+2. **Save** to `docs/QA-PLAN-{YYYY-MM-DD}-{slug}.md`
+   - `{slug}` generation: PR input → PR title kebab-cased (max 40 chars). Branch input → branch name with `/` → `-`. Module input → module name. Default diff → most-changed module name.
 
-   Summary:
-     Total test cases: {N}
-     P0 (Critical):    {n}
-     P1 (High):        {n}
-     P2 (Medium):      {n}
-     P3 (Low):         {n}
-     Modules covered:  {list}
-     Sections:         {N} (of 10)
-   ```
+3. **Print summary**: total test cases, P0/P1/P2/P3 breakdown, modules covered.
+
+**Token budget**: If blast radius exceeds 30 areas, consolidate to the top 15 by risk score. Hard cap: 8 test cases per section even for Exhaustive areas. If total exceeds 60 test cases, drop P3 and condense P2 to smoke-only.
 
 ---
 
@@ -401,7 +378,7 @@ Before finalizing the QA plan, verify:
 - [ ] Priority is assigned per test case, not per section
 - [ ] P0 tests cover the specific change that triggered the plan
 - [ ] Blast radius Hop 2 areas have regression test cases
-- [ ] Smoke checklist has 10-15 items from P0/P1 tests
+- [ ] Smoke checklist has 5-15 items from P0/P1 tests
 - [ ] Exit criteria are present and actionable
 - [ ] Conditional sections only included when relevant
 - [ ] No placeholder text ("TBD", "TODO")
