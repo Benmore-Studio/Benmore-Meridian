@@ -1,12 +1,12 @@
 ---
 name: qa-plan
-description: Generate a detailed QA test plan from code changes. Reads git diffs, discovers project docs, traces blast radius across modules, risk-scores each area, and outputs a comprehensive markdown test plan with prioritized test cases, smoke checklist, and exit criteria. Use when fixing bugs, shipping features, preparing releases, or anytime you need to know what to test.
+description: Generate a QA test plan from code changes. Analyzes git diffs, traces blast radius, risk-scores each area, and outputs prioritized test cases with smoke checklist and exit criteria.
 context: fork
 ---
 
 # QA Plan Generator
 
-Generate comprehensive, code-traced QA test plans from code changes. Analyzes diffs, discovers project context, traces blast radius, and produces an actionable test plan.
+Systematically generate QA test plans from code changes by tracing blast radius, scoring risk, and producing prioritized test cases.
 
 ## When to Use
 - After fixing a bug — generate targeted QA for what changed
@@ -27,7 +27,7 @@ The skill accepts flexible input and auto-detects what you gave it:
 | PR number | Starts with `#` or is numeric | `/qa-plan #419` |
 | Freeform | Anything else — matched against files/modules | `/qa-plan "the offline sync changes"` |
 
-## Pipeline
+## Workflow
 
 Execute these 6 steps in order. Steps 2 and 3 use parallel subagents for speed.
 
@@ -37,30 +37,35 @@ Execute these 6 steps in order. Steps 2 and 3 use parallel subagents for speed.
 
 Based on the input mode, collect the raw change data.
 
+First, detect the default branch:
+```bash
+DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@') || DEFAULT_BRANCH="main"
+```
+
 **For git diff (default — no args):**
 ```bash
-# Staged + unstaged changes
+# Working tree changes (staged + unstaged) vs HEAD
 git diff HEAD
 
-# If no diff, try committed changes on current branch vs main
-git diff main...HEAD
+# If empty (clean tree), fall back to branch commits vs default branch
+git diff ${DEFAULT_BRANCH}...HEAD
 ```
+If both are empty, inform the user: "No changes detected. Specify a branch, module, or PR number."
 
 **For branch comparison:**
 ```bash
-git diff main...<branch-name>
+git diff ${DEFAULT_BRANCH}...<branch-name>
 ```
 
 **For PR number:**
 ```bash
 gh pr diff <number>
 ```
+If `gh` is not installed, fall back to: `git log --oneline ${DEFAULT_BRANCH}...HEAD` and read changed files manually.
 
 **For module name:**
 ```bash
-# All recent changes in that module
-git log --oneline -20 --all -- '<module>/**'
-git diff main...HEAD -- '<module>/**'
+git diff ${DEFAULT_BRANCH}...HEAD -- '<module>/**'
 ```
 
 **For freeform input:**
@@ -275,25 +280,9 @@ This is the core output. Group by feature area. Each group gets its own markdown
 |---|-----------|----------|------|-------|----------|---------|
 | {section}.{seq} | **Bold descriptive name** | P0/P1/P2/P3 | smoke/functional/regression/edge/security/offline | Numbered action steps | Specific assertions (HTTP codes, field values, state changes) | Code file:line refs, architecture constraints, setup prerequisites, known limitations |
 
-**Priority definitions (per test case, NOT per section):**
+**Priority** (per test case, NOT per section): P0 = the fix itself or data-loss/security paths. P1 = direct integrators. P2 = adjacent, shared models. P3 = theoretical coupling only.
 
-| Priority | Definition | When to assign |
-|----------|------------|----------------|
-| **P0** | Critical | The specific fix/feature being tested. Failure = data loss, security breach, or crash |
-| **P1** | High | Features directly integrating with changed code. Revenue-affecting flows |
-| **P2** | Medium | Adjacent features sharing data models but not directly modified |
-| **P3** | Low | Distant features with only theoretical coupling |
-
-**Type taxonomy:**
-
-| Type | When used |
-|------|-----------|
-| `smoke` | Quick sanity check — also included in the smoke checklist |
-| `functional` | Core feature behavior being tested |
-| `regression` | Not directly changed, but in the blast radius |
-| `edge` | Boundary values, zero/null/negative, race conditions, concurrent access |
-| `security` | Multi-tenant isolation, permission enforcement, auth bypass, timing oracles |
-| `offline` | Offline queue, sync ordering, conflict resolution, temp ID mapping |
+**Type**: `smoke` | `functional` | `regression` | `edge` | `security` | `offline`
 
 **MANDATORY: Every test case must have a non-empty Caveats column.** Read the actual source code to populate caveats with real file references, line numbers, architecture constraints, setup requirements, or known limitations. Never leave caveats empty. Never fabricate code references — verify them by reading the file.
 
@@ -395,17 +384,25 @@ What must pass before the change can ship:
 
 ---
 
-## Quality Checklist (Self-Review)
+## Key Principles
+
+1. **Caveats are mandatory** — every test case must reference real code (file:line), architecture constraints, or setup prerequisites. Read the source to populate these; never fabricate references.
+2. **Risk drives depth** — exhaustive testing for score 20+, smoke-only for score 1-5. Don't waste time on low-risk areas.
+3. **Blast radius over gut feel** — trace dependencies systematically (2 hops). The regressions you miss are always in the second hop.
+4. **Priority per test case, not per section** — a "P1 section" may contain individual P2 or P3 tests. Assign granularly.
+5. **Conditional sections** — only include security/offline sections when the blast radius warrants them. Shorter plans get read; long ones get skipped.
+6. **Verify, don't assume** — if a git command fails or a doc doesn't exist, adapt. Detect the default branch; fall back gracefully on missing `gh` CLI.
+
+## Self-Review Checklist
 
 Before finalizing the QA plan, verify:
 
-- [ ] Every test case has a non-empty **Caveats** column with real code references
-- [ ] All code file:line references have been verified by reading the actual file
-- [ ] Priority is assigned **per test case**, not per section
+- [ ] Every test case has a non-empty **Caveats** column with verified code references
+- [ ] Priority is assigned per test case, not per section
 - [ ] P0 tests cover the specific change that triggered the plan
 - [ ] Blast radius Hop 2 areas have regression test cases
-- [ ] Smoke checklist has 10-15 items drawn from P0/P1 tests
+- [ ] Smoke checklist has 10-15 items from P0/P1 tests
 - [ ] Exit criteria are present and actionable
-- [ ] Conditional sections (security, offline) are included only if relevant
-- [ ] No placeholder text ("TBD", "TODO", "fill in later")
-- [ ] Scope & Out-of-Scope section explicitly lists excluded modules
+- [ ] Conditional sections only included when relevant
+- [ ] No placeholder text ("TBD", "TODO")
+- [ ] Scope section explicitly lists excluded modules
