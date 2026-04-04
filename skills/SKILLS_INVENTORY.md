@@ -10,7 +10,7 @@ pipx install ./bm && bm install
 
 ---
 
-## General Skills (54 total)
+## General Skills (55 total)
 
 ### 🚀 Production & Deployment
 
@@ -43,6 +43,7 @@ pipx install ./bm && bm install
 | `mcp-builder` | Marketplace | ✅ Active | Create MCP servers for LLM tool integration |
 | `receiving-code-review` | Marketplace | ✅ Active | Handle code review feedback with technical rigor |
 | `django-celery-expert` | Marketplace | ✅ Active | Django + Celery async task processing |
+| `qa-plan` | Locally owned | ✅ Active | Generate QA test plans from code changes with blast radius analysis and risk scoring |
 
 ### 💳 Payments & Integration
 
@@ -127,4 +128,4 @@ bm skill add <name> --project <p>   # add project-scoped skill
 bm skill generalize <name>          # promote to general skill
 ```
 
-Last updated: 2026-03-27
+Last updated: 2026-04-04

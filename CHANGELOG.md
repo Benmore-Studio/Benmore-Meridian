@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### New Skills
+
+- **`qa-plan`** — Generate QA test plans from code changes. Analyzes git diffs, traces 2-hop blast radius across modules, risk-scores each area (Likelihood x Impact), and outputs a prioritized markdown test plan with smoke checklist and exit criteria. Project-agnostic.
+
 ---
 
 ## v1.6.0 — 2026-04-02
