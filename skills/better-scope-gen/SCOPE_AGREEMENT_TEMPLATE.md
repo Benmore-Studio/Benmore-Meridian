@@ -24,7 +24,7 @@
 | **[KEY_DIFFERENTIATOR_2]** | [MVP value] | [Premium value] | [Enterprise value] |
 | **[KEY_DIFFERENTIATOR_3]** | [MVP value] | [Premium value] | [Enterprise value] |
 | **[KEY_DIFFERENTIATOR_4]** | [MVP value] | [Premium value] | [Enterprise value] |
-| **Price (Monthly)** | $[BASE_A] − $2,000 Development Credit = **$[TOTAL_A]** ($[RATE_A]/mo × [X] months) | $[BASE_B] − $2,000 Development Credit = **$[TOTAL_B]** ($[RATE_B]/mo × [X] months) | $[BASE_C] − $2,000 Development Credit = **$[TOTAL_C]** ($[RATE_C]/mo × [X] months) |
+| **Price (Monthly)** | $[BASE_A] − $[CREDIT_AMOUNT] Development Credit = **$[TOTAL_A]** ($[RATE_A]/mo × [X] months) | $[BASE_B] − $[CREDIT_AMOUNT] Development Credit = **$[TOTAL_B]** ($[RATE_B]/mo × [X] months) | $[BASE_C] − $[CREDIT_AMOUNT] Development Credit = **$[TOTAL_C]** ($[RATE_C]/mo × [X] months) |
 | **Price (Upfront, 10% off)** | **$[UPFRONT_A]** | **$[UPFRONT_B]** | **$[UPFRONT_C]** |
 
 ---
@@ -43,7 +43,7 @@ Development begins the day after initial payment is received.
 
 ### Timeline Guarantees
 
-- **Early Completion:** If the project is completed ahead of schedule, billing stops at completion. Under monthly billing, invoicing ceases when the final deliverable is deployed and accepted. The client pays only for months in which active development occurred.
+- **Early Completion:** If the project is completed ahead of schedule, billing stops when the final deliverable is deployed and accepted by the client. The client pays only for months in which active development occurred.
 - **Benmore Delays:** If the project exceeds the estimated timeline due to Benmore delays, Benmore absorbs all additional development cost at no charge to the client.
 - **Client Delays:** If the project exceeds the estimated timeline due to client delays — including delayed feedback, late asset delivery, extended review cycles, or delayed third-party account setup — the timeline extends and monthly billing continues at the agreed rate. No additional surcharges or penalties are applied beyond the standard monthly rate.
 
@@ -87,17 +87,17 @@ Development begins the day after initial payment is received.
 | **Timeline** | [X] months | [X] months | [X] months |
 | **Monthly Rate** | $[RATE_A]/month | $[RATE_B]/month | $[RATE_C]/month |
 | **Base Development Cost** | $[BASE_A] | $[BASE_B] | $[BASE_C] |
-| **Development Credit** | −$2,000 | −$2,000 | −$2,000 |
+| **Development Credit** | −$[CREDIT_AMOUNT] | −$[CREDIT_AMOUNT] | −$[CREDIT_AMOUNT] |
 | **Total Due (Monthly)** | **$[TOTAL_A]** | **$[TOTAL_B]** | **$[TOTAL_C]** |
 | **Total Due (Upfront, 10% discount)** | **$[UPFRONT_A]** | **$[UPFRONT_B]** | **$[UPFRONT_C]** |
 
 ### Payment Terms
 
-Invoiced at the start of each development month. Payment due within 7 business days of invoice date. The $2,000 Development Credit is applied to reduce the base development cost before the monthly rate is calculated — it is reflected in the Total Due above, not as a deduction from any individual monthly invoice.
+Invoiced at the start of each development month. Payment due within 7 business days of invoice date. The $[CREDIT_AMOUNT] Development Credit is applied to reduce the base development cost before the monthly rate is calculated — it is reflected in the Total Due above, not as a deduction from any individual monthly invoice.
 
-If the project completes ahead of schedule, invoicing stops at completion — the client pays only for months in which active development occurred.
+If the project completes ahead of schedule, invoicing stops when the final deliverable is deployed and accepted by the client — the client pays only for months in which active development occurred.
 
-**Option A: MVP** — $[BASE_A] base − $2,000 Development Credit = **$[TOTAL_A] total** / $[RATE_A] per month
+**Option A: MVP** — $[BASE_A] base − $[CREDIT_AMOUNT] Development Credit = **$[TOTAL_A] total** / $[RATE_A] per month
 
 | Payment | Development Period | Amount |
 |---------|-------------------|--------|
@@ -108,9 +108,9 @@ If the project completes ahead of schedule, invoicing stops at completion — th
 | Month [N]* | Weeks [X]-[X]: Buffer — Final QA, production deployment, launch support | $[RATE_A] |
 | | **Total** | **$[TOTAL_A]** |
 
-*Month [N] is invoiced only if development extends into this period. Billing stops at project completion.*
+*Month [N] is invoiced only if development extends into this period. Billing stops when the final deliverable is deployed and accepted.*
 
-**Option B: Premium** — $[BASE_B] base − $2,000 Development Credit = **$[TOTAL_B] total** / $[RATE_B] per month
+**Option B: Premium** — $[BASE_B] base − $[CREDIT_AMOUNT] Development Credit = **$[TOTAL_B] total** / $[RATE_B] per month
 
 | Payment | Development Period | Amount |
 |---------|-------------------|--------|
@@ -120,9 +120,9 @@ If the project completes ahead of schedule, invoicing stops at completion — th
 | Month [N]* | Buffer — Final QA, optimization pass, launch support | $[RATE_B] |
 | | **Total** | **$[TOTAL_B]** |
 
-*Month [N] is invoiced only if development extends into this period. Billing stops at project completion.*
+*Month [N] is invoiced only if development extends into this period. Billing stops when the final deliverable is deployed and accepted.*
 
-**Option C: Enterprise** — $[BASE_C] base − $2,000 Development Credit = **$[TOTAL_C] total** / $[RATE_C] per month
+**Option C: Enterprise** — $[BASE_C] base − $[CREDIT_AMOUNT] Development Credit = **$[TOTAL_C] total** / $[RATE_C] per month
 
 | Payment | Development Period | Amount |
 |---------|-------------------|--------|
@@ -132,11 +132,11 @@ If the project completes ahead of schedule, invoicing stops at completion — th
 | Month [N]* | Weeks [X]-[X]: [Final phase] — [Description] | $[RATE_C] |
 | | **Total** | **$[TOTAL_C]** |
 
-*Month [N] is invoiced only if development extends into this period. Billing stops at project completion.*
+*Month [N] is invoiced only if development extends into this period. Billing stops when the final deliverable is deployed and accepted.*
 
 ### Late Payment Policy
 
-Payments are due within 5 business days of invoice date. Late payments (over 10 business days past due) may result in project suspension until the account is current. Benmore will provide written notice before any suspension. Development resumes within 5 business days of payment receipt; the project timeline extends by the duration of the suspension.
+Payments are due within 7 business days of invoice date. Late payments (over 10 business days past due) may result in project suspension until the account is current. Benmore will provide written notice before any suspension. Development resumes within 5 business days of payment receipt; the project timeline extends by the duration of the suspension.
 
 ### Development Capacity Adjustments
 
@@ -326,9 +326,9 @@ Full sprint-level breakdowns and technical scope for each option are detailed in
 
 ---
 
-### Foundation Month Setup (Month 2, Weeks 4-5)
+### Foundation Setup (Weeks [X]-[X])
 
-The first two weeks of the Foundation month are dedicated to environment setup and project scaffolding. These items are completed before feature development begins and apply to all three options:
+The first [X] weeks of the Foundation phase are dedicated to environment setup and project scaffolding. These items are completed before feature development begins and apply to all options:
 
 - **[Backend framework]** — API project structure, background workers, database configured locally and on staging
 - **[Frontend framework]** — frontend project scaffold with component library and design system wired up
@@ -485,17 +485,17 @@ By signing below, both parties agree to the terms outlined in this Development A
 
 *(Select one)*
 
-[CHECKBOX:Option A: MVP — [X] modules · [X] features · [X] months · $[RATE_A]/month · $[TOTAL_A] total (after $2,000 Development Credit)]
+[CHECKBOX:Option A: MVP — [X] modules · [X] features · [X] months · $[RATE_A]/month · $[TOTAL_A] total (after $[CREDIT_AMOUNT] Development Credit)]
 
-[CHECKBOX:Option B: Premium — [X] modules · [X] features · [X] months · $[RATE_B]/month · $[TOTAL_B] total (after $2,000 Development Credit)]
+[CHECKBOX:Option B: Premium — [X] modules · [X] features · [X] months · $[RATE_B]/month · $[TOTAL_B] total (after $[CREDIT_AMOUNT] Development Credit)]
 
-[CHECKBOX:Option C: Enterprise — [X] modules · [X] features · [X] months · $[RATE_C]/month · $[TOTAL_C] total (after $2,000 Development Credit)]
+[CHECKBOX:Option C: Enterprise — [X] modules · [X] features · [X] months · $[RATE_C]/month · $[TOTAL_C] total (after $[CREDIT_AMOUNT] Development Credit)]
 
 ### Payment Option Selected
 
 *(Select one)*
 
-[CHECKBOX:Monthly Billing — Invoiced at the start of each development month; billing stops at project completion]
+[CHECKBOX:Monthly Billing — Invoiced at the start of each development month; billing stops when the final deliverable is deployed and accepted]
 
 [CHECKBOX:Upfront Payment (10% discount) — Full amount due before development begins ($[UPFRONT_A] / $[UPFRONT_B] / $[UPFRONT_C] depending on option selected)]
 
@@ -554,12 +554,13 @@ Client acknowledges and agrees that:
 
 1. **Scope:** The selected build option defines the complete scope of work. Features not listed in Section 4 are excluded. Additional features require a written change order with separate timeline and cost estimates.
 2. **Timeline:** Benmore commits to the estimated timeline for the selected option, subject to timely receipt of client responsibilities (Section 2) and non-code requirements (Section 7). If Benmore delays, Benmore absorbs additional development cost at no charge. If client delays cause timeline extension, monthly billing continues at the agreed rate.
-3. **Early Completion:** If the project completes ahead of schedule, billing stops at completion. The client pays only for months in which active development occurred.
-4. **Payment:** Client commits to the payment schedule outlined in Section 3. Payments are due within 5 business days of invoice.
+3. **Early Completion:** If the project completes ahead of schedule, billing stops when the final deliverable is deployed and accepted by the client. The client pays only for months in which active development occurred.
+4. **Payment:** Client commits to the payment schedule outlined in Section 3. Payments are due within 7 business days of invoice.
 5. **Communication:** Both parties commit to weekly [DAY] progress meetings ([TIME] EST) and 5-business-day response times for questions and approvals.
 6. **Post-Launch Support:** Benmore provides 30 days of bug-fix support following production deployment for defects in delivered functionality. New feature requests are not included.
 7. **Intellectual Property:** Upon final payment, all custom code developed under this agreement is owned by the client. Third-party libraries and services remain under their respective licenses.
 8. **Confidentiality:** Both parties agree to maintain confidentiality of proprietary business information, technical details, and user data shared during this engagement.
+9. **Governing Law & Disputes:** This Agreement shall be governed by the laws of [GOVERNING_LAW_STATE/JURISDICTION]. Any disputes arising under this Agreement shall first be addressed through good-faith negotiation. If unresolved within 30 days, disputes shall be submitted to [binding arbitration / mediation / the courts of JURISDICTION] for resolution.
 
 ### Client Signature
 
@@ -585,6 +586,6 @@ I, the undersigned, represent Benmore Technologies and agree to the terms of thi
 
 ---
 
-*This agreement is valid through [MONTH] [YEAR]. After this date, timelines and estimates may need to be revised.*
+*This agreement is valid through [VALIDITY_MONTH] [VALIDITY_YEAR]. After this date, timelines and estimates may need to be revised.*
 
 *Prepared by Benmore Technologies — BEN-[XXX]*
