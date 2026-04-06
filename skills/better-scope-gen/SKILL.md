@@ -9,7 +9,7 @@ Generate client-ready development agreements and comprehensive feature outlines 
 
 ## Template
 
-**The scope agreement MUST follow the template at `SCOPE_AGREEMENT_TEMPLATE.md` (in the repo root).** Read this template file at the start of every scope generation session. The template is the single source of truth for document structure, section ordering, signature formatting, and boilerplate language.
+**The scope agreement MUST follow the template at `SCOPE_AGREEMENT_TEMPLATE.md` (in the same directory as this skill file).** Read this template file at the start of every scope generation session. The template is the single source of truth for document structure, section ordering, signature formatting, and boilerplate language.
 
 When generating a SCOPE_AGREEMENT.md, copy the template structure exactly and fill in the `[PLACEHOLDER]` values with project-specific content. Do NOT restructure sections, reorder content, change signature formats, or deviate from the template layout.
 
@@ -33,7 +33,7 @@ The template uses bracket-delimited shortcodes for interactive form fields. Pres
 
 <HARD-GATE>
 Do NOT generate any documents until you have:
-1. Read the template file at `SCOPE_AGREEMENT_TEMPLATE.md` (in the repo root)
+1. Read the template file at `SCOPE_AGREEMENT_TEMPLATE.md` (in the same directory as this skill file)
 2. Read the technical architecture file
 3. Confirmed the number of build options with the user
 4. Asked whether there is a development credit (and if so, the amount)
@@ -46,7 +46,7 @@ Do NOT generate any documents until you have:
 ### Step 1: Gather Inputs (One Question at a Time)
 
 **1a. Read the Template**
-Before anything else, read `SCOPE_AGREEMENT_TEMPLATE.md` (in the repo root) to load the current template structure. This is your reference for the entire generation process.
+Before anything else, read `SCOPE_AGREEMENT_TEMPLATE.md` (in the same directory as this skill file) to load the current template structure. This is your reference for the entire generation process.
 
 **1b. Architecture File**
 Ask: "What is the path to your technical architecture document?"
@@ -112,7 +112,7 @@ Generate a **single** `SCOPE_AGREEMENT.md` file containing ALL build options. Th
 
 **How to use the template:**
 
-1. Start with the template structure from `SCOPE_AGREEMENT_TEMPLATE.md` (in the repo root)
+1. Start with the template structure from `SCOPE_AGREEMENT_TEMPLATE.md` (in the same directory as this skill file)
 2. Replace all `[PLACEHOLDER]` values with project-specific content derived from the architecture doc and user inputs
 3. Adjust the number of option columns in tables to match the actual number of build options (1, 2, or 3). If only 1 option, remove the multi-column comparison tables and simplify. If 2 options, remove the third column.
 4. Fill in Section 4 (Scope Agreement) with every module and subfeature from the architecture doc, organized into the template's subsections:
@@ -272,7 +272,7 @@ Report to the user:
 
 ## Key Rules
 
-1. **Always read the template first** — Read `SCOPE_AGREEMENT_TEMPLATE.md` (in the repo root) before generating. The template is the canonical structure. If the template has been updated since this skill was last edited, follow the template.
+1. **Always read the template first** — Read `SCOPE_AGREEMENT_TEMPLATE.md` (in the same directory as this skill file) before generating. The template is the canonical structure. If the template has been updated since this skill was last edited, follow the template.
 2. **Every subfeature from the architecture doc must appear** in both the scope agreement's feature set section and the scope outline. Nothing gets lost.
 3. **Option-specific features** must be clearly marked. If a subfeature only applies to Option B/C, it should NOT appear in Option A's scope agreement.
 4. **The scope outline is the source of truth** — it contains ALL features across ALL options with the full hierarchical breakdown.
