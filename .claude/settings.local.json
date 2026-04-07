@@ -63,7 +63,16 @@
       "Bash(git -C /Users/arkashjain/Desktop/Benmore/Benmore-Meridian tag --sort=-v:refname)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'{len\\(d\\)} skills tracked'\\)\")",
       "Bash(bm prompt:*)",
-      "Bash(bm hooks:*)"
+      "Bash(bm hooks:*)",
+      "Bash(python3 -c \"import bm; print\\(bm.__file__\\)\")",
+      "Bash(pip show:*)",
+      "Bash(chmod +x:*)",
+      "Bash(export BM_API_KEY=\"bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE\")",
+      "Bash(python3 scripts/benmore_team_channels.py)",
+      "Bash(python3:*)",
+      "Bash(git reset:*)",
+      "Bash(\" /Users/arkashjain/Desktop/Benmore/Benmore-Meridian/docs/ --include=\"*.md\" | head -30)",
+      "Bash(grep -r \"^[[:space:]]*```\" /Users/arkashjain/Desktop/Benmore/Benmore-Meridian/docs/ --include=\"*.md\" | head -30)"
     ]
   }
 }

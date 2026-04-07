@@ -8,6 +8,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## v1.8.0 — 2026-04-07
+
+### New Features
+
+- **`bm benmore`** — Benmore project management API integration. New subcommand group with 10 commands: `list`, `overview`, `lookup`, `summary`, `workflows`, `projects`, `channels`, `context`, `status`, `team`. All support `--json` for piping. The `list` command parallelizes 58 API calls via `asyncio.gather` (3.7s for 29 projects vs. ~30s sequential). Inline metadata updates via `--set-working-on` and `--set-phase`. Pipe-friendly `lookup --id` for command composition.
+- **`benmore_client`** — Production-ready Python async client for Benmore API v2. 30+ endpoint methods, Pydantic models with full type hints, type-safe enums (`Phase`, `Status`, `Priority`, `Size`, `Severity`, `DocumentType`, `IterationStatus`), and `httpx.AsyncClient` under the hood. Pydantic v2 `ConfigDict` throughout. 168 tests passing.
+
+### New Skills
+
+- **`using-bm`** — Teach Claude when to suggest `bm` commands. Decision tree mapping user intent to commands (install/update/skill creation/prompt management/Benmore API). Created via the `skill-creator` 6-step workflow (init → edit → validate → install).
+
+### New Documentation
+
+- **`docs/BM-GUIDE.md`** (696 lines) — Comprehensive guide to the bm CLI: skills, prompts, tools, hooks, registry, and Benmore API integration. ASCII flow diagrams for install lifecycle, prompt export, git auto-sync, and parallel API fetching.
+- **`docs/BENMORE-API.md`** — Full Python `benmore_client` API reference (849 lines)
+- **`docs/BM-BENMORE-INTEGRATION.md`** — `bm benmore` CLI command reference (471 lines)
+- **`docs/BENMORE-SETUP-GUIDE.md`** — Architecture and setup guide (622 lines)
+- **`docs/BENMORE-QUICKREF.md`** — One-page quick reference card (390 lines)
+- **`docs/INDEX.md`** — Navigation index for all Benmore docs (314 lines)
+
+### Audit Fixes (PR #37)
+
+Reviewed by 6 parallel Opus agents (PR review, code review, simplifier, docs auditor, critical audit, explorer). Found 42 issues across critical/high/medium severity. All criticals and highs fixed before merge:
+
+- **Security**: Removed hardcoded API key from 5 doc files (15 occurrences). Replaced with `bpk_your_api_key_here` placeholder. Removed `benmore_team_channels.json` (real client PII) and added to `.gitignore`. Setup script now uses `read -sp` to suppress API key echo.
+- **Correctness**: `bm benmore` was dead code — never registered in `bm/bm/cli.py`. Now wired up. Fixed semantic bug where `total_messages` was being mapped to `Channel.member_count`. Added `isinstance(data, list)` guards to 5 client methods that crashed on list-format responses (`comms_messages`, `comms_thread_read`, `comms_meetings`, `github_repos`, `flash_documents_list`).
+- **Performance**: Parallelized N+1 sequential API calls in `_list_impl` and `_overview_impl` via `asyncio.gather`. 30+s → 3.7s for 29 projects (58 parallel HTTP calls).
+- **Robustness**: Rich markup escaping in all error handlers (project titles like `[BEN-185]` collide with Rich's `[bold]` syntax). Narrow exception handling — `httpx.HTTPStatusError` now surfaces 401/403/429 instead of being silently swallowed. Better error messages for malformed `~/.benmore/config`.
+- **API**: Exported `GitHubBoard`, `ProjectListResponse`, `IterationStatus` from `benmore_client`. Fixed docstring examples that referenced non-existent `client.projects.list()` (correct: `client.projects_list()`). Migrated all Pydantic models to v2 `model_config = ConfigDict(...)`.
+
+### Housekeeping
+
+- Skill count: 70 (up from 55)
+- Bumped `__version__` in `bm/bm/__init__.py` (was stale at 1.6.0; now matches `pyproject.toml`)
+
+---
+
 ## v1.7.0 — 2026-04-04
 
 ### New Skills
