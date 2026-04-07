@@ -7,11 +7,11 @@ Complete reference for using Benmore API through the `bm` CLI tool manager.
 ### 1. Set API Key
 
 ```bash
-export BM_API_KEY="bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+export BM_API_KEY="bpk_your_api_key_here"
 
 # Or save to config for persistence
 mkdir -p ~/.benmore && cat > ~/.benmore/config << EOF
-{"api_key": "bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"}
+{"api_key": "bpk_your_api_key_here"}
 EOF
 ```
 
@@ -276,7 +276,7 @@ bm benmore projects
 mkdir -p ~/.benmore
 cat > ~/.benmore/config << 'EOF'
 {
-  "api_key": "bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+  "api_key": "bpk_your_api_key_here"
 }
 EOF
 

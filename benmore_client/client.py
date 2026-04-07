@@ -9,11 +9,9 @@ Auth: X-API-KEY header
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any, Optional
 
 import httpx
-import pydantic
 
 from benmore_client.models import (
     Channel,
@@ -33,8 +31,8 @@ class BenmoreClient:
 
     Example:
         async with BenmoreClient(api_key="bpk_...") as client:
-            projects = await client.projects.list()
-            context = await client.projects.context("project-id")
+            projects = await client.projects_list()
+            context = await client.projects_context("project-id")
 
     Scopes:
         - projects:read — List projects, view context, team
@@ -78,6 +76,7 @@ class BenmoreClient:
         """Async context manager exit."""
         if self._client:
             await self._client.aclose()
+            self._client = None
 
     def _headers(self) -> dict[str, str]:
         """Get request headers with authentication."""
@@ -106,7 +105,6 @@ class BenmoreClient:
 
         Raises:
             httpx.HTTPError: Network or HTTP error
-            pydantic.ValidationError: Response validation error
         """
         if self._client is None:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
@@ -122,6 +120,37 @@ class BenmoreClient:
         response.raise_for_status()
         return response.json()
 
+    @staticmethod
+    def _validate_path_param(value: str, name: str) -> None:
+        """Validate a URL path parameter is safe to interpolate.
+
+        Args:
+            value: The parameter value to validate
+            name: Parameter name (for error messages)
+
+        Raises:
+            ValueError: If value is empty or contains /, ?, or #
+        """
+        if not value:
+            raise ValueError(f"{name} must not be empty")
+        if any(ch in value for ch in ("/"  , "?", "#")):
+            raise ValueError(f"{name} contains invalid characters: {value!r}")
+
+    @staticmethod
+    def _unwrap_results(data: Any, key: str = "results") -> list[Any]:
+        """Extract a list from a paginated response or bare list.
+
+        Args:
+            data: Raw API response (dict with key, or bare list)
+            key: Dict key to look up (default "results")
+
+        Returns:
+            List of items
+        """
+        if isinstance(data, list):
+            return data
+        return data.get(key, data)
+
     # ─── Projects ───────────────────────────────────────────────────
 
     async def projects_list(self) -> ProjectListResponse:
@@ -132,7 +161,7 @@ class BenmoreClient:
         data = await self._request("GET", "/projects/")
         # Handle both list and dict responses
         if isinstance(data, list):
-            return ProjectListResponse(results=[Project(**p) for p in data])
+            return ProjectListResponse(results=[Project(**p) for p in data], count=len(data))
         return ProjectListResponse(**data)
 
     async def projects_search(self, q: str) -> ProjectListResponse:
@@ -149,7 +178,7 @@ class BenmoreClient:
         data = await self._request("GET", "/projects/search/", params={"q": q})
         # Handle both list and dict responses
         if isinstance(data, list):
-            return ProjectListResponse(results=[Project(**p) for p in data])
+            return ProjectListResponse(results=[Project(**p) for p in data], count=len(data))
         return ProjectListResponse(**data)
 
     async def projects_summary(self) -> dict[str, Any]:
@@ -181,10 +210,11 @@ class BenmoreClient:
         Returns:
             ProjectContext with all nested data
         """
+        self._validate_path_param(project_id, "project_id")
         params = {}
         if full:
             params["full"] = "true"
-        if days:
+        if days is not None:
             params["days"] = days
 
         data = await self._request("GET", f"/projects/{project_id}/context/", params=params)
@@ -195,6 +225,7 @@ class BenmoreClient:
 
         Includes kanban board state, financial metrics, health indicators.
         """
+        self._validate_path_param(project_id, "project_id")
         data = await self._request("GET", f"/projects/{project_id}/status/")
         return ProjectStatus(**data)
 
@@ -203,6 +234,7 @@ class BenmoreClient:
 
         Returns documents, diagrams, dynamic assets, signature docs.
         """
+        self._validate_path_param(project_id, "project_id")
         return await self._request("GET", f"/projects/{project_id}/assets/")
 
     async def projects_update(
@@ -223,6 +255,7 @@ class BenmoreClient:
         Returns:
             Updated Project model
         """
+        self._validate_path_param(project_id, "project_id")
         json_data = {}
         if phase is not None:
             json_data["phase"] = phase
@@ -242,6 +275,7 @@ class BenmoreClient:
         Returns all team members with roles and contact info.
         API returns: {project_id, project_title, team_members: [{username, name, title}]}
         """
+        self._validate_path_param(project_id, "project_id")
         data = await self._request("GET", f"/projects/{project_id}/team/")
         # API returns {team_members: [...]} with username/name/title fields
         members_raw = data.get("team_members", data.get("results", data))
@@ -278,6 +312,7 @@ class BenmoreClient:
         Returns:
             Success response
         """
+        self._validate_path_param(project_id, "project_id")
         json_data = {}
         if usernames:
             json_data["usernames"] = usernames
@@ -298,6 +333,7 @@ class BenmoreClient:
         Returns:
             Success response
         """
+        self._validate_path_param(project_id, "project_id")
         return await self._request(
             "DELETE",
             f"/projects/{project_id}/team/",
@@ -312,12 +348,13 @@ class BenmoreClient:
         API returns: {channel_id, total_messages, last_message_at, recent_messages, source}
         or {error: "No Slack channel connected..."} with 404.
         """
+        self._validate_path_param(project_id, "project_id")
         data = await self._request("GET", f"/projects/{project_id}/comms/")
         # Map API fields to Channel model
         return Channel(
             id=data.get("channel_id", ""),
             name=data.get("channel_name", data.get("channel_id", "")),
-            member_count=data.get("total_messages"),
+            total_messages=data.get("total_messages"),
             last_message_ts=data.get("last_message_at"),
             is_archived=False,
         )
@@ -327,6 +364,7 @@ class BenmoreClient:
 
         Returns the raw API response including recent_messages.
         """
+        self._validate_path_param(project_id, "project_id")
         return await self._request("GET", f"/projects/{project_id}/comms/")
 
     async def comms_channel_connect(
@@ -345,6 +383,7 @@ class BenmoreClient:
         Returns:
             Updated channel info
         """
+        self._validate_path_param(project_id, "project_id")
         data = await self._request(
             "PATCH",
             f"/projects/{project_id}/comms/",
@@ -370,12 +409,13 @@ class BenmoreClient:
         Returns:
             List of message objects
         """
-        params = {"limit": limit}
+        self._validate_path_param(project_id, "project_id")
+        params: dict[str, Any] = {"limit": limit}
         if before:
             params["before"] = before
 
         data = await self._request("GET", f"/projects/{project_id}/comms/messages/", params=params)
-        return data.get("results", data)
+        return self._unwrap_results(data)
 
     async def comms_message_post(
         self,
@@ -393,6 +433,7 @@ class BenmoreClient:
         Returns:
             Posted message details
         """
+        self._validate_path_param(project_id, "project_id")
         return await self._request(
             "POST",
             f"/projects/{project_id}/comms/messages/",
@@ -413,8 +454,9 @@ class BenmoreClient:
         Returns:
             List of thread replies
         """
+        self._validate_path_param(project_id, "project_id")
         data = await self._request("GET", f"/projects/{project_id}/comms/thread/{ts}/")
-        return data.get("results", data)
+        return self._unwrap_results(data)
 
     async def comms_meetings(
         self,
@@ -432,12 +474,13 @@ class BenmoreClient:
         Returns:
             List of Meeting models
         """
+        self._validate_path_param(project_id, "project_id")
         params = {}
         if full:
             params["full"] = "true"
 
         data = await self._request("GET", f"/projects/{project_id}/comms/meetings/", params=params)
-        results = data.get("results", data)
+        results = self._unwrap_results(data)
         return [Meeting(**m) for m in results] if isinstance(results, list) else []
 
     async def comms_meeting_create(
@@ -460,13 +503,14 @@ class BenmoreClient:
         Returns:
             Created Meeting model
         """
-        json_data = {
+        self._validate_path_param(project_id, "project_id")
+        json_data: dict[str, Any] = {
             "title": title,
             "date": date,
         }
-        if duration_minutes:
+        if duration_minutes is not None:
             json_data["duration_minutes"] = duration_minutes
-        if attendees:
+        if attendees is not None:
             json_data["attendees"] = attendees
 
         data = await self._request(
@@ -483,6 +527,7 @@ class BenmoreClient:
 
         Returns items, status counts, iterations, team capacity.
         """
+        self._validate_path_param(project_id, "project_id")
         data = await self._request("GET", f"/projects/{project_id}/github/")
         return GitHubBoard(**data)
 
@@ -502,6 +547,7 @@ class BenmoreClient:
         Returns:
             Connected board data
         """
+        self._validate_path_param(project_id, "project_id")
         data = await self._request(
             "PATCH",
             f"/projects/{project_id}/github/",
@@ -531,6 +577,7 @@ class BenmoreClient:
         Returns:
             Created item details
         """
+        self._validate_path_param(project_id, "project_id")
         json_data = {"title": title}
         if status:
             json_data["status"] = status
@@ -563,6 +610,7 @@ class BenmoreClient:
         Returns:
             Updated item details
         """
+        self._validate_path_param(project_id, "project_id")
         return await self._request(
             "PATCH",
             f"/projects/{project_id}/github/items/",
@@ -583,6 +631,7 @@ class BenmoreClient:
         Returns:
             Success response
         """
+        self._validate_path_param(project_id, "project_id")
         return await self._request(
             "DELETE",
             f"/projects/{project_id}/github/items/",
@@ -594,8 +643,9 @@ class BenmoreClient:
 
         Returns commits, lines of code, PRs, contributors per repo.
         """
+        self._validate_path_param(project_id, "project_id")
         data = await self._request("GET", f"/projects/{project_id}/github/repos/")
-        return data.get("results", data)
+        return self._unwrap_results(data)
 
     async def github_repo_link(
         self,
@@ -648,7 +698,11 @@ class BenmoreClient:
             List of Document models
         """
         data = await self._request("GET", "/flash-documents/")
-        results = data.get("results", data)
+        # Handle both list and dict responses
+        if isinstance(data, list):
+            results = data
+        else:
+            results = data.get("results", [])
         return [Document(**d) for d in results] if isinstance(results, list) else []
 
     async def flash_documents_create(

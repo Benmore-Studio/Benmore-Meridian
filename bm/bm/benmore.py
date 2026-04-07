@@ -1,11 +1,12 @@
 """Benmore API integration for bm CLI.
 
 Provides subcommands for interacting with the Benmore project management API:
-- bm benmore channels — List all active Slack channels
-- bm benmore projects — List assigned projects
-- bm benmore context <id> — Get full project context
-- bm benmore status <id> — Get project status
-- bm benmore team <id> — List project team
+- bm benmore list — Numbered project list grouped by phase
+- bm benmore overview — Single-command dashboard
+- bm benmore lookup — Resolve BEN numbers to project IDs
+- bm benmore summary — Time-scoped channel summaries
+- bm benmore workflows — Available workflow prompts
+- bm benmore projects/channels/context/status/team — Core CRUD
 """
 
 from __future__ import annotations
@@ -13,21 +14,102 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 # Try importing from benmore_client, fall back gracefully
 try:
-    from benmore_client import BenmoreClient
+    from benmore_client import BenmoreClient as _BenmoreClient
+    BenmoreClient: Any = _BenmoreClient  # type: ignore[no-redef]
 except ImportError:
-    BenmoreClient = None
+    BenmoreClient = None  # type: ignore[assignment]
 
 app = typer.Typer(help="Benmore API integration")
 console = Console()
+
+# Phase display colors
+PHASE_COLORS: dict[str, str] = {
+    "implementation": "green",
+    "discovery": "yellow",
+    "stalled": "red",
+    "completed": "dim",
+    "unknown": "white",
+}
+
+
+async def _fetch_project_enrichment(client: Any, project: Any) -> dict[str, Any]:
+    """Fetch team + channel data for a single project (used with asyncio.gather).
+
+    Catches httpx.HTTPStatusError specifically so 401/403/429 surface to caller,
+    but treats 404 (no channel connected) as an empty result.
+    """
+    import httpx  # noqa: F401  (used in except clause below)
+
+    entry: dict[str, Any] = {
+        "id": project.id,
+        "title": project.title,
+        "phase": project.phase or "unknown",
+        "status": project.status,
+        "team": [],
+        "channel": None,
+        "messages": 0,
+        "last_activity": None,
+        "working_on": None,
+    }
+
+    # Get team
+    try:
+        members = await client.team_list(project.id)
+        entry["team"] = [{"name": m.name, "username": m.username, "role": m.role} for m in members]
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code not in (404,):
+            raise  # Re-raise auth/rate-limit/server errors
+
+    # Get channel
+    try:
+        raw = await client.comms_raw(project.id)
+        entry["channel"] = raw.get("channel_id")
+        entry["messages"] = raw.get("total_messages", 0)
+        entry["last_activity"] = raw.get("last_message_at")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code not in (404,):
+            raise
+
+    return entry
+
+
+async def _enrich_projects_parallel(client: Any, projects: list[Any]) -> list[dict[str, Any]]:
+    """Fetch enrichment data for many projects in parallel using asyncio.gather.
+
+    Replaces the N+1 sequential pattern. With 20 projects, drops latency from
+    ~10s (40 sequential calls) to ~1s (40 parallel calls).
+    """
+    return await asyncio.gather(*[_fetch_project_enrichment(client, p) for p in projects])
+
+
+def _require_client(func: Callable[..., None]) -> Callable[..., None]:
+    """Decorator that checks BenmoreClient is available and gets API key."""
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> None:
+        if BenmoreClient is None:
+            console.print("[red]Error: benmore_client package not installed[/red]")
+            sys.exit(1)
+        try:
+            api_key = _get_api_key()
+        except typer.BadParameter as e:
+            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            sys.exit(1)
+        kwargs["_api_key"] = api_key
+        return func(*args, **kwargs)
+
+    return wrapper
 
 # Workflow prompts — suggested when running bm benmore
 WORKFLOW_PROMPTS = {
@@ -94,8 +176,10 @@ def _get_api_key() -> str:
             config = json.loads(config_path.read_text())
             if api_key := config.get("api_key"):
                 return api_key
-        except Exception:
-            pass
+        except json.JSONDecodeError:
+            raise typer.BadParameter(f"Malformed JSON in {config_path}. Fix the file or delete it.")
+        except PermissionError:
+            raise typer.BadParameter(f"Cannot read {config_path}. Check file permissions.")
 
     raise typer.BadParameter(
         "No API key found. Set BM_API_KEY env var or create ~/.benmore/config with api_key"
@@ -124,11 +208,10 @@ def channels(
     if BenmoreClient is None:
         console.print("[red]Error: benmore_client package not installed[/red]")
         sys.exit(1)
-
     try:
         api_key = _get_api_key()
     except typer.BadParameter as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {escape(str(e))}[/red]")
         sys.exit(1)
 
     # Parse project IDs
@@ -183,7 +266,7 @@ async def _channels_impl(api_key: str, project_ids: list[str] | None, json_outpu
                 console.print(table)
 
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error: {escape(str(e))}[/red]")
             sys.exit(1)
 
 
@@ -203,11 +286,10 @@ def projects(
     if BenmoreClient is None:
         console.print("[red]Error: benmore_client package not installed[/red]")
         sys.exit(1)
-
     try:
         api_key = _get_api_key()
     except typer.BadParameter as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {escape(str(e))}[/red]")
         sys.exit(1)
 
     asyncio.run(_projects_impl(api_key, search, json_output))
@@ -254,7 +336,7 @@ async def _projects_impl(api_key: str, search: str | None, json_output: bool) ->
                 console.print(table)
 
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error: {escape(str(e))}[/red]")
             sys.exit(1)
 
 
@@ -277,11 +359,10 @@ def context(
     if BenmoreClient is None:
         console.print("[red]Error: benmore_client package not installed[/red]")
         sys.exit(1)
-
     try:
         api_key = _get_api_key()
     except typer.BadParameter as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {escape(str(e))}[/red]")
         sys.exit(1)
 
     asyncio.run(_context_impl(api_key, project_id, full, days, json_output))
@@ -331,7 +412,7 @@ async def _context_impl(
                         console.print(f"  • {repo.get('name', '?')}")
 
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error: {escape(str(e))}[/red]")
             sys.exit(1)
 
 
@@ -351,11 +432,10 @@ def status(
     if BenmoreClient is None:
         console.print("[red]Error: benmore_client package not installed[/red]")
         sys.exit(1)
-
     try:
         api_key = _get_api_key()
     except typer.BadParameter as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {escape(str(e))}[/red]")
         sys.exit(1)
 
     asyncio.run(_status_impl(api_key, project_id, json_output))
@@ -384,7 +464,7 @@ async def _status_impl(api_key: str, project_id: str, json_output: bool) -> None
                     console.print(f"\n[bold]Next Milestone:[/bold] {status.next_milestone}")
 
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error: {escape(str(e))}[/red]")
             sys.exit(1)
 
 
@@ -404,11 +484,10 @@ def team(
     if BenmoreClient is None:
         console.print("[red]Error: benmore_client package not installed[/red]")
         sys.exit(1)
-
     try:
         api_key = _get_api_key()
     except typer.BadParameter as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {escape(str(e))}[/red]")
         sys.exit(1)
 
     asyncio.run(_team_impl(api_key, project_id, role, json_output))
@@ -449,7 +528,7 @@ async def _team_impl(api_key: str, project_id: str, role: str | None, json_outpu
                 console.print(table)
 
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error: {escape(str(e))}[/red]")
             sys.exit(1)
 
 
@@ -480,11 +559,10 @@ def list_projects(
     if BenmoreClient is None:
         console.print("[red]Error: benmore_client package not installed[/red]")
         sys.exit(1)
-
     try:
         api_key = _get_api_key()
     except typer.BadParameter as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {escape(str(e))}[/red]")
         sys.exit(1)
 
     asyncio.run(_list_impl(api_key, phase, mine, json_output, working_on, set_phase))
@@ -530,34 +608,12 @@ async def _list_impl(
             projects = await client.projects_list()
             all_projects = list(projects.results)
 
-            # Enrich with team + channel data
-            enriched = []
-            for p in all_projects:
-                entry = {
-                    "id": p.id,
-                    "title": p.title,
-                    "phase": p.phase or "unknown",
-                    "status": p.status,
-                    "team": [],
-                    "channel": None,
-                    "messages": 0,
-                    "working_on": None,
-                }
-
-                try:
-                    members = await client.team_list(p.id)
-                    entry["team"] = [m.name for m in members]
-                except Exception:
-                    pass
-
-                try:
-                    raw = await client.comms_raw(p.id)
-                    entry["channel"] = raw.get("channel_id")
-                    entry["messages"] = raw.get("total_messages", 0)
-                except Exception:
-                    pass
-
-                enriched.append(entry)
+            # Enrich with team + channel data — parallel via asyncio.gather (H4)
+            enriched = await _enrich_projects_parallel(client, all_projects)
+            # The helper returns dicts with team as list of {name, username, role};
+            # _list_impl just needs the names list for display.
+            for entry in enriched:
+                entry["team"] = [m["name"] if isinstance(m, dict) else m for m in entry["team"]]
 
             # Apply phase filter
             if phase_filter:
@@ -588,13 +644,7 @@ async def _list_impl(
 
                 items = grouped[phase_name]
                 phase_display = phase_name.capitalize()
-                phase_color = {
-                    "implementation": "green",
-                    "discovery": "yellow",
-                    "stalled": "red",
-                    "completed": "dim",
-                    "unknown": "white",
-                }.get(phase_name, "white")
+                phase_color = PHASE_COLORS.get(phase_name, "white")
 
                 console.print(f"[bold {phase_color}]{phase_display} ({len(items)}):[/bold {phase_color}]")
 
@@ -640,7 +690,6 @@ async def _list_impl(
                 console.print(f"[dim]  {wf['skill']:32} {wf['description']}[/dim]")
 
         except Exception as e:
-            from rich.markup import escape
             console.print(f"[red]Error: {escape(str(e))}[/red]")
             sys.exit(1)
 
@@ -704,11 +753,10 @@ def overview(
     if BenmoreClient is None:
         console.print("[red]Error: benmore_client package not installed[/red]")
         sys.exit(1)
-
     try:
         api_key = _get_api_key()
     except typer.BadParameter as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {escape(str(e))}[/red]")
         sys.exit(1)
 
     asyncio.run(_overview_impl(api_key, json_output))
@@ -762,14 +810,8 @@ async def _overview_impl(api_key: str, json_output: bool) -> None:
                 console.print(f"\n[bold cyan]Benmore Dashboard[/bold cyan] — {len(results)} projects\n")
 
                 for entry in results:
-                    phase_color = {
-                        "implementation": "green",
-                        "discovery": "yellow",
-                        "stalled": "red",
-                        "completed": "dim",
-                    }.get(entry["phase"] or "", "white")
-
-                    title = entry["title"]
+                    phase_color = PHASE_COLORS.get(entry["phase"] or "", "white")
+                    title = escape(entry["title"])
                     phase = entry["phase"] or "unknown"
                     team_count = len(entry["team"])
                     team_names = ", ".join(m["name"] for m in entry["team"][:4])
@@ -802,7 +844,7 @@ async def _overview_impl(api_key: str, json_output: bool) -> None:
                 )
 
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error: {escape(str(e))}[/red]")
             sys.exit(1)
 
 
@@ -826,11 +868,10 @@ def lookup(
     if BenmoreClient is None:
         console.print("[red]Error: benmore_client package not installed[/red]")
         sys.exit(1)
-
     try:
         api_key = _get_api_key()
     except typer.BadParameter as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {escape(str(e))}[/red]")
         sys.exit(1)
 
     asyncio.run(_lookup_impl(api_key, query, json_output, id_only))
@@ -886,7 +927,7 @@ async def _lookup_impl(api_key: str, query: str, json_output: bool, id_only: boo
                     console.print(table)
 
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error: {escape(str(e))}[/red]")
             sys.exit(1)
 
 
@@ -909,11 +950,10 @@ def summary(
     if BenmoreClient is None:
         console.print("[red]Error: benmore_client package not installed[/red]")
         sys.exit(1)
-
     try:
         api_key = _get_api_key()
     except typer.BadParameter as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {escape(str(e))}[/red]")
         sys.exit(1)
 
     asyncio.run(_summary_impl(api_key, project_id, days, json_output))
@@ -973,6 +1013,7 @@ async def _summary_impl(api_key: str, project_id: str, days: int, json_output: b
                     filtered.append(msg)
 
             # Get team
+            members: list[Any] = []
             try:
                 members = await client.team_list(project_id)
                 team_names = {m.username: m.name for m in members}
@@ -1066,7 +1107,7 @@ async def _summary_impl(api_key: str, project_id: str, days: int, json_output: b
                     console.print(f"\n[yellow]No activity in the last {days} days.[/yellow]")
 
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error: {escape(str(e))}[/red]")
             sys.exit(1)
 
 

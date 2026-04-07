@@ -8,7 +8,7 @@ Production-ready Python client + bm CLI integration for Benmore project manageme
 
 ```bash
 # 1. Add API key to shell
-export BM_API_KEY="bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+export BM_API_KEY="bpk_your_api_key_here"
 
 # 2. Test it works
 bm benmore projects
@@ -382,7 +382,7 @@ async def example():
 
 ```
 Username:     arkashjain
-API Key:      bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE
+API Key:      bpk_your_api_key_here
 Projects:     21 (found via API)
 Channels:     0 (no Slack channels connected yet)
 ```
@@ -417,7 +417,7 @@ Channels:     0 (no Slack channels connected yet)
 
 **Option A: Temporary (current session only)**
 ```bash
-export BM_API_KEY="bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+export BM_API_KEY="bpk_your_api_key_here"
 ```
 
 **Option B: Permanent (config file)**
@@ -425,7 +425,7 @@ export BM_API_KEY="bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
 mkdir -p ~/.benmore
 cat > ~/.benmore/config << 'EOF'
 {
-  "api_key": "bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+  "api_key": "bpk_your_api_key_here"
 }
 EOF
 chmod 600 ~/.benmore/config

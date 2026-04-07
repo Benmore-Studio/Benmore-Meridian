@@ -91,7 +91,7 @@ scripts/
 |--------|---------|
 | **API Endpoint** | https://client.benmore.tech/api/v1/ |
 | **Authentication** | X-API-KEY header |
-| **Your API Key** | `bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE` |
+| **Your API Key** | `bpk_your_api_key_here` |
 | **Your Projects** | 21 accessible projects |
 | **Slack Channels** | 0 connected (not yet configured in portal) |
 | **Python Methods** | 25+ (all endpoints implemented) |
@@ -116,7 +116,7 @@ scripts/
 ### Option 1: CLI (Fastest)
 ```bash
 # 1. Set API key
-export BM_API_KEY="bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+export BM_API_KEY="bpk_your_api_key_here"
 
 # 2. Use it
 bm benmore projects
@@ -301,7 +301,7 @@ benmore projects --json 2>&1 | head -20
 Everything is production-ready. You can start using immediately:
 
 ```bash
-export BM_API_KEY="bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+export BM_API_KEY="bpk_your_api_key_here"
 benmore projects
 ```
 

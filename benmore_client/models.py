@@ -9,7 +9,7 @@ Type-safe data structures with validation for all Benmore API entities:
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
 class TeamMember(BaseModel):
@@ -31,8 +31,7 @@ class TeamMember(BaseModel):
     role: Optional[str] = None
     joined_at: Optional[datetime] = None
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class Channel(BaseModel):
@@ -56,10 +55,10 @@ class Channel(BaseModel):
     member_count: Optional[int] = None
     last_message_ts: Optional[str] = None
     is_archived: bool = False
+    total_messages: Optional[int] = None
     members: Optional[list[str]] = None
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class Meeting(BaseModel):
@@ -85,8 +84,7 @@ class Meeting(BaseModel):
     attendees: list[str] = Field(default_factory=list)
     recording_url: Optional[HttpUrl] = None
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class Document(BaseModel):
@@ -112,8 +110,7 @@ class Document(BaseModel):
     updated_at: Optional[datetime] = None
     owner: Optional[str] = None
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class ProjectStatus(BaseModel):
@@ -139,8 +136,7 @@ class ProjectStatus(BaseModel):
     finances: Optional[dict[str, Any]] = None
     team_capacity: Optional[dict[str, Any]] = None
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class ProjectContext(BaseModel):
@@ -177,8 +173,7 @@ class ProjectContext(BaseModel):
     documents: list[Document] = Field(default_factory=list)
     financials: Optional[dict[str, Any]] = None
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class Project(BaseModel):
@@ -208,8 +203,7 @@ class Project(BaseModel):
     updated_at: Optional[datetime] = None
     url: Optional[str] = None
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class ProjectListResponse(BaseModel):
@@ -245,5 +239,4 @@ class GitHubBoard(BaseModel):
     status_counts: Optional[dict[str, int]] = None
     iterations: list[dict[str, Any]] = Field(default_factory=list)
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")

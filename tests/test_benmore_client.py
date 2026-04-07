@@ -1245,7 +1245,8 @@ class TestCommsChannelInfo:
             channel = await client.comms_channel_info(PROJECT_ID)
         assert isinstance(channel, Channel)
         assert channel.id == "C0AQRCF0BSS"
-        assert channel.member_count == 11  # total_messages maps to member_count
+        assert channel.total_messages == 11  # Fixed: total_messages now has its own field
+        assert channel.member_count is None  # member_count is separate from total_messages
         assert channel.last_message_ts == "2026-04-06T14:59:05+00:00"
 
     @pytest.mark.asyncio
@@ -1322,11 +1323,8 @@ class TestCommsMessages:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_comms_messages_list_response_raises(self, client: BenmoreClient):
-        """NOTE: comms_messages does NOT handle raw list responses (only dict with 'results' key).
-        A plain list response triggers AttributeError because .get() is called on a list.
-        This documents the current behavior; the client could be improved to handle both formats.
-        """
+    async def test_comms_messages_list_response_handled(self, client: BenmoreClient):
+        """comms_messages now handles raw list responses correctly."""
         respx.get(f"{BASE_URL}/projects/{PROJECT_ID}/comms/messages/").mock(
             return_value=httpx.Response(
                 200,
@@ -1334,8 +1332,9 @@ class TestCommsMessages:
             )
         )
         async with client:
-            with pytest.raises(AttributeError):
-                await client.comms_messages(PROJECT_ID)
+            result = await client.comms_messages(PROJECT_ID)
+        assert isinstance(result, list)
+        assert result[0]["text"] == "Msg1"
 
     @pytest.mark.asyncio
     @respx.mock
@@ -1391,10 +1390,8 @@ class TestCommsThreadRead:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_comms_thread_read_list_response_raises(self, client: BenmoreClient):
-        """NOTE: comms_thread_read does NOT handle raw list responses (only dict with 'results' key).
-        A plain list response triggers AttributeError. Documents current behavior.
-        """
+    async def test_comms_thread_read_list_response_handled(self, client: BenmoreClient):
+        """comms_thread_read now handles raw list responses correctly."""
         respx.get(f"{BASE_URL}/projects/{PROJECT_ID}/comms/thread/111.222/").mock(
             return_value=httpx.Response(
                 200,
@@ -1402,8 +1399,9 @@ class TestCommsThreadRead:
             )
         )
         async with client:
-            with pytest.raises(AttributeError):
-                await client.comms_thread_read(PROJECT_ID, ts="111.222")
+            result = await client.comms_thread_read(PROJECT_ID, ts="111.222")
+        assert isinstance(result, list)
+        assert result[0]["text"] == "Single reply"
 
 
 class TestCommsMeetings:
@@ -1439,10 +1437,8 @@ class TestCommsMeetings:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_comms_meetings_list_response_raises(self, client: BenmoreClient):
-        """NOTE: comms_meetings does NOT handle raw list responses (only dict with 'results' key).
-        A plain list response triggers AttributeError. Documents current behavior.
-        """
+    async def test_comms_meetings_list_response_handled(self, client: BenmoreClient):
+        """comms_meetings now handles raw list responses correctly."""
         respx.get(f"{BASE_URL}/projects/{PROJECT_ID}/comms/meetings/").mock(
             return_value=httpx.Response(
                 200,
@@ -1450,8 +1446,10 @@ class TestCommsMeetings:
             )
         )
         async with client:
-            with pytest.raises(AttributeError):
-                await client.comms_meetings(PROJECT_ID)
+            result = await client.comms_meetings(PROJECT_ID)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].title == "Meeting"
 
     @pytest.mark.asyncio
     @respx.mock
@@ -1659,10 +1657,8 @@ class TestGitHubRepos:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_github_repos_list_response_raises(self, client: BenmoreClient):
-        """NOTE: github_repos does NOT handle raw list responses (only dict with 'results' key).
-        A plain list response triggers AttributeError. Documents current behavior.
-        """
+    async def test_github_repos_list_response_handled(self, client: BenmoreClient):
+        """github_repos now handles raw list responses correctly."""
         respx.get(f"{BASE_URL}/projects/{PROJECT_ID}/github/repos/").mock(
             return_value=httpx.Response(
                 200,
@@ -1670,8 +1666,10 @@ class TestGitHubRepos:
             )
         )
         async with client:
-            with pytest.raises(AttributeError):
-                await client.github_repos(PROJECT_ID)
+            result = await client.github_repos(PROJECT_ID)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["name"] == "frontend"
 
 
 class TestGitHubRepoLink:
@@ -1737,11 +1735,8 @@ class TestFlashDocumentsList:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_flash_documents_list_list_response_raises(self, client: BenmoreClient):
-        """NOTE: flash_documents_list does NOT handle raw list responses (only dict with 'results' key).
-        A plain list response triggers AttributeError. Documents current behavior.
-        Unlike projects_list/projects_search which check isinstance(data, list) first.
-        """
+    async def test_flash_documents_list_list_response_handled(self, client: BenmoreClient):
+        """flash_documents_list now handles raw list responses correctly."""
         respx.get(f"{BASE_URL}/flash-documents/").mock(
             return_value=httpx.Response(
                 200,
@@ -1749,8 +1744,10 @@ class TestFlashDocumentsList:
             )
         )
         async with client:
-            with pytest.raises(AttributeError):
-                await client.flash_documents_list()
+            result = await client.flash_documents_list()
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].title == "Doc"
 
     @pytest.mark.asyncio
     @respx.mock

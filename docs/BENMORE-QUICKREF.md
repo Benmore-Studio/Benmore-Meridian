@@ -8,7 +8,7 @@ Keep this open. Copy & paste commands as needed.
 
 ### Shell Alias Method (Easiest)
 ```bash
-export BM_API_KEY="bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+export BM_API_KEY="bpk_your_api_key_here"
 echo 'alias benmore="bm benmore"' >> ~/.zshrc
 source ~/.zshrc
 ```
@@ -17,7 +17,7 @@ source ~/.zshrc
 ```bash
 mkdir -p ~/.benmore
 cat > ~/.benmore/config << 'EOF'
-{"api_key": "bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"}
+{"api_key": "bpk_your_api_key_here"}
 EOF
 chmod 600 ~/.benmore/config
 ```
@@ -366,7 +366,7 @@ done
 ✅ **Flexible:** Python or CLI or both  
 
 **Your setup:**
-- API Key: ✅ `bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE`
+- API Key: ✅ `bpk_your_api_key_here`
 - Projects: 21
 - Slack channels: 0 (not yet connected)
 - Team members: Available per project

@@ -27,7 +27,7 @@ echo -e "${CYAN}Config file: $SHELL_RC${NC}\n"
 echo -e "${CYAN}Step 1: Verify API key${NC}"
 if [[ -z "$BM_API_KEY" ]]; then
     echo -e "${YELLOW}⚠ BM_API_KEY not set in environment${NC}"
-    read -p "Enter your Benmore API key (bpk_...): " api_key
+    read -sp "Enter your Benmore API key (bpk_...): " api_key && echo
     export BM_API_KEY="$api_key"
 else
     echo -e "${GREEN}✓ API key found in environment${NC}"

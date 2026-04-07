@@ -160,7 +160,7 @@ async def main() -> None:
         # Print per-member summary
         for member_key, member_name in TEAM_MEMBERS.items():
             channels = sorted(member_channels[member_key])
-            print(f"\n[bold cyan]{member_name}[/bold cyan]  ({member_key})")
+            print(f"\n**{member_name}**  ({member_key})")
             print("  " + "─" * 70)
             if channels:
                 for channel in channels:

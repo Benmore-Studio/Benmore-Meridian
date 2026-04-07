@@ -14,13 +14,13 @@ Complete guide to using the Benmore API through Python, `bm` CLI, and shell inte
 
 ```bash
 # Option A: Environment variable (recommended)
-export BM_API_KEY="bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+export BM_API_KEY="bpk_your_api_key_here"
 
 # Option B: Config file
 mkdir -p ~/.benmore
 cat > ~/.benmore/config << EOF
 {
-  "api_key": "bpk_6PhdfyHRz5U7xBR4mQ7movGIMslK91sbNsSnTxzLOcE"
+  "api_key": "bpk_your_api_key_here"
 }
 EOF
 
