@@ -72,7 +72,16 @@
       "Bash(python3:*)",
       "Bash(git reset:*)",
       "Bash(\" /Users/arkashjain/Desktop/Benmore/Benmore-Meridian/docs/ --include=\"*.md\" | head -30)",
-      "Bash(grep -r \"^[[:space:]]*```\" /Users/arkashjain/Desktop/Benmore/Benmore-Meridian/docs/ --include=\"*.md\" | head -30)"
+      "Bash(grep -r \"^[[:space:]]*```\" /Users/arkashjain/Desktop/Benmore/Benmore-Meridian/docs/ --include=\"*.md\" | head -30)",
+      "Bash(curl -sS -H 'X-API-KEY: bpk_yCuQ1LKf32fpe4zFw443YED4dr8XGQWFxMmY_iSYvoQ' https://client.benmore.tech/api/v1/projects/)",
+      "Bash(curl -sS -H 'X-API-KEY: bpk_yCuQ1LKf32fpe4zFw443YED4dr8XGQWFxMmY_iSYvoQ' https://client.benmore.tech/api/v1/projects/59e6f7e4-2eea-4744-8a36-50f447527177/context/)",
+      "Bash(curl -sS -H 'X-API-KEY: bpk_yCuQ1LKf32fpe4zFw443YED4dr8XGQWFxMmY_iSYvoQ' https://client.benmore.tech/api/v1/projects/59e6f7e4-2eea-4744-8a36-50f447527177/team/)",
+      "Bash(curl -sS -H 'X-API-KEY: bpk_yCuQ1LKf32fpe4zFw443YED4dr8XGQWFxMmY_iSYvoQ' https://client.benmore.tech/api/v1/projects/59e6f7e4-2eea-4744-8a36-50f447527177/comms/meetings/)",
+      "Bash(export BM_API_KEY=\"bpk_yCuQ1LKf32fpe4zFw443YED4dr8XGQWFxMmY_iSYvoQ\")",
+      "Bash(bm benmore:*)",
+      "Bash(pip3 uninstall:*)",
+      "Bash(pip3 install:*)",
+      "Bash(cat /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/__editable__.benmore_client*.pth)"
     ]
   }
 }
