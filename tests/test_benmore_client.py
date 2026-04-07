@@ -294,9 +294,19 @@ class TestTeamMemberModel:
         assert "role" in data
         assert data["role"] is None
 
-    def test_missing_required_field_raises(self):
-        with pytest.raises(pydantic.ValidationError):
-            TeamMember(id="u1", username="jdoe")  # missing name and email
+    def test_all_fields_optional(self):
+        # After refactor, all TeamMember fields are Optional with None defaults.
+        # The API often omits id/email, so constructing with only username must work.
+        member = TeamMember(username="jdoe")
+        assert member.username == "jdoe"
+        assert member.id == "jdoe"  # id falls back to username via validator
+        assert member.name is None
+        assert member.email is None
+
+    def test_title_maps_to_role(self):
+        # API returns `title` (e.g. "Senior Fullstack Developer"); validator maps to `role`.
+        member = TeamMember(username="jdoe", name="Jane", title="Senior Fullstack Developer")
+        assert member.role == "Senior Fullstack Developer"
 
     def test_wrong_type_raises(self):
         with pytest.raises(pydantic.ValidationError):
@@ -343,9 +353,23 @@ class TestChannelModel:
         assert data["id"] == "C123"
         assert data["is_archived"] is False
 
-    def test_missing_required_raises(self):
-        with pytest.raises(pydantic.ValidationError):
-            Channel(id="C123")  # missing name
+    def test_all_fields_optional(self):
+        # After refactor, Channel fields are all optional with defensive defaults.
+        # API returns channel_id/channel_name; validator maps them to id/name.
+        ch = Channel(channel_id="C123")
+        assert ch.id == "C123"
+        assert ch.name == "C123"  # falls back to channel_id when name missing
+
+    def test_channel_field_alias_mapping(self):
+        # Test that API field aliases are mapped correctly by the validator.
+        ch = Channel(
+            channel_id="C999",
+            channel_name="dev",
+            last_message_at="2024-01-01T00:00:00",
+        )
+        assert ch.id == "C999"
+        assert ch.name == "dev"
+        assert ch.last_message_ts == "2024-01-01T00:00:00"
 
 
 class TestMeetingModel:
@@ -379,8 +403,10 @@ class TestMeetingModel:
         assert str(m.recording_url) == "https://example.com/recording.mp4"
 
     def test_extra_fields_allowed(self):
-        m = Meeting(id="m1", title="Standup", date="2024-03-01T09:00:00", action_items=["foo"])
-        assert m.action_items == ["foo"]  # type: ignore[attr-defined]
+        # action_items is now a defined Optional[str] field on Meeting (refactor added it).
+        # Use a genuinely-extra key to exercise extra="allow".
+        m = Meeting(id="m1", title="Standup", date="2024-03-01T09:00:00", custom_tag="sync")
+        assert m.custom_tag == "sync"  # type: ignore[attr-defined]
 
     def test_model_dump(self):
         m = Meeting(id="m1", title="Standup", date="2024-03-01T09:00:00")
@@ -392,14 +418,17 @@ class TestMeetingModel:
         with pytest.raises(pydantic.ValidationError):
             Meeting(id="m1", title="Standup", date="not-a-date")
 
-    def test_invalid_url_raises(self):
-        with pytest.raises(pydantic.ValidationError):
-            Meeting(
-                id="m1",
-                title="Standup",
-                date="2024-03-01T09:00:00",
-                recording_url="not-a-url",
-            )
+    def test_recording_url_accepts_any_string(self):
+        # After refactor, recording_url is Optional[str], not a pydantic URL type.
+        # The Benmore API sometimes returns bare strings / relative paths, so we
+        # intentionally no longer validate URL shape here.
+        m = Meeting(
+            id="m1",
+            title="Standup",
+            date="2024-03-01T09:00:00",
+            recording_url="not-a-url",
+        )
+        assert m.recording_url == "not-a-url"
 
 
 class TestDocumentModel:
@@ -441,9 +470,11 @@ class TestDocumentModel:
         assert data["title"] == "Spec Doc"
         assert data["type"] is None
 
-    def test_missing_required_raises(self):
-        with pytest.raises(pydantic.ValidationError):
-            Document(id="d1")  # missing title
+    def test_all_fields_optional(self):
+        # After refactor, Document fields are all optional with None defaults.
+        doc = Document(id="d1")
+        assert doc.id == "d1"
+        assert doc.title is None
 
 
 class TestProjectStatusModel:
@@ -456,10 +487,12 @@ class TestProjectStatusModel:
         assert ps.phase is None
         assert ps.health is None
         assert ps.completion_percentage is None
-        assert ps.blockers == []
+        # blockers is now typed Any (refactor) because /status/ returns a dict
+        # {"unresolved": [...], "total_unresolved": N} while /context/ returns a list.
+        # It defaults to None rather than [].
+        assert ps.blockers is None
         assert ps.next_milestone is None
         assert ps.finances is None
-        assert ps.team_capacity is None
 
     def test_full_creation(self):
         ps = ProjectStatus(
@@ -484,7 +517,8 @@ class TestProjectStatusModel:
         ps = ProjectStatus(id="p1", phase="development")
         data = ps.model_dump()
         assert data["phase"] == "development"
-        assert data["blockers"] == []
+        # blockers is Any-typed and defaults to None (see test_optional_fields_default).
+        assert data["blockers"] is None
 
 
 class TestProjectContextModel:
@@ -556,9 +590,14 @@ class TestProjectContextModel:
         assert data["id"] == "p1"
         assert data["team"] == []
 
-    def test_missing_required_raises(self):
-        with pytest.raises(pydantic.ValidationError):
-            ProjectContext(id="p1")  # missing title
+    def test_all_fields_optional(self):
+        # After refactor, ProjectContext fields are all optional. The API sometimes
+        # returns a bare {id, ...} without title, so we no longer treat title as required.
+        ctx = ProjectContext(id="p1")
+        assert ctx.id == "p1"
+        assert ctx.title is None
+        assert ctx.team == []
+        assert ctx.meetings == []
 
 
 class TestProjectModel:
@@ -603,9 +642,25 @@ class TestProjectModel:
         data = p.model_dump()
         assert data["title"] == "My Project"
 
-    def test_missing_required_raises(self):
-        with pytest.raises(pydantic.ValidationError):
-            Project(id="p1")  # missing title
+    def test_all_fields_optional(self):
+        # After refactor, Project fields are all optional. /projects/ occasionally
+        # returns entries with id but no title, so title is no longer required.
+        p = Project(id="p1")
+        assert p.id == "p1"
+        assert p.title is None
+
+    def test_team_size_derived_from_members(self):
+        # Validator derives team_size from team_members length when not provided.
+        p = Project(
+            id="p1",
+            title="My Project",
+            team_members=[
+                {"username": "alice", "name": "Alice"},
+                {"username": "bob", "name": "Bob"},
+                {"username": "carol", "name": "Carol"},
+            ],
+        )
+        assert p.team_size == 3
 
 
 class TestProjectListResponseModel:
@@ -691,8 +746,13 @@ PROJECT_ID = "proj-abc-123"
 
 @pytest.fixture
 def client():
-    """Create a BenmoreClient instance for testing."""
-    return BenmoreClient(api_key=API_KEY)
+    """Create a BenmoreClient instance for testing.
+
+    ``max_retries=0`` disables the retry-on-transient-failure loop so that
+    mocked 5xx / network-error tests don't spend real seconds in exponential
+    backoff and so respx call counts stay at 1 per request.
+    """
+    return BenmoreClient(api_key=API_KEY, max_retries=0)
 
 
 @pytest.fixture
@@ -703,6 +763,7 @@ def custom_client():
         base_url="https://custom.api.com/v2",
         timeout=60.0,
         verify_ssl=False,
+        max_retries=0,
     )
 
 

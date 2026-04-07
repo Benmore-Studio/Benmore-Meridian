@@ -9,9 +9,37 @@ Auth: X-API-KEY header
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Optional
 
 import httpx
+
+# Idempotent methods that are safe to retry on transient failure.
+# POST / PATCH are intentionally excluded — retrying them risks duplicate writes.
+_RETRYABLE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+# HTTP status codes that indicate a transient condition worth retrying.
+# 500 is excluded — it usually means a deterministic server-side bug, not flap.
+_RETRYABLE_STATUS = frozenset({429, 502, 503, 504})
+
+USER_AGENT = "benmore-client/1.0.1 httpx"
+
+
+class BenmoreAPIError(Exception):
+    """Raised when the Benmore API returns HTTP 200 with an ``{"error": "..."}`` body.
+
+    The Benmore API uses a "200 with error key" pattern for several "no resource
+    connected" cases (comms with no Slack, github with no project, meetings with
+    no recordings). We translate that into an exception so callers can handle
+    it uniformly with HTTP-level errors.
+    """
+
+    def __init__(self, message: str, endpoint: Optional[str] = None):
+        self.message = message
+        self.endpoint = endpoint
+        full = f"{message} (endpoint={endpoint})" if endpoint else message
+        super().__init__(full)
+
 
 from benmore_client.models import (
     Channel,
@@ -49,6 +77,8 @@ class BenmoreClient:
         base_url: str = BASE_URL,
         timeout: float = 30.0,
         verify_ssl: bool = True,
+        max_retries: int = 3,
+        retry_backoff_base: float = 0.25,
     ):
         """Initialize Benmore API client.
 
@@ -57,11 +87,17 @@ class BenmoreClient:
             base_url: API base URL (defaults to production)
             timeout: Request timeout in seconds
             verify_ssl: Verify SSL certificates
+            max_retries: Max retry attempts for transient failures on idempotent
+                methods (GET/HEAD/OPTIONS). Network errors and 429/502/503/504
+                are retried; 4xx and 500 are not. Set to 0 to disable.
+            retry_backoff_base: Initial backoff seconds; doubles each attempt.
         """
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.verify_ssl = verify_ssl
+        self.max_retries = max_retries
+        self.retry_backoff_base = retry_backoff_base
         self._client: Optional[httpx.AsyncClient] = None
 
     async def __aenter__(self) -> BenmoreClient:
@@ -83,6 +119,7 @@ class BenmoreClient:
         return {
             "X-API-KEY": self.api_key,
             "Content-Type": "application/json",
+            "User-Agent": USER_AGENT,
         }
 
     async def _request(
@@ -92,7 +129,7 @@ class BenmoreClient:
         params: Optional[dict[str, Any]] = None,
         json: Optional[dict[str, Any]] = None,
     ) -> Any:
-        """Make an API request.
+        """Make an API request with retry-on-transient-failure for GETs.
 
         Args:
             method: HTTP method (GET, POST, PATCH, DELETE)
@@ -101,24 +138,52 @@ class BenmoreClient:
             json: Request body (JSON)
 
         Returns:
-            Response data (dict or parsed model)
+            Response data parsed as JSON
 
         Raises:
-            httpx.HTTPError: Network or HTTP error
+            httpx.HTTPStatusError: 4xx/5xx response (after retry budget exhausted)
+            httpx.RequestError: Network/timeout error (after retry budget exhausted)
+            RuntimeError: Client used outside an `async with` block
         """
         if self._client is None:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
 
         url = f"{self.base_url}{path}"
-        response = await self._client.request(
-            method,
-            url,
-            params=params,
-            json=json,
-            headers=self._headers(),
-        )
-        response.raise_for_status()
-        return response.json()
+        method_upper = method.upper()
+        retries_allowed = self.max_retries if method_upper in _RETRYABLE_METHODS else 0
+        attempt = 0
+
+        while True:
+            try:
+                response = await self._client.request(
+                    method_upper,
+                    url,
+                    params=params,
+                    json=json,
+                    headers=self._headers(),
+                )
+            except httpx.RequestError:
+                # Network error or timeout. Retry if we have budget left.
+                if attempt >= retries_allowed:
+                    raise
+                await asyncio.sleep(self.retry_backoff_base * (2**attempt))
+                attempt += 1
+                continue
+
+            if response.status_code in _RETRYABLE_STATUS and attempt < retries_allowed:
+                # Honor Retry-After if present, otherwise exponential backoff.
+                retry_after = response.headers.get("Retry-After")
+                delay: float
+                if retry_after and retry_after.isdigit():
+                    delay = float(retry_after)
+                else:
+                    delay = self.retry_backoff_base * (2**attempt)
+                await asyncio.sleep(delay)
+                attempt += 1
+                continue
+
+            response.raise_for_status()
+            return response.json()
 
     @staticmethod
     def _validate_path_param(value: str, name: str) -> None:
@@ -140,16 +205,39 @@ class BenmoreClient:
     def _unwrap_results(data: Any, key: str = "results") -> list[Any]:
         """Extract a list from a paginated response or bare list.
 
+        The Benmore API is inconsistent — different endpoints wrap their list
+        under different keys (``results``, ``items``, ``meetings``, ``messages``,
+        ``data``). We try the requested key first, then fall back to known
+        alternates, then return ``[]`` if none match.
+
         Args:
-            data: Raw API response (dict with key, or bare list)
-            key: Dict key to look up (default "results")
+            data: Raw API response (dict with list inside, or bare list)
+            key: Preferred dict key to look up
 
         Returns:
-            List of items
+            List of items (empty if no list shape can be found)
         """
         if isinstance(data, list):
             return data
-        return data.get(key, data)
+        if not isinstance(data, dict):
+            return []
+        for candidate in (key, "items", "results", "meetings", "messages", "data"):
+            value = data.get(candidate)
+            if isinstance(value, list):
+                return value
+        return []
+
+    @staticmethod
+    def _check_error_response(data: Any, endpoint: str) -> None:
+        """Detect the ``{"error": "..."}`` 200-OK pattern and raise.
+
+        Some Benmore endpoints (comms, github, meetings) return HTTP 200 with
+        a single ``error`` key when no resource is connected. Treating that as
+        a successful response causes silently empty data; we raise instead so
+        callers can decide how to handle "no resource" vs real failures.
+        """
+        if isinstance(data, dict) and set(data.keys()) == {"error"}:
+            raise BenmoreAPIError(str(data["error"]), endpoint=endpoint)
 
     # ─── Projects ───────────────────────────────────────────────────
 
@@ -159,10 +247,7 @@ class BenmoreClient:
         Returns paginated list of projects with summary info.
         """
         data = await self._request("GET", "/projects/")
-        # Handle both list and dict responses
-        if isinstance(data, list):
-            return ProjectListResponse(results=[Project(**p) for p in data], count=len(data))
-        return ProjectListResponse(**data)
+        return self._coerce_project_list(data)
 
     async def projects_search(self, q: str) -> ProjectListResponse:
         """GET /projects/search/?q=QUERY — Search all projects.
@@ -176,10 +261,19 @@ class BenmoreClient:
             ProjectListResponse with matching projects
         """
         data = await self._request("GET", "/projects/search/", params={"q": q})
-        # Handle both list and dict responses
+        return self._coerce_project_list(data)
+
+    @staticmethod
+    def _coerce_project_list(data: Any) -> ProjectListResponse:
+        """Normalize the two shapes /projects/ may return into a list response."""
         if isinstance(data, list):
-            return ProjectListResponse(results=[Project(**p) for p in data], count=len(data))
-        return ProjectListResponse(**data)
+            return ProjectListResponse(
+                results=[Project.model_validate(p) for p in data],
+                count=len(data),
+            )
+        if isinstance(data, dict):
+            return ProjectListResponse.model_validate(data)
+        return ProjectListResponse()
 
     async def projects_summary(self) -> dict[str, Any]:
         """GET /projects/summary/ — Get active projects overview.
@@ -218,7 +312,10 @@ class BenmoreClient:
             params["days"] = days
 
         data = await self._request("GET", f"/projects/{project_id}/context/", params=params)
-        return ProjectContext(**data)
+        # The model validator flattens {project: {...}, ...} into top-level
+        # fields and unwraps meetings.items, so callers can read .id/.title/.team
+        # directly.
+        return ProjectContext.model_validate(data)
 
     async def projects_status(self, project_id: str) -> ProjectStatus:
         """GET /projects/<id>/status/ — Get detailed project status.
@@ -227,7 +324,8 @@ class BenmoreClient:
         """
         self._validate_path_param(project_id, "project_id")
         data = await self._request("GET", f"/projects/{project_id}/status/")
-        return ProjectStatus(**data)
+        # Same flatten pattern as projects_context — see ProjectStatus model.
+        return ProjectStatus.model_validate(data)
 
     async def projects_assets(self, project_id: str) -> dict[str, Any]:
         """GET /projects/<id>/assets/ — Get all project assets in one response.
@@ -272,28 +370,25 @@ class BenmoreClient:
     async def team_list(self, project_id: str) -> list[TeamMember]:
         """GET /projects/<id>/team/ — List project team members.
 
-        Returns all team members with roles and contact info.
-        API returns: {project_id, project_title, team_members: [{username, name, title}]}
+        API returns: ``{project_id, project_title, team_members: [{username, name, title}]}``.
+        TeamMember's validator coerces ``title`` → ``role`` and ``username`` → ``id``.
         """
         self._validate_path_param(project_id, "project_id")
         data = await self._request("GET", f"/projects/{project_id}/team/")
-        # API returns {team_members: [...]} with username/name/title fields
-        members_raw = data.get("team_members", data.get("results", data))
-        if isinstance(members_raw, list):
-            result = []
-            for m in members_raw:
-                if isinstance(m, str):
-                    result.append(TeamMember(id=m, username=m, name=m, email=""))
-                elif isinstance(m, dict):
-                    result.append(TeamMember(
-                        id=m.get("username", ""),
-                        username=m.get("username", ""),
-                        name=m.get("name", ""),
-                        email=m.get("email", ""),
-                        role=m.get("title", m.get("role")),
-                    ))
-            return result
-        return []
+        members_raw: Any = (
+            data.get("team_members", data.get("results", []))
+            if isinstance(data, dict)
+            else data
+        )
+        if not isinstance(members_raw, list):
+            return []
+        result: list[TeamMember] = []
+        for m in members_raw:
+            if isinstance(m, str):
+                result.append(TeamMember(username=m, name=m))
+            elif isinstance(m, dict):
+                result.append(TeamMember.model_validate(m))
+        return result
 
     async def team_add(
         self,
@@ -345,27 +440,27 @@ class BenmoreClient:
     async def comms_channel_info(self, project_id: str) -> Channel:
         """GET /projects/<id>/comms/ — Get Slack channel info.
 
-        API returns: {channel_id, total_messages, last_message_at, recent_messages, source}
-        or {error: "No Slack channel connected..."} with 404.
+        Raises ``BenmoreAPIError`` when the API returns 200 with
+        ``{"error": "No Slack channel connected..."}`` so callers get a clear
+        signal instead of an empty Channel.
         """
         self._validate_path_param(project_id, "project_id")
-        data = await self._request("GET", f"/projects/{project_id}/comms/")
-        # Map API fields to Channel model
-        return Channel(
-            id=data.get("channel_id", ""),
-            name=data.get("channel_name", data.get("channel_id", "")),
-            total_messages=data.get("total_messages"),
-            last_message_ts=data.get("last_message_at"),
-            is_archived=False,
-        )
+        endpoint = f"/projects/{project_id}/comms/"
+        data = await self._request("GET", endpoint)
+        self._check_error_response(data, endpoint)
+        return Channel.model_validate(data)
 
     async def comms_raw(self, project_id: str) -> dict[str, Any]:
         """GET /projects/<id>/comms/ — Get raw Slack channel data.
 
-        Returns the raw API response including recent_messages.
+        Returns the raw API response including recent_messages. Raises
+        ``BenmoreAPIError`` when no channel is connected.
         """
         self._validate_path_param(project_id, "project_id")
-        return await self._request("GET", f"/projects/{project_id}/comms/")
+        endpoint = f"/projects/{project_id}/comms/"
+        data = await self._request("GET", endpoint)
+        self._check_error_response(data, endpoint)
+        return data
 
     async def comms_channel_connect(
         self,
@@ -414,8 +509,10 @@ class BenmoreClient:
         if before:
             params["before"] = before
 
-        data = await self._request("GET", f"/projects/{project_id}/comms/messages/", params=params)
-        return self._unwrap_results(data)
+        endpoint = f"/projects/{project_id}/comms/messages/"
+        data = await self._request("GET", endpoint, params=params)
+        self._check_error_response(data, endpoint)
+        return self._unwrap_results(data, key="messages")
 
     async def comms_message_post(
         self,
@@ -455,8 +552,10 @@ class BenmoreClient:
             List of thread replies
         """
         self._validate_path_param(project_id, "project_id")
-        data = await self._request("GET", f"/projects/{project_id}/comms/thread/{ts}/")
-        return self._unwrap_results(data)
+        endpoint = f"/projects/{project_id}/comms/thread/{ts}/"
+        data = await self._request("GET", endpoint)
+        self._check_error_response(data, endpoint)
+        return self._unwrap_results(data, key="messages")
 
     async def comms_meetings(
         self,
@@ -479,9 +578,13 @@ class BenmoreClient:
         if full:
             params["full"] = "true"
 
-        data = await self._request("GET", f"/projects/{project_id}/comms/meetings/", params=params)
-        results = self._unwrap_results(data)
-        return [Meeting(**m) for m in results] if isinstance(results, list) else []
+        endpoint = f"/projects/{project_id}/comms/meetings/"
+        data = await self._request("GET", endpoint, params=params)
+        self._check_error_response(data, endpoint)
+        # API returns {count, includes_transcripts, meetings: [...]} or
+        # {count_7d, items: [...]} depending on endpoint version.
+        results = self._unwrap_results(data, key="meetings")
+        return [Meeting.model_validate(m) for m in results]
 
     async def comms_meeting_create(
         self,
@@ -525,11 +628,14 @@ class BenmoreClient:
     async def github_board(self, project_id: str) -> GitHubBoard:
         """GET /projects/<id>/github/ — Get GitHub Project board data.
 
-        Returns items, status counts, iterations, team capacity.
+        Returns items, status counts, iterations, team capacity. Raises
+        ``BenmoreAPIError`` when no GitHub Project is connected.
         """
         self._validate_path_param(project_id, "project_id")
-        data = await self._request("GET", f"/projects/{project_id}/github/")
-        return GitHubBoard(**data)
+        endpoint = f"/projects/{project_id}/github/"
+        data = await self._request("GET", endpoint)
+        self._check_error_response(data, endpoint)
+        return GitHubBoard.model_validate(data)
 
     async def github_connect(
         self,
@@ -641,11 +747,14 @@ class BenmoreClient:
     async def github_repos(self, project_id: str) -> list[dict[str, Any]]:
         """GET /projects/<id>/github/repos/ — List linked repos.
 
-        Returns commits, lines of code, PRs, contributors per repo.
+        Returns commits, lines of code, PRs, contributors per repo. Raises
+        ``BenmoreAPIError`` when no GitHub Project is connected.
         """
         self._validate_path_param(project_id, "project_id")
-        data = await self._request("GET", f"/projects/{project_id}/github/repos/")
-        return self._unwrap_results(data)
+        endpoint = f"/projects/{project_id}/github/repos/"
+        data = await self._request("GET", endpoint)
+        self._check_error_response(data, endpoint)
+        return self._unwrap_results(data, key="repos")
 
     async def github_repo_link(
         self,
@@ -698,12 +807,8 @@ class BenmoreClient:
             List of Document models
         """
         data = await self._request("GET", "/flash-documents/")
-        # Handle both list and dict responses
-        if isinstance(data, list):
-            results = data
-        else:
-            results = data.get("results", [])
-        return [Document(**d) for d in results] if isinstance(results, list) else []
+        results = self._unwrap_results(data)
+        return [Document.model_validate(d) for d in results]
 
     async def flash_documents_create(
         self,
@@ -796,18 +901,29 @@ class BenmoreClient:
         """
         if project_ids is None:
             projects = await self.projects_list()
-            project_ids = [p.id for p in projects.results]
+            # Walrus narrows pid to str (rather than the Optional[str] that
+            # pyright infers from a regular `if p.id` filter in a comprehension).
+            project_ids = [pid for p in projects.results if (pid := p.id) is not None]
 
-        channels_by_project: dict[str, list[Channel]] = {}
-        for project_id in project_ids:
+        async def fetch_one(pid: str) -> tuple[str, list[Channel]]:
             try:
-                channel = await self.comms_channel_info(project_id)
-                channels_by_project[project_id] = [channel]
-            except Exception:
-                # Project may not have a connected channel
-                channels_by_project[project_id] = []
+                channel = await self.comms_channel_info(pid)
+                return pid, [channel]
+            except BenmoreAPIError:
+                # 200-OK with {"error": "No Slack channel connected"} — empty.
+                return pid, []
+            except httpx.HTTPStatusError as e:
+                # Only treat 404 as "no channel". Auth/rate-limit/server errors
+                # must surface — silently swallowing them used to mask credential
+                # failures, which is what hid the original packaging bug.
+                if e.response.status_code == 404:
+                    return pid, []
+                raise
 
-        return channels_by_project
+        # Parallelize across projects so 29 calls finish in ~1s instead of ~30s.
+        # Same fix pattern as bm.benmore._enrich_projects_parallel.
+        results = await asyncio.gather(*[fetch_one(pid) for pid in project_ids])
+        return dict(results)
 
     async def get_project_team_by_role(
         self,

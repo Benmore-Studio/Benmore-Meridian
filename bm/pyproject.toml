@@ -11,10 +11,14 @@ requires-python = ">=3.11"
 dependencies = [
     "typer>=0.12",
     "rich>=13",
+    "benmore-client>=1.0.1",
 ]
 
 [project.scripts]
 bm = "bm.cli:app"
+
+[tool.uv.sources]
+benmore-client = { path = "../benmore_client", editable = true }
 
 [project.optional-dependencies]
 dev = [

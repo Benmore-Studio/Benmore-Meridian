@@ -75,12 +75,13 @@ app.add_typer(tools_app, name="tools")
 app.add_typer(prompt_app, name="prompt")
 app.add_typer(hooks_app, name="hooks")
 
-# Benmore API integration (optional — gracefully skipped if benmore_client not installed)
-try:
-    from bm.benmore import app as benmore_app
-    app.add_typer(benmore_app, name="benmore")
-except ImportError:
-    pass
+# Benmore API integration. We import the bm.benmore subapp regardless of
+# whether benmore_client itself is installed — benmore.py captures the
+# underlying ImportError and surfaces it inside each command, so the user
+# gets actionable diagnostics instead of a silent "no such command".
+from bm.benmore import app as benmore_app
+
+app.add_typer(benmore_app, name="benmore")
 
 console = Console()
 

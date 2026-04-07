@@ -16,19 +16,82 @@ import json
 import sys
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import typer
 from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-# Try importing from benmore_client, fall back gracefully
+# Try importing from benmore_client, fall back gracefully.
+# We capture the original ImportError so that when a benmore command runs
+# without the package installed, the user sees the underlying cause (e.g.
+# "No module named 'pydantic'") plus a remediation hint, instead of an
+# opaque "package not installed" string. The previous swallow hid a real
+# packaging bug for hours.
+_BENMORE_IMPORT_ERROR: Optional[ImportError] = None
 try:
+    from benmore_client import BenmoreAPIError as _BenmoreAPIError
     from benmore_client import BenmoreClient as _BenmoreClient
     BenmoreClient: Any = _BenmoreClient  # type: ignore[no-redef]
-except ImportError:
+    BenmoreAPIError: Any = _BenmoreAPIError  # type: ignore[no-redef]
+except ImportError as _ie:
     BenmoreClient = None  # type: ignore[assignment]
+    BenmoreAPIError = Exception  # type: ignore[assignment, misc]
+    _BENMORE_IMPORT_ERROR = _ie
+
+
+def _format_error(exc: BaseException) -> str:
+    """Convert an exception into a user-readable diagnostic with remediation hint.
+
+    Replaces the previous ``str(e)`` collapse, which dropped HTTP status codes,
+    response bodies, and any actionable hint. Now callers see what failed AND
+    what to do about it.
+    """
+    import httpx  # local import — keep top-level imports cheap
+
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        url = str(exc.request.url) if exc.request is not None else "?"
+        try:
+            body = exc.response.text[:300]
+        except Exception:
+            body = "<unreadable>"
+        hints = {
+            401: "Check BM_API_KEY — it may be invalid, expired, or revoked.",
+            403: "API key lacks permission for this resource. Confirm scopes.",
+            404: "Resource not found — verify the project ID or BEN number.",
+            429: "Rate limited — wait briefly and retry.",
+            500: "Server error — Benmore API is misbehaving. Retry shortly.",
+            502: "Bad gateway — transient infrastructure issue. Retry.",
+            503: "Service unavailable — Benmore is down or restarting.",
+            504: "Upstream timeout — Benmore is slow. Try again.",
+        }
+        hint = hints.get(status, "Unexpected status code.")
+        return f"HTTP {status} from {url}\n  Body: {body}\n  Hint: {hint}"
+    if BenmoreAPIError is not Exception and isinstance(exc, BenmoreAPIError):  # noqa: E721
+        endpoint = getattr(exc, "endpoint", None) or "?"
+        msg = getattr(exc, "message", str(exc))
+        return f"Benmore API said: {msg}\n  Endpoint: {endpoint}"
+    if isinstance(exc, httpx.TimeoutException):
+        return f"Request timed out: {exc}\n  Hint: Server is slow; retry or increase --timeout."
+    if isinstance(exc, httpx.RequestError):
+        return f"Network error: {exc}\n  Hint: Check internet connectivity and base URL."
+    return str(exc)
+
+
+def _import_error_message() -> str:
+    """User-facing remediation when benmore_client failed to import."""
+    base = (
+        "benmore_client package is not importable.\n"
+        "  This usually means the editable install of the monorepo is missing.\n"
+        "  Fix: from the repo root, run `pip install -e ./benmore_client && "
+        "pip install -e ./bm`\n"
+        "  (or `uv sync` from the bm/ directory if you use uv)."
+    )
+    if _BENMORE_IMPORT_ERROR is not None:
+        base += f"\n  Underlying ImportError: {_BENMORE_IMPORT_ERROR}"
+    return base
 
 app = typer.Typer(help="Benmore API integration")
 console = Console()
@@ -206,7 +269,7 @@ def channels(
         bm benmore channels --json | jq
     """
     if BenmoreClient is None:
-        console.print("[red]Error: benmore_client package not installed[/red]")
+        console.print(f"[red]Error:\n{escape(_import_error_message())}[/red]")
         sys.exit(1)
     try:
         api_key = _get_api_key()
@@ -266,7 +329,7 @@ async def _channels_impl(api_key: str, project_ids: list[str] | None, json_outpu
                 console.print(table)
 
         except Exception as e:
-            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            console.print(f"[red]Error: {escape(_format_error(e))}[/red]")
             sys.exit(1)
 
 
@@ -284,7 +347,7 @@ def projects(
         bm benmore projects --json
     """
     if BenmoreClient is None:
-        console.print("[red]Error: benmore_client package not installed[/red]")
+        console.print(f"[red]Error:\n{escape(_import_error_message())}[/red]")
         sys.exit(1)
     try:
         api_key = _get_api_key()
@@ -336,7 +399,7 @@ async def _projects_impl(api_key: str, search: str | None, json_output: bool) ->
                 console.print(table)
 
         except Exception as e:
-            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            console.print(f"[red]Error: {escape(_format_error(e))}[/red]")
             sys.exit(1)
 
 
@@ -357,7 +420,7 @@ def context(
         bm benmore context proj123 --json
     """
     if BenmoreClient is None:
-        console.print("[red]Error: benmore_client package not installed[/red]")
+        console.print(f"[red]Error:\n{escape(_import_error_message())}[/red]")
         sys.exit(1)
     try:
         api_key = _get_api_key()
@@ -379,10 +442,17 @@ async def _context_impl(
             if json_output:
                 console.print(json.dumps(ctx.model_dump(), indent=2, default=str))
             else:
-                console.print(f"\n[bold cyan]{ctx.title}[/bold cyan]")
+                console.print(f"\n[bold cyan]{escape(ctx.title or '?')}[/bold cyan]")
                 console.print(f"ID: {ctx.id}")
-                console.print(f"Phase: {ctx.phase} | Status: {ctx.status}")
-                console.print(f"Description: {ctx.description or '—'}\n")
+                phase_line = f"Phase: {ctx.phase or '?'}"
+                if ctx.status:
+                    phase_line += f" | Status: {ctx.status}"
+                if ctx.phase_display and ctx.phase_display != ctx.phase:
+                    phase_line += f" ({ctx.phase_display})"
+                console.print(phase_line)
+                if ctx.working_on:
+                    console.print(f"Working on: {escape(ctx.working_on)}")
+                console.print(f"Description: {escape(ctx.description or '—')}\n")
 
                 if ctx.team:
                     console.print("[bold]Team ({}):[/bold]".format(len(ctx.team)))
@@ -404,7 +474,20 @@ async def _context_impl(
                 if ctx.blockers:
                     console.print(f"\n[bold yellow]Blockers ({len(ctx.blockers)}):[/bold yellow]")
                     for blocker in ctx.blockers:
-                        console.print(f"  • {blocker}")
+                        # API returns blockers as either a string or a
+                        # {issue, owner, severity} dict. Render both.
+                        if isinstance(blocker, dict):
+                            issue = blocker.get("issue", "?")
+                            owner = blocker.get("owner") or "unassigned"
+                            sev = blocker.get("severity") or "?"
+                            # Use parens not brackets — Rich interprets `[medium]`
+                            # as an unknown style tag and silently swallows it.
+                            console.print(
+                                f"  • ({escape(str(sev))}) {escape(str(issue))} "
+                                f"[dim]— {escape(str(owner))}[/dim]"
+                            )
+                        else:
+                            console.print(f"  • {escape(str(blocker))}")
 
                 if ctx.github_repos:
                     console.print(f"\n[bold]GitHub Repos ({len(ctx.github_repos)}):[/bold]")
@@ -412,7 +495,7 @@ async def _context_impl(
                         console.print(f"  • {repo.get('name', '?')}")
 
         except Exception as e:
-            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            console.print(f"[red]Error: {escape(_format_error(e))}[/red]")
             sys.exit(1)
 
 
@@ -430,7 +513,7 @@ def status(
         bm benmore status proj123 --json
     """
     if BenmoreClient is None:
-        console.print("[red]Error: benmore_client package not installed[/red]")
+        console.print(f"[red]Error:\n{escape(_import_error_message())}[/red]")
         sys.exit(1)
     try:
         api_key = _get_api_key()
@@ -450,21 +533,48 @@ async def _status_impl(api_key: str, project_id: str, json_output: bool) -> None
             if json_output:
                 console.print(json.dumps(status.model_dump(), indent=2, default=str))
             else:
-                console.print(f"\n[bold cyan]Project {status.id}[/bold cyan]")
-                console.print(f"Phase: {status.phase}")
-                console.print(f"Health: {status.health}")
-                console.print(f"Completion: {status.completion_percentage or '?'}%")
+                title = status.title or status.id or "(unknown)"
+                console.print(f"\n[bold cyan]{escape(str(title))}[/bold cyan]")
+                if status.id and status.id != title:
+                    console.print(f"ID: {status.id}")
+                console.print(f"Phase: {status.phase or '?'}")
+                if status.health:
+                    console.print(f"Health: {status.health}")
+                if status.completion_percentage is not None:
+                    console.print(f"Completion: {status.completion_percentage}%")
 
-                if status.blockers:
-                    console.print(f"\n[bold yellow]Blockers ({len(status.blockers)}):[/bold yellow]")
-                    for blocker in status.blockers:
-                        console.print(f"  • {blocker}")
+                # /status/ returns blockers as {unresolved: [...], total_unresolved: N}
+                # while /context/ returns a list. Handle both.
+                blockers = status.blockers
+                blocker_items: list[Any] = []
+                if isinstance(blockers, dict):
+                    blocker_items = list(blockers.get("unresolved") or [])
+                elif isinstance(blockers, list):
+                    blocker_items = blockers
+
+                if blocker_items:
+                    console.print(
+                        f"\n[bold yellow]Blockers ({len(blocker_items)}):[/bold yellow]"
+                    )
+                    for blocker in blocker_items:
+                        if isinstance(blocker, dict):
+                            issue = blocker.get("issue", "?")
+                            owner = blocker.get("owner") or "unassigned"
+                            sev = blocker.get("severity") or "?"
+                            # Use parens not brackets — Rich interprets `[medium]`
+                            # as an unknown style tag and silently swallows it.
+                            console.print(
+                                f"  • ({escape(str(sev))}) {escape(str(issue))} "
+                                f"[dim]— {escape(str(owner))}[/dim]"
+                            )
+                        else:
+                            console.print(f"  • {escape(str(blocker))}")
 
                 if status.next_milestone:
                     console.print(f"\n[bold]Next Milestone:[/bold] {status.next_milestone}")
 
         except Exception as e:
-            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            console.print(f"[red]Error: {escape(_format_error(e))}[/red]")
             sys.exit(1)
 
 
@@ -482,7 +592,7 @@ def team(
         bm benmore team proj123 --json
     """
     if BenmoreClient is None:
-        console.print("[red]Error: benmore_client package not installed[/red]")
+        console.print(f"[red]Error:\n{escape(_import_error_message())}[/red]")
         sys.exit(1)
     try:
         api_key = _get_api_key()
@@ -528,7 +638,7 @@ async def _team_impl(api_key: str, project_id: str, role: str | None, json_outpu
                 console.print(table)
 
         except Exception as e:
-            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            console.print(f"[red]Error: {escape(_format_error(e))}[/red]")
             sys.exit(1)
 
 
@@ -557,7 +667,7 @@ def list_projects(
         bm benmore list --set-working-on "BEN-185:Building API client"
     """
     if BenmoreClient is None:
-        console.print("[red]Error: benmore_client package not installed[/red]")
+        console.print(f"[red]Error:\n{escape(_import_error_message())}[/red]")
         sys.exit(1)
     try:
         api_key = _get_api_key()
@@ -690,7 +800,7 @@ async def _list_impl(
                 console.print(f"[dim]  {wf['skill']:32} {wf['description']}[/dim]")
 
         except Exception as e:
-            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            console.print(f"[red]Error: {escape(_format_error(e))}[/red]")
             sys.exit(1)
 
 
@@ -751,7 +861,7 @@ def overview(
         bm benmore overview --json | jq '.[] | select(.channel != null)'
     """
     if BenmoreClient is None:
-        console.print("[red]Error: benmore_client package not installed[/red]")
+        console.print(f"[red]Error:\n{escape(_import_error_message())}[/red]")
         sys.exit(1)
     try:
         api_key = _get_api_key()
@@ -763,45 +873,16 @@ def overview(
 
 
 async def _overview_impl(api_key: str, json_output: bool) -> None:
-    """Implementation of overview command."""
-    import httpx
+    """Implementation of overview command.
 
+    Parallelizes the per-project enrichment so a 29-project overview takes
+    ~3s instead of ~30s. Audit's H4 fix only updated `_list_impl` and missed
+    this code path — fixed here.
+    """
     async with BenmoreClient(api_key=api_key) as client:
         try:
             projects = await client.projects_list()
-
-            results = []
-            for project in projects.results:
-                entry: dict[str, Any] = {
-                    "id": project.id,
-                    "title": project.title,
-                    "phase": project.phase,
-                    "team": [],
-                    "channel": None,
-                    "messages": 0,
-                    "last_activity": None,
-                }
-
-                # Get team
-                try:
-                    members = await client.team_list(project.id)
-                    entry["team"] = [
-                        {"name": m.name, "username": m.username, "role": m.role}
-                        for m in members
-                    ]
-                except Exception:
-                    pass
-
-                # Get channel
-                try:
-                    raw = await client.comms_raw(project.id)
-                    entry["channel"] = raw.get("channel_id")
-                    entry["messages"] = raw.get("total_messages", 0)
-                    entry["last_activity"] = raw.get("last_message_at")
-                except Exception:
-                    pass
-
-                results.append(entry)
+            results = await _enrich_projects_parallel(client, list(projects.results))
 
             if json_output:
                 console.print(json.dumps(results, indent=2, default=str))
@@ -844,7 +925,7 @@ async def _overview_impl(api_key: str, json_output: bool) -> None:
                 )
 
         except Exception as e:
-            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            console.print(f"[red]Error: {escape(_format_error(e))}[/red]")
             sys.exit(1)
 
 
@@ -866,7 +947,7 @@ def lookup(
         bm benmore summary $(bm benmore lookup BEN-166 --id) --days 7
     """
     if BenmoreClient is None:
-        console.print("[red]Error: benmore_client package not installed[/red]")
+        console.print(f"[red]Error:\n{escape(_import_error_message())}[/red]")
         sys.exit(1)
     try:
         api_key = _get_api_key()
@@ -927,7 +1008,7 @@ async def _lookup_impl(api_key: str, query: str, json_output: bool, id_only: boo
                     console.print(table)
 
         except Exception as e:
-            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            console.print(f"[red]Error: {escape(_format_error(e))}[/red]")
             sys.exit(1)
 
 
@@ -948,7 +1029,7 @@ def summary(
         bm benmore summary proj123 --days 14 --json
     """
     if BenmoreClient is None:
-        console.print("[red]Error: benmore_client package not installed[/red]")
+        console.print(f"[red]Error:\n{escape(_import_error_message())}[/red]")
         sys.exit(1)
     try:
         api_key = _get_api_key()
@@ -1107,7 +1188,7 @@ async def _summary_impl(api_key: str, project_id: str, days: int, json_output: b
                     console.print(f"\n[yellow]No activity in the last {days} days.[/yellow]")
 
         except Exception as e:
-            console.print(f"[red]Error: {escape(str(e))}[/red]")
+            console.print(f"[red]Error: {escape(_format_error(e))}[/red]")
             sys.exit(1)
 
 
