@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`benmore-api` skill**: Full REST API endpoint reference (`skills/benmore-api/references/api-reference.md`) — covers all endpoints, scopes, request/response schemas, error codes, path mapping between reporting and client paths, retry behavior, and scheduled task workflow.
+
 ---
 
 ## v1.8.0 — 2026-04-07

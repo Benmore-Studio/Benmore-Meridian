@@ -7,6 +7,26 @@
 
 ---
 
+## Path Mapping
+
+The Benmore API exposes two URL schemes for several endpoints. Both resolve to the same backend views:
+
+| Reporting Path (this reference) | Client Path (`benmore_client`) |
+|---------------------------------|-------------------------------|
+| `/reports/my-projects/` | `/projects/` |
+| `/reports/active-projects-summary/` | `/projects/summary/` |
+| `/reports/project-status/<id>/` | `/projects/<id>/status/` |
+| `/reports/project-assets/<id>/` | `/projects/<id>/assets/` |
+| `/reports/project-team/<id>/` | `/projects/<id>/team/` |
+| `/reports/project-slack/<id>/` | `/projects/<id>/comms/` |
+| `/reports/project-slack/<id>/messages/` | `/projects/<id>/comms/messages/` |
+| `/reports/project-slack/<id>/thread/<ts>/` | `/projects/<id>/comms/thread/<ts>/` |
+| `/reports/project-github/<id>/repos/` | `/projects/<id>/github/repos/` |
+
+This reference documents the **reporting paths** (canonical API surface). The Python client uses the **client paths** (simplified aliases). Both work identically — use whichever matches your context.
+
+---
+
 ## Authentication
 
 All requests require an API key in the `X-API-KEY` header.
@@ -139,6 +159,18 @@ Lightweight overview of all active projects (phases: `pre_kickoff`, `discovery`,
 
 ---
 
+### Projects Summary (Client Alias)
+
+```
+GET /projects/summary/
+```
+
+Alias for `/reports/active-projects-summary/` used by the Python client's `projects_summary()` method. Returns the same response. See [Active Projects Summary](#active-projects-summary) above.
+
+**Scope:** `projects:read`
+
+---
+
 ### Search Projects
 
 ```
@@ -198,6 +230,8 @@ Create a new project in the portal.
 
 **Scope:** `projects:write`
 
+**Response:** Returns the created project object with `id`, `title`, `phase`, `phase_display`, `description`, `created_at`.
+
 ---
 
 ### Update Project
@@ -218,6 +252,8 @@ Update project fields.
 
 **Scope:** `projects:write`
 
+**Response:** Returns the updated project object.
+
 ---
 
 ### Project Context
@@ -236,6 +272,8 @@ Single-call project brief for Claude Code sessions. Returns project info, team, 
 | `days` | int | Limit history to last N days (default `30`) |
 
 **Scope:** `projects:read`
+
+**Response Structure:** Returns `project` (info + dates), `team`, `meetings` (with summaries, optional transcripts), `slack` (channel activity), `github` (board status, recent items), `blockers`, `financials` (invoices, totals).
 
 ---
 
@@ -329,14 +367,19 @@ GET   /reports/project-slack/<project_id>/
 PATCH /reports/project-slack/<project_id>/
 ```
 
-GET fetches channel summary (info, pinned messages, recent messages, files, activity stats). PATCH updates the `slack_channel_id`.
+GET fetches channel summary (info, pinned messages, recent messages, files, activity stats). PATCH connects/updates the Slack channel.
 
-**Query Parameters:**
+**Query Parameters (GET):**
 
 | Param | Type | Description |
 |-------|------|-------------|
-| `slack_channel_id` | string (required) | (PATCH) Slack channel ID |
-| `limit` | int | (GET) Max recent messages (default 50, max 200) |
+| `limit` | int | Max recent messages (default 50, max 200) |
+
+**Body Parameters (PATCH):**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `slack_channel_id` | string (required) | Slack channel ID (e.g. `C085JMC1XAT`). The Python client sends this as `channel_id`. |
 
 **Scope:** `projects:read` (GET), `projects:write` (PATCH)
 
@@ -354,7 +397,7 @@ POST /reports/project-slack/<project_id>/messages/
 GET: Paginated message history with cursor/oldest/latest params.
 POST: Send a message; optionally reply to a thread with `thread_ts`.
 
-**Query Parameters:**
+**Query Parameters (GET):**
 
 | Param | Type | Description |
 |-------|------|-------------|
@@ -362,8 +405,13 @@ POST: Send a message; optionally reply to a thread with `thread_ts`.
 | `limit` | int | Max messages (default 50) |
 | `oldest` | string | Unix timestamp lower bound |
 | `latest` | string | Unix timestamp upper bound |
-| `text` | string (required) | (POST) Message text |
-| `thread_ts` | string | (POST) Thread timestamp to reply to |
+
+**Body Parameters (POST):**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `text` | string (required) | Message text |
+| `thread_ts` | string | Thread timestamp to reply to |
 
 **Scope:** `projects:read` (GET), `projects:write` (POST)
 
@@ -708,9 +756,15 @@ Only the creator can update or delete. PATCH supports partial updates.
 | 401 | Invalid, expired, or deactivated API key |
 | 403 | Missing required scope, not on project, or endpoint restricted to superusers |
 | 404 | Project not found |
+| 429 | Rate limited — honor `Retry-After` header and retry after the indicated delay |
 | 500 | Internal server error |
+| 502 | Bad gateway — transient infrastructure issue, safe to retry |
+| 503 | Service unavailable — server is down or restarting, safe to retry |
+| 504 | Gateway timeout — upstream is slow, safe to retry |
 
 **Note:** Some endpoints return HTTP 200 with `{"error": "..."}` for "no resource connected" cases (no Slack channel, no GitHub Project). The Python client raises `BenmoreAPIError` for these.
+
+**Retry behavior:** The Python client auto-retries GET requests on 429/502/503/504 with exponential backoff (3 retries, honors `Retry-After`). POST/PATCH/DELETE are never retried to avoid duplicates.
 
 ---
 
@@ -765,11 +819,11 @@ curl -s -H "X-API-KEY: $BM_API_KEY" \
 | POST/PATCH/DELETE | `/projects/<id>/github/items/` | GitHub items |
 | POST | `/github/create-project/` | Create GitHub Project |
 | GET/POST/DELETE | `/reports/project-github/<id>/repos/` | Linked repos |
-| CRUD | `/projects/<id>/documents/` | Project documents |
-| CRUD | `/projects/<id>/dynamic-assets/` | Dynamic assets (HTML) |
-| CRUD | `/projects/<id>/signature-documents/` | Signature documents |
+| GET/POST/PATCH/DELETE | `/projects/<id>/documents/` | Project documents |
+| GET/POST/PATCH/DELETE | `/projects/<id>/dynamic-assets/` | Dynamic assets (HTML) |
+| GET/POST/PATCH/DELETE | `/projects/<id>/signature-documents/` | Signature documents |
 | POST | `/projects/<id>/signature-documents/<id>/sign/` | Sign document |
-| CRUD | `/projects/<id>/qa/` | QA logs |
+| GET/POST/PATCH/DELETE | `/projects/<id>/qa/` | QA logs |
 | POST | `/projects/<id>/qa/sync-github/` | Sync QA to GitHub |
 | GET/POST | `/projects/<id>/diagrams/` | Mermaid diagrams |
 | GET/POST | `/flash-documents/` | Flash documents list/create |

@@ -288,14 +288,21 @@ These API endpoints exist but aren't exposed via `bm benmore` or `benmore_client
 | `GET/POST/PATCH/DELETE /projects/<id>/qa/` | QA log CRUD with GitHub sync |
 | `POST /projects/<id>/qa/sync-github/` | Batch-sync QA logs to GitHub Project |
 | `GET/POST /projects/<id>/diagrams/` | Mermaid.js user flow diagrams |
-| `CRUD /projects/<id>/documents/` | Project document management |
-| `CRUD /projects/<id>/dynamic-assets/` | Dynamic HTML assets |
-| `CRUD /projects/<id>/signature-documents/` | Signature documents with `/sign/` |
+| `GET/POST/PATCH/DELETE /projects/<id>/documents/` | Project document management |
+| `GET/POST/PATCH/DELETE /projects/<id>/dynamic-assets/` | Dynamic HTML assets |
+| `GET/POST/PATCH/DELETE /projects/<id>/signature-documents/` | Signature documents with `/sign/` |
 | `POST /github/create-project/` | Create a new GitHub Project v2 |
+| `POST /projects/create/` | Create a new project |
+| `GET /reports/active-projects-summary/` | Active projects overview (no client method) |
 
-To call these directly, use the Python client's `_request` method or plain `curl`/`httpx`:
+To call these directly, use the Python client's `_request` method or plain `curl`/`httpx`.
+
+> **Note:** `_request()` is an internal method — its signature may change without notice. Prefer dedicated client methods when available.
 
 ```python
+import os
+from benmore_client import BenmoreClient
+
 async with BenmoreClient(api_key=os.environ["BM_API_KEY"]) as client:
     # QA logs (not yet a dedicated method)
     qa_logs = await client._request("GET", f"/projects/{project_id}/qa/")
