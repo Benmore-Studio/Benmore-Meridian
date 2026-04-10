@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **`benmore-api` skill**: Full REST API endpoint reference (`skills/benmore-api/references/api-reference.md`) — covers all endpoints, scopes, request/response schemas, error codes, path mapping between reporting and client paths, retry behavior, and scheduled task workflow.
 
+### New Skills
+
+- **`better-scope-gen`** — Generate client-ready development agreements and comprehensive feature outlines from technical architecture documents. Reads a companion SCOPE_AGREEMENT_TEMPLATE.md with 8-section structure (project summary, implementation plan, pricing, scope, milestones, non-code requirements, agreement signatures). Supports 1-3 build options with additive tiers, optional development credits, and risk scenarios. Supersedes the older `scope-gen` skill.
+- **`client-value-maximizer`** — Maximize delivered value for any client project through a structured audit-to-implementation pipeline with parallel exploration agents.
 ---
 
 ## v1.8.0 — 2026-04-07

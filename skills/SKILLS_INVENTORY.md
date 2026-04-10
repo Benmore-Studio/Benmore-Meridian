@@ -10,7 +10,7 @@ pipx install ./bm && bm install
 
 ---
 
-## General Skills (55 total)
+## General Skills (57 total)
 
 ### 🚀 Production & Deployment
 
@@ -98,6 +98,8 @@ pipx install ./bm && bm install
 | `github-issue-gen` | Locally owned | ✅ Active | GitHub issue generator |
 | `creating-user-flows` | Locally owned | ✅ Active | User flow diagrams (Mermaid) for Discovery phase — .md + .html deliverables |
 | `project-primer` | Locally owned | ✅ Active | Pre-kickoff project primer for client engagements |
+| `better-scope-gen` | Locally owned | ✅ Active | Generate client-ready scope agreements and feature outlines from technical architecture docs (supersedes scope-gen) |
+| `client-value-maximizer` | Locally owned | ✅ Active | Maximize delivered value via structured audit-to-implementation pipeline with parallel agents |
 | `realtime-socket-react-query` | Locally owned | ✅ Active | Real-time React Query + WebSockets |
 
 ---
@@ -128,4 +130,4 @@ bm skill add <name> --project <p>   # add project-scoped skill
 bm skill generalize <name>          # promote to general skill
 ```
 
-Last updated: 2026-04-04
+Last updated: 2026-04-06
