@@ -262,8 +262,61 @@ User: "Summarize the Slack channel for BEN-128 this week"
 - **Writes don't retry.** `projects_update`, `team_add`, `comms_message_post`, etc. fail immediately on transient errors. If you need idempotency, build it into the caller.
 - **`overview` is parallelized; `list` is parallelized too.** Both fan out team + channel enrichment via `asyncio.gather`. A 29-project overview runs in ~3.6s, not ~30s.
 
+## REST API endpoint reference
+
+The full REST API reference — every endpoint, scope, request/response schema, error code, and the scheduled task workflow — lives in [`references/api-reference.md`](references/api-reference.md). Use it when:
+
+- Building scripts or scheduled tasks that call the API directly (not via the CLI or Python client)
+- Checking exact query parameters, response field types, or scope requirements
+- Debugging 401/403/404 errors — the error codes table explains each
+- Setting up the daily/weekly dashboard report flow (see "Scheduled Task Workflow" section)
+
+### Key endpoints for scheduled tasks
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /reports/active-projects-summary/` | Entry point — all active projects with health indicators |
+| `GET /reports/project-status/<id>/` | Deep status: meetings, action items, blockers, kanban, financials, intelligence |
+| `GET /reports/project-assets/<id>/` | All assets in one call: documents, presentations, transcripts, invoices |
+
+### Endpoints not yet in the CLI or Python client
+
+These API endpoints exist but aren't exposed via `bm benmore` or `benmore_client` yet:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET/POST/PATCH/DELETE /projects/<id>/qa/` | QA log CRUD with GitHub sync |
+| `POST /projects/<id>/qa/sync-github/` | Batch-sync QA logs to GitHub Project |
+| `GET/POST /projects/<id>/diagrams/` | Mermaid.js user flow diagrams |
+| `GET/POST/PATCH/DELETE /projects/<id>/documents/` | Project document management |
+| `GET/POST/PATCH/DELETE /projects/<id>/dynamic-assets/` | Dynamic HTML assets |
+| `GET/POST/PATCH/DELETE /projects/<id>/signature-documents/` | Signature documents with `/sign/` |
+| `POST /github/create-project/` | Create a new GitHub Project v2 |
+| `POST /projects/create/` | Create a new project |
+| `GET /reports/active-projects-summary/` | Active projects overview (no client method) |
+
+To call these directly, use the Python client's `_request` method or plain `curl`/`httpx`.
+
+> **Note:** `_request()` is an internal method — its signature may change without notice. Prefer dedicated client methods when available.
+
+```python
+import os
+from benmore_client import BenmoreClient
+
+async with BenmoreClient(api_key=os.environ["BM_API_KEY"]) as client:
+    # QA logs (not yet a dedicated method)
+    qa_logs = await client._request("GET", f"/projects/{project_id}/qa/")
+
+    # Create a diagram
+    diagram = await client._request("POST", f"/projects/{project_id}/diagrams/", json={
+        "title": "User Signup Flow",
+        "mermaid_diagram": "graph TD\n  A[Landing] --> B[Signup] --> C[Dashboard]"
+    })
+```
+
 ## Related skills and references
 
 - [`using-bm`](../using-bm/SKILL.md) — the broader `bm` CLI (skills, prompts, tools, hooks) — `bm benmore` is one subcommand among many.
+- [REST API Reference](references/api-reference.md) — full endpoint documentation with scopes, schemas, and error codes.
 - Python client source: `benmore_client/client.py` — full method signatures and Pydantic models.
 - CLI source: `bm/bm/benmore.py` — definitive reference for every flag and behavior of `bm benmore`.
