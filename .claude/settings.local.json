@@ -82,7 +82,25 @@
       "Bash(pip3 uninstall:*)",
       "Bash(pip3 install:*)",
       "Bash(cat /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/__editable__.benmore_client*.pth)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(doctl version:*)",
+      "Bash(heroku:*)",
+      "Bash(doctl compute:*)",
+      "Bash(doctl:*)",
+      "Bash(bm version:*)",
+      "Bash(sentry-cli --version)",
+      "Bash(sentry-cli releases:*)",
+      "Bash(sentry-cli sourcemaps:*)",
+      "Bash(sentry-cli monitors:*)",
+      "Bash(sentry-cli deploys:*)",
+      "Bash(sentry-cli issues:*)",
+      "Bash(sentry-cli projects:*)",
+      "Bash(sentry-cli organizations:*)",
+      "Bash(sentry-cli events:*)",
+      "Bash(uv lock:*)",
+      "Bash(git:*)"
     ]
   }
 }
