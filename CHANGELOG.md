@@ -4,16 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## v1.9.0 — 2026-04-09
+
+### New Skills
+
+- **`doctl-cli`** — Complete DigitalOcean CLI reference: Droplet management, databases, domains, DNS, firewalls, networking, snapshots, App Platform, Kubernetes, Spaces, SSH keys, monitoring, billing. Includes authentication (PAT, contexts, multi-account), configuration (config file, env vars, output formats), and the Metadata API (link-local 169.254.169.254 from inside Droplets).
+- **`heroku-cli`** — Complete Heroku CLI reference: app management, deployment (git push + container), dynos, config vars, logs, PostgreSQL (psql, backups, push/pull), Redis, add-ons, domains/SSL, pipelines, buildpacks, access/teams, local dev. Includes auth token management, env vars (`HEROKU_API_KEY`, `HEROKU_APP`), and Django-specific workflows (migrate, createsuperuser, collectstatic, Celery).
+- **`sentry-cli`** — Complete Sentry CLI reference: releases (create, finalize, set-commits, propose-version), sourcemaps (inject + upload), deployments, cron monitors (`monitors run` wraps commands), issues (bulk resolve/mute/unresolve), events, debug files, React Native support. Includes all 3 auth methods (interactive login, env var, `.sentryclirc`), configuration (INI config, project-level overrides, env vars), and CI/CD integration examples (GitHub Actions, Django deploy scripts).
+- **`better-scope-gen`** — Generate client-ready development agreements and comprehensive feature outlines from technical architecture documents. Reads a companion SCOPE_AGREEMENT_TEMPLATE.md with 8-section structure (project summary, implementation plan, pricing, scope, milestones, non-code requirements, agreement signatures). Supports 1-3 build options with additive tiers, optional development credits, and risk scenarios. Supersedes the older `scope-gen` skill.
+- **`client-value-maximizer`** — Maximize delivered value for any client project through a structured audit-to-implementation pipeline with parallel exploration agents.
 
 ### Added
 
 - **`benmore-api` skill**: Full REST API endpoint reference (`skills/benmore-api/references/api-reference.md`) — covers all endpoints, scopes, request/response schemas, error codes, path mapping between reporting and client paths, retry behavior, and scheduled task workflow.
 
-### New Skills
+### Security
 
-- **`better-scope-gen`** — Generate client-ready development agreements and comprehensive feature outlines from technical architecture documents. Reads a companion SCOPE_AGREEMENT_TEMPLATE.md with 8-section structure (project summary, implementation plan, pricing, scope, milestones, non-code requirements, agreement signatures). Supports 1-3 build options with additive tiers, optional development credits, and risk scenarios. Supersedes the older `scope-gen` skill.
-- **`client-value-maximizer`** — Maximize delivered value for any client project through a structured audit-to-implementation pipeline with parallel exploration agents.
+- **nodemailer** upgraded `^7.0.13` → `^8.0.5` in `skills/imap-smtp-email/package.json` — fixes SMTP command injection via CRLF in EHLO/HELO (medium, Dependabot #4) and via unsanitized `envelope.size` (low, Dependabot #2).
+- **Pygments** upgraded `2.19.2` → `2.20.0` in `bm/uv.lock` — fixes ReDoS via inefficient GUID matching regex (low, Dependabot #3).
+
+### Housekeeping
+
+- Skill count: 77 (up from 70)
+- `bm` CLI `uv.lock` regenerated with updated transitive dependencies
+
 ---
 
 ## v1.8.0 — 2026-04-07
