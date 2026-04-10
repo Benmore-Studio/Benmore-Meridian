@@ -81,7 +81,8 @@
       "Bash(bm benmore:*)",
       "Bash(pip3 uninstall:*)",
       "Bash(pip3 install:*)",
-      "Bash(cat /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/__editable__.benmore_client*.pth)"
+      "Bash(cat /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/__editable__.benmore_client*.pth)",
+      "Bash(git merge:*)"
     ]
   }
 }
