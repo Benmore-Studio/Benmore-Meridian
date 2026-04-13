@@ -24,7 +24,7 @@ benmore-client = { path = "../benmore_client", editable = true }
 dev = [
     "pytest>=8",
     "pytest-cov>=5",
-    "mypy>=1.8",
+    "mypy>=1.20.1",
     "ruff>=0.3",
     "pyright>=1.1",
 ]
