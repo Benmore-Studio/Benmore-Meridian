@@ -22,7 +22,7 @@ benmore-client = { path = "../benmore_client", editable = true }
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8",
+    "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
     "mypy>=1.8",
     "ruff>=0.15.10",
