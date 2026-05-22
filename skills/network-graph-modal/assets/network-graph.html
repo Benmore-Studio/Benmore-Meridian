@@ -1,0 +1,101 @@
+<!--
+  Network graph modal — drop-in HTML for the network-graph-modal skill.
+
+  Usage:
+    1. Include this file wherever the modal should live (typically at the
+       bottom of a profile page template).
+    2. Add a trigger button somewhere on the page with id="open-related-graph".
+       A stub one is included below in case you don't have one yet.
+    3. Set window.rootEntityId and window.rootEntityName on the page before
+       the user clicks the trigger, e.g.:
+         <script>
+           window.rootEntityId   = '{{ entity.id }}';
+           window.rootEntityName = "{{ entity.name|escapejs }}";
+         </script>
+    4. Include vis-network. The script tag at the bottom of this file loads
+       it from unpkg. If your CSP doesn't allow unpkg, self-host or add it
+       to script-src.
+    5. Include the companion network-graph.js (also at the bottom).
+
+  All styles are inline / hand-rolled. Do NOT migrate this to Tailwind /
+  atomic-CSS utility classes without verifying your purge config catches
+  templates in this path — utility-class purging silently drops styles
+  it doesn't see at build time.
+-->
+
+<!-- (1) Optional trigger button. Move this wherever your "View as graph"
+     entry point should live (next to a list-view header, in a profile
+     actions row, etc.). The JS shows it on DOMContentLoaded. -->
+<button id="open-related-graph" type="button"
+        style="display:none;align-items:center;gap:0.4rem;padding:0.5rem 0.9rem;background:#1E3A5F;color:white;border:none;border-radius:6px;font-family:system-ui,sans-serif;font-size:0.8rem;font-weight:600;letter-spacing:0.03em;cursor:pointer;"
+        onmouseover="this.style.background='#15263d'"
+        onmouseout="this.style.background='#1E3A5F'">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/>
+    <circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/>
+    <line x1="12" y1="12" x2="5" y2="6"/><line x1="12" y1="12" x2="19" y2="6"/>
+    <line x1="12" y1="12" x2="5" y2="18"/><line x1="12" y1="12" x2="19" y2="18"/>
+  </svg>
+  View as network graph
+</button>
+
+<!-- (2) The modal itself. -->
+<div id="rel-graph-modal"
+     role="dialog" aria-modal="true" aria-labelledby="rel-graph-title"
+     style="display:none;position:fixed;inset:0;z-index:200;background:rgba(15,29,47,0.75);padding:2vw;">
+  <div style="background:white;border-radius:8px;max-width:1400px;height:100%;max-height:95vh;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;">
+
+    <!-- Header -->
+    <div style="padding:1rem 1.25rem;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+      <div>
+        <h3 id="rel-graph-title" style="font-family:system-ui,sans-serif;font-size:1.15rem;font-weight:700;color:#1E3A5F;margin:0;">Related-entity network</h3>
+        <p style="font-size:0.8rem;color:#6b7280;margin:0.15rem 0 0;">Hover any line to see what's shared; click any node to open that entity's profile.</p>
+      </div>
+      <button id="rel-graph-close" type="button" aria-label="Close"
+              style="background:transparent;border:1px solid #e5e7eb;padding:0.4rem 0.7rem;border-radius:6px;cursor:pointer;font-size:0.85rem;color:#374151;">
+        Close &times;
+      </button>
+    </div>
+
+    <!-- CUSTOMIZE: optional domain-specific disclaimer banner. Delete this
+         block if your domain doesn't need one. The reference build uses it
+         to warn that VIN-only matches between carriers are weak signals. -->
+    <!--
+    <div style="margin:0.85rem 1.25rem 0;padding:0.7rem 0.9rem;background:#FEF3C7;border:1px solid #FCD34D;border-radius:6px;font-size:0.8rem;color:#78350F;line-height:1.45;">
+      <strong>Read the graph carefully.</strong> A single weak signal on its own is not strong evidence — look for multi-signal matches before drawing conclusions.
+    </div>
+    -->
+
+    <!-- Canvas + sidebar -->
+    <div style="flex:1 1 auto;display:flex;min-height:0;">
+      <div id="rel-graph-canvas" style="flex:1 1 auto;background:#f9fafb;border-right:1px solid #e5e7eb;position:relative;">
+        <div id="rel-graph-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:0.9rem;">Building graph&hellip;</div>
+      </div>
+      <aside id="rel-graph-sidebar"
+             style="width:340px;flex:0 0 340px;padding:1rem 1.1rem;overflow-y:auto;font-size:0.85rem;color:#374151;">
+        <div id="rel-graph-detail-empty" style="color:#9ca3af;font-style:italic;line-height:1.45;">
+          Hover any node or edge to preview details here.<br>
+          <strong style="color:#374151;font-style:normal;">Click</strong> to pin a node — that locks the sidebar so you can use the <em>Expand relations</em> / <em>Collapse branch</em> buttons. Click the same node again, or click empty space, to unpin.
+        </div>
+        <div id="rel-graph-detail" style="display:none;"></div>
+        <hr style="margin:1rem 0;border:none;border-top:1px solid #f3f4f6;">
+        <p style="font-family:system-ui,sans-serif;text-transform:uppercase;letter-spacing:0.05em;font-size:0.7rem;color:#6b7280;margin:0 0 0.4rem;">Legend</p>
+        <ul style="list-style:none;padding:0;margin:0;font-size:0.78rem;">
+          <li style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem;"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#1E3A5F;"></span> This entity</li>
+          <li style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem;"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#DC2626;"></span> Almost certainly related</li>
+          <li style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem;"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#F59E0B;"></span> Likely related</li>
+          <li style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem;"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#10B981;"></span> Possibly related</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- (3) vis-network. If unpkg is not in your CSP script-src, either add it
+     or self-host the bundle. The defer is important — the JS below waits
+     for `vis` to be defined before building the graph. -->
+<script defer src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+
+<!-- (4) The companion JS file. Adjust the src to wherever you placed
+     network-graph.js in your project's static assets. -->
+<script defer src="/static/js/network-graph.js"></script>
