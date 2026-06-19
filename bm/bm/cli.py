@@ -12,7 +12,7 @@ if sys.platform == "win32":
     for stream in (sys.stdout, sys.stderr):
         if stream and hasattr(stream, "reconfigure"):
             with suppress(Exception):
-                stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+                stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined,unused-ignore]
 
 import json
 import shutil
