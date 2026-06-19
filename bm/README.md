@@ -3,7 +3,7 @@
 **The skill manager for Claude Code.**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-1.10.0-green)](https://github.com/Benmore-Studio/Benmore-Meridian)
+[![Version](https://img.shields.io/badge/version-1.10.1-green)](https://github.com/Benmore-Studio/Benmore-Meridian)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 [![Tests](https://img.shields.io/badge/tests-88%20passing-brightgreen)](tests/)
 [![Skills](https://img.shields.io/badge/skills-50%2B-purple)](../skills/)

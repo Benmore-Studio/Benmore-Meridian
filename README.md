@@ -8,7 +8,7 @@
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-93%20passing-brightgreen.svg)](#contributing)
-[![Version](https://img.shields.io/badge/version-1.10.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.10.1-blue.svg)](CHANGELOG.md)
 [![skills.sh](https://skills.sh/b/Benmore-Studio/Benmore-Meridian)](https://skills.sh/Benmore-Studio/Benmore-Meridian)
 
 Install 75+ Claude Code skills in one command. Edit once, reflect everywhere via symlinks.
@@ -90,7 +90,7 @@ flowchart TD
     gates --> python[Ruff + mypy + basedpyright + pytest]
     gates --> rust[Cargo test + maturin wheel]
     rust --> verify[Verify wheel contains bm._native]
-    python --> tag[v1.10.0 tag]
+    python --> tag[v1.10.1 tag]
     verify --> tag
     tag --> publish[PyPI trusted publish]
     tag --> release[GitHub Release]

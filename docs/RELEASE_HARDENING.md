@@ -1,4 +1,4 @@
-# bm v1.10.0 Release Hardening
+# bm v1.10.1 Release Hardening
 
 This note summarizes the public-release split for `bm` and is intended to be copied into
 PR descriptions or review comments.
@@ -23,7 +23,7 @@ flowchart LR
     ci --> rust[Cargo tests]
     ci --> build[sdist + native maturin wheels]
     build --> verify[wheel contains bm._native]
-    verify --> tag[v1.10.0 tag]
+    verify --> tag[v1.10.1 tag]
     tag --> pypi[Trusted PyPI publish]
     tag --> gh[GitHub Release]
     gh --> skills[skills.sh index refresh]
@@ -61,7 +61,7 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-    participant Tag as git tag v1.10.0
+    participant Tag as git tag v1.10.1
     participant CI as GitHub Actions
     participant Rust as Cargo/PyO3
     participant PyPI as PyPI
