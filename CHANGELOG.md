@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added public repository compliance files: `CODE_OF_CONDUCT.md`, `SECURITY.md`, `AUTHORS.md`, and `NOTICE`.
 - Updated package metadata for PyPI distribution as `benmore-bm`, including project URLs, classifiers, keywords, and public license attribution.
 - Added `skills.sh.json` and README badges so the full skill catalog can be indexed and grouped on skills.sh.
+- Added Mermaid release, PR split, native-wheel, and context-cleanup flows to public release docs.
 
 ### CLI Usability
 
@@ -24,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Replaced the release workflow with staged CI and tag release jobs covering Ruff format/lint, mypy, basedpyright, pytest, schema smoke tests, Rust unit tests, sdist builds, and native `maturin` wheel builds.
 - Release tags now build and upload a source distribution plus native wheels for Linux, macOS, and Windows across Python 3.11 and 3.12 before publishing to PyPI.
+- Added `scripts/verify_native_wheel.py` so CI fails if a `maturin` wheel does not package the `bm._native` PyO3 extension.
 
 ### Fixes
 

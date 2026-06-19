@@ -7,7 +7,7 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-88%20passing-brightgreen.svg)](#contributing)
+[![Tests](https://img.shields.io/badge/tests-93%20passing-brightgreen.svg)](#contributing)
 [![Version](https://img.shields.io/badge/version-1.10.0-blue.svg)](CHANGELOG.md)
 [![skills.sh](https://skills.sh/b/Benmore-Studio/Benmore-Meridian)](https://skills.sh/Benmore-Studio/Benmore-Meridian)
 
@@ -42,7 +42,7 @@ Read the FDE principles, install Ghostty + Raycast, then run `bm setup --yes` �
 
 ## Highlights
 
-- ⚡ **One command install** — `bm install` symlinks all 50+ skills into Claude Code instantly.
+- ⚡ **One command install** — `bm install` symlinks all 75+ skills into Claude Code instantly.
 - 🧹 **One command cleanup** — `bm uninstall --all` removes bm-managed installed skills without deleting source files.
 - 🔎 **Agent-friendly suggestions** — `bm suggest . --install --cache` recommends, installs, and caches relevant skills without loading every skill into context.
 - ✅ **Symlink-first** — skills live in the repo; edit once and changes reflect everywhere with no reinstall.
@@ -54,6 +54,48 @@ Read the FDE principles, install Ghostty + Raycast, then run `bm setup --yes` �
 - 📝 **Saved prompts** — save, search, star, and reuse prompt templates. Export as Claude Code `/commands`.
 - 🔄 **Auto-sync hooks** — git hooks auto-run `bm install` on pull/checkout when skills or prompts change.
 - 💡 **Dashboard tips** — random helpful hints shown on `bm` dashboard so you discover features without reading docs.
+
+---
+
+## How bm Keeps Context Clean
+
+```mermaid
+flowchart LR
+    project[Project files] --> scan[bm suggest . --json]
+    scan --> rank[Rank matching skills]
+    rank --> install[bm suggest . --install --cache]
+    install --> claude[Claude Code sees only useful skills]
+    install --> cache[~/.bm/suggestions.json]
+    claude --> cleanup[bm uninstall --all --yes]
+    cleanup --> clean[No skill clutter left behind]
+```
+
+The default path is intentionally reversible: scan first, install only what matches,
+cache the recommendation set for the agent, then unlink bm-managed skills when the
+session ends. Source skills stay in the repo; external skills stay untouched.
+
+## Why This Design Is Highly Optimal
+
+- **Low context pressure** — agents can call `bm context --global --json` for a grouped catalog, or `bm suggest . --top 4 --install --cache` for only the skills relevant to the current project.
+- **Reversible installs** — symlink-first install and `bm uninstall --all --yes` make cleanup cheap, so experimentation does not permanently clutter Claude Code.
+- **Machine-readable contracts** — JSON commands keep stdout clean for Codex/Claude automation and move human diagnostics to Rich output or stderr.
+- **Fast path plus fallback** — PyO3 handles hot filesystem/parsing helpers when native wheels are available; pure Python fallback keeps source/editable installs working.
+- **Release proof, not vibes** — CI verifies lint, types, tests, schemas, Rust tests, sdist builds, native wheel builds, and that each native wheel actually contains `bm._native`.
+
+## Release Flow
+
+```mermaid
+flowchart TD
+    pr[Draft PR] --> gates[Quality gates]
+    gates --> python[Ruff + mypy + basedpyright + pytest]
+    gates --> rust[Cargo test + maturin wheel]
+    rust --> verify[Verify wheel contains bm._native]
+    python --> tag[v1.10.0 tag]
+    verify --> tag
+    tag --> publish[PyPI trusted publish]
+    tag --> release[GitHub Release]
+    release --> skills[skills.sh refresh]
+```
 
 ---
 

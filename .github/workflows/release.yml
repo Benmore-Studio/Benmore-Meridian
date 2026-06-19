@@ -90,6 +90,11 @@ jobs:
         working-directory: bm
         run: uv run --extra dev maturin build --release --out dist
 
+      - name: Verify native wheel
+        working-directory: bm
+        shell: bash
+        run: uv run python scripts/verify_native_wheel.py dist/*.whl
+
       - name: CLI schema smoke
         working-directory: bm
         run: |
@@ -152,6 +157,11 @@ jobs:
       - name: Build native wheel
         working-directory: bm
         run: uv run --extra dev maturin build --release --out dist
+
+      - name: Verify native wheel
+        working-directory: bm
+        shell: bash
+        run: uv run python scripts/verify_native_wheel.py dist/*.whl
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
