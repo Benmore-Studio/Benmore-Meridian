@@ -1,6 +1,7 @@
 {
   "pythonVersion": "3.11",
   "typeCheckingMode": "standard",
+  "extraPaths": [".."],
   "include": ["bm"],
   "exclude": ["tests", "**/__pycache__"]
 }

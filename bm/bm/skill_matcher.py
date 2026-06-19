@@ -12,9 +12,9 @@ class SkillSuggestion:
     """A skill ranked by relevance to the scanned project."""
 
     name: str
-    reason: str    # human-readable explanation, e.g. "django in pyproject.toml"
-    status: str    # "installed" or "available"
-    score: int     # higher = more relevant
+    reason: str  # human-readable explanation, e.g. "django in pyproject.toml"
+    status: str  # "installed" or "available"
+    score: int  # higher = more relevant
 
 
 class SkillMatcher:
@@ -160,7 +160,7 @@ class SkillMatcher:
             if line.startswith("triggers:"):
                 in_triggers = True
                 # handles inline: triggers: [a, b]
-                inline = line[len("triggers:"):].strip()
+                inline = line[len("triggers:") :].strip()
                 if inline.startswith("["):
                     items = re.findall(r"['\"]?([A-Za-z0-9_./ -]+)['\"]?", inline)
                     triggers.extend(i.strip() for i in items if i.strip())
@@ -183,9 +183,33 @@ class SkillMatcher:
         text = " ".join(lines).lower()
         candidates = re.findall(r"\b([a-z][a-z0-9._-]{2,})\b", text)
         # Keep only plausible tech terms (short common words filtered)
-        stop = {"the", "and", "for", "with", "use", "this", "that", "are", "you",
-                "can", "will", "from", "when", "your", "also", "all", "not",
-                "how", "any", "new", "its", "has", "was", "but", "our"}
+        stop = {
+            "the",
+            "and",
+            "for",
+            "with",
+            "use",
+            "this",
+            "that",
+            "are",
+            "you",
+            "can",
+            "will",
+            "from",
+            "when",
+            "your",
+            "also",
+            "all",
+            "not",
+            "how",
+            "any",
+            "new",
+            "its",
+            "has",
+            "was",
+            "but",
+            "our",
+        }
         return [c for c in dict.fromkeys(candidates) if c not in stop][:20]
 
     def _detect_signals(self, path: Path) -> tuple[set[str], dict[str, str]]:
@@ -252,10 +276,9 @@ class SkillMatcher:
         if (path / "frontend").is_dir():
             add("frontend", "frontend/ directory")
             add("react", "frontend/ directory")
-            if (
-                (path / "frontend" / "next.config.js").exists()
-                or (path / "frontend" / "next.config.ts").exists()
-            ):
+            if (path / "frontend" / "next.config.js").exists() or (
+                path / "frontend" / "next.config.ts"
+            ).exists():
                 add("nextjs", "frontend/next.config.js")
 
         # Makefile

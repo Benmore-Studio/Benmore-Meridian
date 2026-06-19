@@ -54,7 +54,7 @@ def _get_prompt_body(text: str) -> str:
     """Extract the body (after frontmatter) from PROMPT.md."""
     match = re.match(r"^---\s*\n.*?\n---\s*\n?", text, re.DOTALL)
     if match:
-        return text[match.end():]
+        return text[match.end() :]
     return text
 
 
@@ -179,10 +179,7 @@ def create_prompt(
     project: str = "",
 ) -> Path:
     """Create a new prompt stub."""
-    if project:
-        dest = prompts_dir / project / name
-    else:
-        dest = prompts_dir / name
+    dest = prompts_dir / project / name if project else prompts_dir / name
 
     dest.mkdir(parents=True, exist_ok=True)
 

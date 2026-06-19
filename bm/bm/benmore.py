@@ -14,9 +14,11 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from collections.abc import Callable
+from datetime import UTC
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, TypedDict
 
 import typer
 from rich.console import Console
@@ -29,15 +31,18 @@ from rich.table import Table
 # "No module named 'pydantic'") plus a remediation hint, instead of an
 # opaque "package not installed" string. The previous swallow hid a real
 # packaging bug for hours.
-_BENMORE_IMPORT_ERROR: Optional[ImportError] = None
+_BENMORE_IMPORT_ERROR: ImportError | None = None
+BenmoreClient: Any
+BenmoreAPIError: Any
 try:
     from benmore_client import BenmoreAPIError as _BenmoreAPIError
     from benmore_client import BenmoreClient as _BenmoreClient
-    BenmoreClient: Any = _BenmoreClient  # type: ignore[no-redef]
-    BenmoreAPIError: Any = _BenmoreAPIError  # type: ignore[no-redef]
+
+    BenmoreClient = _BenmoreClient
+    BenmoreAPIError = _BenmoreAPIError
 except ImportError as _ie:
-    BenmoreClient = None  # type: ignore[assignment]
-    BenmoreAPIError = Exception  # type: ignore[assignment, misc]
+    BenmoreClient = None
+    BenmoreAPIError = Exception
     _BENMORE_IMPORT_ERROR = _ie
 
 
@@ -92,6 +97,7 @@ def _import_error_message() -> str:
     if _BENMORE_IMPORT_ERROR is not None:
         base += f"\n  Underlying ImportError: {_BENMORE_IMPORT_ERROR}"
     return base
+
 
 app = typer.Typer(help="Benmore API integration")
 console = Console()
@@ -174,8 +180,16 @@ def _require_client(func: Callable[..., None]) -> Callable[..., None]:
 
     return wrapper
 
+
+class WorkflowPrompt(TypedDict):
+    name: str
+    skill: str
+    description: str
+    prompt_path: str | None
+
+
 # Workflow prompts — suggested when running bm benmore
-WORKFLOW_PROMPTS = {
+WORKFLOW_PROMPTS: dict[str, WorkflowPrompt] = {
     "pr-review": {
         "name": "Full PR Review Audit",
         "skill": "/full-pr-review-audit",
@@ -237,12 +251,14 @@ def _get_api_key() -> str:
     if config_path.exists():
         try:
             config = json.loads(config_path.read_text())
-            if api_key := config.get("api_key"):
+            if isinstance(config, dict) and isinstance(api_key := config.get("api_key"), str):
                 return api_key
-        except json.JSONDecodeError:
-            raise typer.BadParameter(f"Malformed JSON in {config_path}. Fix the file or delete it.")
-        except PermissionError:
-            raise typer.BadParameter(f"Cannot read {config_path}. Check file permissions.")
+        except json.JSONDecodeError as exc:
+            raise typer.BadParameter(
+                f"Malformed JSON in {config_path}. Fix the file or delete it."
+            ) from exc
+        except PermissionError as exc:
+            raise typer.BadParameter(f"Cannot read {config_path}. Check file permissions.") from exc
 
     raise typer.BadParameter(
         "No API key found. Set BM_API_KEY env var or create ~/.benmore/config with api_key"
@@ -455,14 +471,18 @@ async def _context_impl(
                 console.print(f"Description: {escape(ctx.description or '—')}\n")
 
                 if ctx.team:
-                    console.print("[bold]Team ({}):[/bold]".format(len(ctx.team)))
+                    console.print(f"[bold]Team ({len(ctx.team)}):[/bold]")
                     for member in ctx.team:
-                        console.print(f"  • {member.name} ({member.username}) - {member.role or 'member'}")
+                        console.print(
+                            f"  • {member.name} ({member.username}) - {member.role or 'member'}"
+                        )
 
                 if ctx.channels:
                     console.print(f"\n[bold]Slack Channels ({len(ctx.channels)}):[/bold]")
                     for channel in ctx.channels:
-                        console.print(f"  • #{channel.name} ({channel.member_count or '?'} members)")
+                        console.print(
+                            f"  • #{channel.name} ({channel.member_count or '?'} members)"
+                        )
 
                 if ctx.meetings:
                     console.print(f"\n[bold]Recent Meetings ({len(ctx.meetings)}):[/bold]")
@@ -553,9 +573,7 @@ async def _status_impl(api_key: str, project_id: str, json_output: bool) -> None
                     blocker_items = blockers
 
                 if blocker_items:
-                    console.print(
-                        f"\n[bold yellow]Blockers ({len(blocker_items)}):[/bold yellow]"
-                    )
+                    console.print(f"\n[bold yellow]Blockers ({len(blocker_items)}):[/bold yellow]")
                     for blocker in blocker_items:
                         if isinstance(blocker, dict):
                             issue = blocker.get("issue", "?")
@@ -644,11 +662,24 @@ async def _team_impl(api_key: str, project_id: str, role: str | None, json_outpu
 
 @app.command(name="list")
 def list_projects(
-    phase: str = typer.Option(None, "--phase", "-p", help="Filter by phase (implementation, discovery, stalled, completed)"),
+    phase: str = typer.Option(
+        None,
+        "--phase",
+        "-p",
+        help="Filter by phase (implementation, discovery, stalled, completed)",
+    ),
     mine: bool = typer.Option(False, "--mine", help="Only show projects you're assigned to"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
-    working_on: str = typer.Option(None, "--set-working-on", help="Set 'working on' for a project (format: BEN-123:description)"),
-    set_phase: str = typer.Option(None, "--set-phase", help="Set phase for a project (format: BEN-123:phase)"),
+    working_on: str = typer.Option(
+        None,
+        "--set-working-on",
+        help="Set 'working on' for a project (format: BEN-123:description)",
+    ),
+    set_phase: str = typer.Option(
+        None,
+        "--set-phase",
+        help="Set phase for a project (format: BEN-123:phase)",
+    ),
 ) -> None:
     """Numbered project list grouped by phase — like the team Slack format.
 
@@ -699,7 +730,10 @@ async def _list_impl(
                 if results.results:
                     p = results.results[0]
                     await client.projects_update(p.id, working_on=description.strip())
-                    console.print(f"[green]✓ Updated working_on for {p.title}: {description.strip()}[/green]\n")
+                    console.print(
+                        f"[green]✓ Updated working_on for {p.title}: "
+                        f"{description.strip()}[/green]\n"
+                    )
                 else:
                     console.print(f"[yellow]⚠ BEN-{ben_num} not found[/yellow]\n")
 
@@ -710,7 +744,9 @@ async def _list_impl(
                 if results.results:
                     p = results.results[0]
                     await client.projects_update(p.id, phase=new_phase.strip())
-                    console.print(f"[green]✓ Updated phase for {p.title}: {new_phase.strip()}[/green]\n")
+                    console.print(
+                        f"[green]✓ Updated phase for {p.title}: {new_phase.strip()}[/green]\n"
+                    )
                 else:
                     console.print(f"[yellow]⚠ BEN-{ben_num} not found[/yellow]\n")
 
@@ -731,7 +767,7 @@ async def _list_impl(
 
             # Group by phase
             phase_order = ["implementation", "discovery", "stalled", "completed", "unknown"]
-            grouped: dict[str, list[dict]] = {}
+            grouped: dict[str, list[dict[str, Any]]] = {}
             for e in enriched:
                 ph = e["phase"]
                 if ph not in grouped:
@@ -739,7 +775,13 @@ async def _list_impl(
                 grouped[ph].append(e)
 
             if json_output:
-                console.print(json.dumps({"projects": enriched, "by_phase": grouped}, indent=2, default=str))
+                console.print(
+                    json.dumps(
+                        {"projects": enriched, "by_phase": grouped},
+                        indent=2,
+                        default=str,
+                    )
+                )
                 return
 
             # Pretty print like Richard's Slack format
@@ -756,7 +798,9 @@ async def _list_impl(
                 phase_display = phase_name.capitalize()
                 phase_color = PHASE_COLORS.get(phase_name, "white")
 
-                console.print(f"[bold {phase_color}]{phase_display} ({len(items)}):[/bold {phase_color}]")
+                console.print(
+                    f"[bold {phase_color}]{phase_display} ({len(items)}):[/bold {phase_color}]"
+                )
 
                 for entry in sorted(items, key=lambda x: x["title"]):
                     global_num += 1
@@ -790,13 +834,15 @@ async def _list_impl(
             # Footer with quick actions + workflow prompts
             console.print("[dim]──────────────────────────────────────────────────────[/dim]")
             console.print("[dim]Quick actions:[/dim]")
-            console.print("[dim]  bm benmore list --phase implementation     # Filter by phase[/dim]")
+            console.print(
+                "[dim]  bm benmore list --phase implementation     # Filter by phase[/dim]"
+            )
             console.print('[dim]  bm benmore list --set-working-on "BEN-185:Building API"[/dim]')
             console.print('[dim]  bm benmore list --set-phase "BEN-166:implementation"[/dim]')
             console.print("[dim]  bm benmore summary $(bm benmore lookup 185 --id) --days 7[/dim]")
             console.print()
             console.print("[dim]Workflow prompts (use in Claude Code):[/dim]")
-            for key, wf in list(WORKFLOW_PROMPTS.items())[:5]:
+            for _key, wf in list(WORKFLOW_PROMPTS.items())[:5]:
                 console.print(f"[dim]  {wf['skill']:32} {wf['description']}[/dim]")
 
         except Exception as e:
@@ -825,7 +871,7 @@ def workflows() -> None:
     table.add_column("Description")
     table.add_column("Prompt File", style="dim")
 
-    for key, wf in WORKFLOW_PROMPTS.items():
+    for _key, wf in WORKFLOW_PROMPTS.items():
         prompt_file = wf.get("prompt_path") or "—"
         table.add_row(wf["skill"], wf["description"], prompt_file)
 
@@ -888,7 +934,9 @@ async def _overview_impl(api_key: str, json_output: bool) -> None:
                 console.print(json.dumps(results, indent=2, default=str))
             else:
                 # Pretty dashboard
-                console.print(f"\n[bold cyan]Benmore Dashboard[/bold cyan] — {len(results)} projects\n")
+                console.print(
+                    f"\n[bold cyan]Benmore Dashboard[/bold cyan] — {len(results)} projects\n"
+                )
 
                 for entry in results:
                     phase_color = PHASE_COLORS.get(entry["phase"] or "", "white")
@@ -910,9 +958,7 @@ async def _overview_impl(api_key: str, json_output: bool) -> None:
                         f"[bold]{title}[/bold] "
                         f"[dim]({phase})[/dim]"
                     )
-                    console.print(
-                        f"    Team: {team_names}{ch_str}"
-                    )
+                    console.print(f"    Team: {team_names}{ch_str}")
 
                 # Summary
                 active = sum(1 for r in results if r["phase"] in ("implementation", "discovery"))
@@ -931,7 +977,9 @@ async def _overview_impl(api_key: str, json_output: bool) -> None:
 
 @app.command()
 def lookup(
-    query: str = typer.Argument(..., help="BEN number (e.g. BEN-166), project name, or partial match"),
+    query: str = typer.Argument(
+        ..., help="BEN number (e.g. BEN-166), project name, or partial match"
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     id_only: bool = typer.Option(False, "--id", help="Print only the project ID (for piping)"),
 ) -> None:
@@ -969,10 +1017,9 @@ async def _lookup_impl(api_key: str, query: str, json_output: bool, id_only: boo
 
             results = await client.projects_search(search_q)
 
-            if not results.results:
+            if not results.results and search_q != query.strip():
                 # Try original query if BEN-prefix didn't match
-                if search_q != query.strip():
-                    results = await client.projects_search(query.strip())
+                results = await client.projects_search(query.strip())
 
             if not results.results:
                 console.print(f"[yellow]No projects found for '{query}'[/yellow]")
@@ -984,10 +1031,7 @@ async def _lookup_impl(api_key: str, query: str, json_output: bool, id_only: boo
                 return
 
             if json_output:
-                output = [
-                    {"id": p.id, "title": p.title, "phase": p.phase}
-                    for p in results.results
-                ]
+                output = [{"id": p.id, "title": p.title, "phase": p.phase} for p in results.results]
                 console.print(json.dumps(output, indent=2, default=str))
             else:
                 if len(results.results) == 1:
@@ -1042,11 +1086,11 @@ def summary(
 
 async def _summary_impl(api_key: str, project_id: str, days: int, json_output: bool) -> None:
     """Implementation of summary command."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     async with BenmoreClient(api_key=api_key) as client:
         try:
-            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+            cutoff = datetime.now(UTC) - timedelta(days=days)
 
             # Get project info
             projects = await client.projects_list()
@@ -1129,7 +1173,10 @@ async def _summary_impl(api_key: str, project_id: str, days: int, json_output: b
                     "messages_in_period": len(filtered),
                     "last_message_at": last_message_at,
                     "participants": participants,
-                    "team": [{"name": m.name, "username": m.username, "role": m.role} for m in (members if team_names else [])],
+                    "team": [
+                        {"name": m.name, "username": m.username, "role": m.role}
+                        for m in (members if team_names else [])
+                    ],
                     "meetings_in_period": len(meetings),
                     "messages": [
                         {
@@ -1172,7 +1219,7 @@ async def _summary_impl(api_key: str, project_id: str, days: int, json_output: b
                             console.print(f"    {m.summary[:120]}...")
 
                 if filtered:
-                    console.print(f"\n[bold]Recent Messages:[/bold]")
+                    console.print("\n[bold]Recent Messages:[/bold]")
                     for msg in filtered[:10]:
                         user = msg.get("user", "?")
                         text = msg.get("text", "")[:100]

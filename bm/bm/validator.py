@@ -54,9 +54,7 @@ def validate_skill(skill: SkillEntry) -> ValidationResult:
     # Required: name
     name_val = fm.get("name", "")
     if not name_val:
-        result.errors.append(
-            f"'{skill.name}': frontmatter missing required field 'name'"
-        )
+        result.errors.append(f"'{skill.name}': frontmatter missing required field 'name'")
     elif name_val != skill.name:
         result.errors.append(
             f"'{skill.name}': frontmatter name '{name_val}' does not match"
@@ -66,15 +64,11 @@ def validate_skill(skill: SkillEntry) -> ValidationResult:
     # Required: description
     desc_val = fm.get("description", "")
     if not desc_val:
-        result.errors.append(
-            f"'{skill.name}': frontmatter missing or empty 'description'"
-        )
+        result.errors.append(f"'{skill.name}': frontmatter missing or empty 'description'")
 
     # Optional: version, author, tags
     for optional in ("version", "author", "tags"):
         if optional not in fm:
-            result.warnings.append(
-                f"'{skill.name}': optional field '{optional}' not set"
-            )
+            result.warnings.append(f"'{skill.name}': optional field '{optional}' not set")
 
     return result

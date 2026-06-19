@@ -32,9 +32,7 @@ class Registry:
         """Add or update one entry. Does NOT auto-save; call save() when done."""
         self._entries[entry.name] = entry
 
-    def batch_add(
-        self, entries: list[RegistryEntry], ctx: DryRunContext | None = None
-    ) -> None:
+    def batch_add(self, entries: list[RegistryEntry], ctx: DryRunContext | None = None) -> None:
         """Add multiple entries and save once. Records ops if ctx.dry_run=True."""
         _ctx = ctx or DryRunContext()
         for entry in entries:

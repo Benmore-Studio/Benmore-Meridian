@@ -1,19 +1,26 @@
 from __future__ import annotations
 
+import re
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-import re
-import subprocess
 
 from bm.config import CLAUDE_SKILLS_DIR
-
 
 CURSOR_FILE = Path.home() / ".bm" / "debrief_cursor"
 
 REUSABLE_NOUNS = {
-    "handler", "pipeline", "service", "middleware", "validator",
-    "processor", "builder", "parser", "formatter", "integration",
+    "handler",
+    "pipeline",
+    "service",
+    "middleware",
+    "validator",
+    "processor",
+    "builder",
+    "parser",
+    "formatter",
+    "integration",
     "connector",
 }
 
@@ -22,10 +29,10 @@ CANDIDATE_PREFIXES = {"feat", "add", "refactor", "introduce"}
 
 @dataclass
 class SkillCandidate:
-    name: str       # suggested slug (e.g. "stripe-webhook-handler")
+    name: str  # suggested slug (e.g. "stripe-webhook-handler")
     rationale: str  # why this was flagged (1-2 sentences)
-    score: int      # confidence score (higher = more confident)
-    command: str    # "bm skill write <name>"
+    score: int  # confidence score (higher = more confident)
+    command: str  # "bm skill write <name>"
 
 
 def load_cursor() -> str | None:
@@ -101,18 +108,20 @@ def run_debrief(
     newest_hash = commits[0].split()[0]
     diff_range = f"{oldest_hash}~1..{newest_hash}"
 
-    # Get changed files and added files
-    names_output = _run_git(["git", "-C", str(repo_root), "diff", diff_range, "--name-only"]) or ""
-    added_output = _run_git(
-        ["git", "-C", str(repo_root), "diff", diff_range, "--name-only", "--diff-filter=A"]
-    ) or ""
+    # Get added files
+    added_output = (
+        _run_git(
+            ["git", "-C", str(repo_root), "diff", diff_range, "--name-only", "--diff-filter=A"]
+        )
+        or ""
+    )
 
     added_files: set[str] = set(added_output.strip().splitlines())
 
     # Count CLAUDE.md line additions
-    claude_diff = _run_git(
-        ["git", "-C", str(repo_root), "diff", diff_range, "--", "CLAUDE.md"]
-    ) or ""
+    claude_diff = (
+        _run_git(["git", "-C", str(repo_root), "diff", diff_range, "--", "CLAUDE.md"]) or ""
+    )
     added_paragraphs = len(re.findall(r"^\+[^+].*\S", claude_diff, re.MULTILINE))
     claude_md_bonus = min(added_paragraphs // 5, 3)  # cap at +3, 1 per ~5 added lines
 
@@ -139,7 +148,7 @@ def run_debrief(
         if prefix not in CANDIDATE_PREFIXES:
             continue
 
-        noun_phrase = subject[colon_idx + 1:].strip()
+        noun_phrase = subject[colon_idx + 1 :].strip()
         # Remove leading "a", "an", "the"
         noun_phrase = re.sub(r"^(a|an|the)\s+", "", noun_phrase, flags=re.IGNORECASE)
         slug = _to_slug(noun_phrase)

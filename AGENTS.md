@@ -9,6 +9,8 @@ and the `bm` CLI tool.
 bm status --json          # JSON array of all skills and their install status
 bm registry list --json   # JSON array of registry entries (source, scope, install method)
 bm skill list --json      # JSON array of skills with paths and descriptions
+bm schema json status     # JSON Schema for a public --json output
+bm schema openapi         # Generated OpenAPI for benmore_client models
 bm doctor                 # Human-readable health check
 ```
 
@@ -87,9 +89,11 @@ Run `bm skill list --json` for the live list. Key categories:
 
 ```bash
 cd bm
-uv run pytest -v              # 27 unit tests
+uv run pytest -q              # 88 tests
+uv run ruff format --check bm/ tests/
+uv run ruff check bm/ tests/
 uv run mypy bm/               # strict type check
-make check-all                # ruff + mypy + pytest
+uv run --extra dev basedpyright
 ```
 
 ## Adding a New Skill
@@ -105,8 +109,9 @@ make check-all                # ruff + mypy + pytest
 ```
 Benmore-Meridian/
 ├── bm/              ← CLI package (pipx install ./bm)
-│   ├── bm/          ← Python source (cli, installer, registry, status, updater, plugins)
-│   └── tests/       ← 27 pytest tests
+│   ├── bm/          ← Python source (cli, installer, registry, schemas, native fallback)
+│   ├── native/      ← Optional PyO3 helper crate
+│   └── tests/       ← 88 pytest tests
 ├── skills/          ← All general skills
 │   └── pcs/         ← Project-scoped PCS skills
 ├── guides/          ← Documentation and guides

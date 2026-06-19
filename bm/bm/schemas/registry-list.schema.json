@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "name",
+      "installed_path",
+      "source",
+      "scope",
+      "project",
+      "version",
+      "install_method"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "installed_path": {
+        "type": "string"
+      },
+      "source": {
+        "enum": [
+          "repo",
+          "marketplace",
+          "external"
+        ]
+      },
+      "scope": {
+        "enum": [
+          "general",
+          "project"
+        ]
+      },
+      "project": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      },
+      "install_method": {
+        "enum": [
+          "symlink",
+          "copy",
+          "external",
+          "none"
+        ]
+      }
+    }
+  }
+}

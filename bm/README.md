@@ -3,15 +3,13 @@
 **The skill manager for Claude Code.**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-1.0.1-green)](https://github.com/Benmore-Studio/Benmore-Meridian)
+[![Version](https://img.shields.io/badge/version-1.8.0-green)](https://github.com/Benmore-Studio/Benmore-Meridian)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
-[![Tests](https://img.shields.io/badge/tests-27%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-88%20passing-brightgreen)](tests/)
 [![Skills](https://img.shields.io/badge/skills-50%2B-purple)](../skills/)
 
 ```bash
-git clone https://github.com/Benmore-Studio/Benmore-Meridian
-cd Benmore-Meridian
-pip install -e ./bm
+uv tool install benmore-bm
 bm install
 ```
 
@@ -46,31 +44,39 @@ That's it. 50+ Claude Code skills are now symlinked and ready.
 
 ### Install bm
 
+PyPI installs are the default for users:
+
 ```bash
-# Clone the Benmore-Meridian skills repo
-git clone https://github.com/Benmore-Studio/Benmore-Meridian
-cd Benmore-Meridian
+uv tool install benmore-bm
+# or
+pipx install benmore-bm
 
-# Install bm — editable mode is required (see note below)
-pip install -e ./bm
-
-# Symlink all 50+ skills into Claude Code
 bm install
-
-# Check plugin requirements (Superpowers, Double Shot Latte)
-bm plugins
-
-# Verify everything is healthy
 bm doctor
 ```
 
-> **Why editable install?** `pip install -e ./bm` keeps the installed `bm` command
-> linked to this repository directory. When `bm` computes `SKILLS_DIR` at startup, it
-> walks up from `bm/bm/config.py` looking for a parent that contains both a `skills/`
-> directory and a `bm/` directory — the repo root. A standard `pip install` would copy
-> the package into site-packages and lose that path relationship. Editable mode preserves
-> it, so `git pull` in this repo immediately updates all skill content through symlinks
-> with no reinstall required.
+Contributor installs keep the CLI editable against this repository:
+
+```bash
+git clone https://github.com/Benmore-Studio/Benmore-Meridian
+cd Benmore-Meridian
+
+uv tool install --editable ./bm
+# or
+pip install -e ./bm
+
+bm install
+bm plugins
+bm doctor
+```
+
+Native acceleration is optional. Source installs run with the pure Python fallback.
+To build the PyO3 helper locally, install a Rust toolchain and run:
+
+```bash
+cd bm
+uv run --extra dev maturin develop --manifest-path native/Cargo.toml
+```
 
 ### Update
 
@@ -104,6 +110,10 @@ Skills
 Registry
   bm registry list [--json]                      List all registry entries
   bm registry sync [--dry-run]                   Scan ~/.claude/skills/ and reconcile registry
+
+Schemas
+  bm schema json <name> [--output <path>]        Print a CLI JSON Schema artifact
+  bm schema openapi [--output <path>]            Print generated benmore_client OpenAPI
 ```
 
 ---

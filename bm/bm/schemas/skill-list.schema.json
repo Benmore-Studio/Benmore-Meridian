@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "name",
+      "scope",
+      "project",
+      "path"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "scope": {
+        "enum": [
+          "general",
+          "project"
+        ]
+      },
+      "project": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      }
+    }
+  }
+}

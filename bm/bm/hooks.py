@@ -97,7 +97,7 @@ def remove_hooks(repo_root: Path) -> list[str]:
 
         lines = existing.splitlines(keepends=True)
         # Find the bm hook block boundaries
-        marker_idx = next((i for i, l in enumerate(lines) if BM_HOOK_MARKER in l), -1)
+        marker_idx = next((i for i, line in enumerate(lines) if BM_HOOK_MARKER in line), -1)
         if marker_idx < 0:
             continue
 
@@ -119,7 +119,7 @@ def remove_hooks(repo_root: Path) -> list[str]:
         remaining = before + after
 
         # If nothing left (or only whitespace), delete the file
-        if not remaining or all(l.strip() == "" for l in remaining):
+        if not remaining or all(line.strip() == "" for line in remaining):
             hook_path.unlink()
         else:
             hook_path.write_text("".join(remaining), encoding="utf-8")
@@ -136,11 +136,6 @@ def hooks_status(repo_root: Path) -> dict[str, bool]:
         return {name: False for name in HOOKS}
 
     return {
-        hook_name: (
-            hook_path.exists()
-            and BM_HOOK_MARKER in hook_path.read_text(encoding="utf-8")
-        )
-        for hook_name, hook_path in (
-            (name, hooks_dir / name) for name in HOOKS
-        )
+        hook_name: (hook_path.exists() and BM_HOOK_MARKER in hook_path.read_text(encoding="utf-8"))
+        for hook_name, hook_path in ((name, hooks_dir / name) for name in HOOKS)
     }

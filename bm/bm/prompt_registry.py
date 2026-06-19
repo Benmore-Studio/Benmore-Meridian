@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import tempfile
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -19,7 +19,7 @@ class PromptState:
 
     def record_use(self) -> None:
         self.use_count += 1
-        self.last_used = datetime.now(timezone.utc).isoformat()
+        self.last_used = datetime.now(UTC).isoformat()
 
 
 class PromptRegistry:
@@ -49,9 +49,7 @@ class PromptRegistry:
         self._file.parent.mkdir(parents=True, exist_ok=True)
         data = {name: asdict(entry) for name, entry in self._entries.items()}
         try:
-            fd, tmp = tempfile.mkstemp(
-                dir=self._file.parent, prefix=".bm_", suffix=".tmp"
-            )
+            fd, tmp = tempfile.mkstemp(dir=self._file.parent, prefix=".bm_", suffix=".tmp")
             try:
                 with open(fd, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2)

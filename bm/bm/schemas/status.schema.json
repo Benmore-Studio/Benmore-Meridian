@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "name",
+      "status",
+      "scope",
+      "project"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "symlinked",
+          "copied",
+          "missing",
+          "broken"
+        ]
+      },
+      "scope": {
+        "enum": [
+          "general",
+          "project"
+        ]
+      },
+      "project": {
+        "type": "string"
+      }
+    }
+  }
+}

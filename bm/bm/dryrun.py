@@ -11,9 +11,9 @@ from rich.table import Table
 
 @dataclass
 class DryRunOp:
-    verb: str        # "symlink" | "copy" | "remove" | "registry_add" | "registry_remove"
-    target: str      # human-readable description of what would change
-    source: str = "" # optional source path
+    verb: str  # "symlink" | "copy" | "remove" | "registry_add" | "registry_remove"
+    target: str  # human-readable description of what would change
+    source: str = ""  # optional source path
 
 
 @dataclass
@@ -44,6 +44,5 @@ class DryRunContext:
             table.add_row(op.verb, op.target, op.source)
         c.print(table)
         c.print(
-            f"[yellow]Dry-run complete — {len(self.ops)} operations would run"
-            " (nothing written).[/]"
+            f"[yellow]Dry-run complete — {len(self.ops)} operations would run (nothing written).[/]"
         )

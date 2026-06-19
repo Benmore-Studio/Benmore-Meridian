@@ -49,9 +49,7 @@ def test_missing_description_is_an_error(tmp_path: Path) -> None:
 
 
 def test_missing_optional_fields_produce_warnings_not_errors(tmp_path: Path) -> None:
-    skill = _make_skill(
-        tmp_path, "---\nname: my-skill\ndescription: A test skill\n---\n"
-    )
+    skill = _make_skill(tmp_path, "---\nname: my-skill\ndescription: A test skill\n---\n")
     result = validate_skill(skill)
     assert result.errors == []
     # version, author, tags are optional — may or may not warn

@@ -1,4 +1,5 @@
 """Prerequisite checks for bm setup."""
+
 from __future__ import annotations
 
 import shutil

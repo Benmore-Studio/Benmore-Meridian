@@ -80,7 +80,7 @@ def get_remote_tag(repo_root: Path = REPO_ROOT) -> str | None:
             ref = line.split("\t", 1)[1].strip()
             if not ref.startswith("refs/tags/"):
                 continue
-            tag = ref[len("refs/tags/"):]
+            tag = ref[len("refs/tags/") :]
             raw = tag.lstrip("v")
             parts = raw.split(".")
             if len(parts) == 3 and all(p.isdigit() for p in parts):

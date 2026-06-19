@@ -26,11 +26,23 @@ dev = [
     "pytest-cov>=7.1.0",
     "mypy>=1.8",
     "ruff>=0.15.10",
-    "pyright>=1.1",
+    "basedpyright>=1.36.0",
+    "maturin>=1.8",
+]
+
+native = [
+    "maturin>=1.8",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["bm"]
+artifacts = ["bm/schemas/*.json"]
+
+[tool.maturin]
+manifest-path = "native/Cargo.toml"
+module-name = "bm._native"
+python-source = "."
+features = ["pyo3/extension-module"]
 
 [tool.ruff]
 target-version = "py311"
@@ -38,6 +50,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"bm/cli.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.11"

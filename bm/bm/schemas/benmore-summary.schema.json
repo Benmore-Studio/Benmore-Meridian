@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Benmore API JSON output. The remote API is intentionally tolerant, so this schema preserves compatibility by accepting object or array payloads.",
+  "oneOf": [
+    {
+      "type": "object"
+    },
+    {
+      "type": "array"
+    }
+  ]
+}

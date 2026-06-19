@@ -7,8 +7,9 @@ from pathlib import Path
 
 from rich.console import Console
 
+from bm.core import parse_frontmatter, paths_overlap
 from bm.dryrun import DryRunContext
-from bm.models import InstallMethod, InstallResult, SkillEntry, SkillScope, SkillSource
+from bm.models import InstallResult, SkillEntry, SkillScope, SkillSource
 from bm.registry import Registry
 from bm.validator import validate_skill
 
@@ -20,12 +21,7 @@ def _read_skill_description(skill_path: Path) -> str:
     skill_md = skill_path / "SKILL.md"
     if not skill_md.exists():
         return ""
-    for line in skill_md.read_text(encoding="utf-8").splitlines():
-        if line.startswith("---") and line != "---":
-            break  # end of frontmatter
-        if line.startswith("description:"):
-            return line.split(":", 1)[1].strip().strip('"')
-    return ""
+    return parse_frontmatter(skill_md.read_text(encoding="utf-8")).get("description", "")
 
 
 def _is_project_dir(path: Path) -> bool:
@@ -92,9 +88,7 @@ def discover_skills(skills_dir: Path) -> list[SkillEntry]:
                     )
                     validation = validate_skill(entry)
                     if not validation.valid:
-                        _err.print(
-                            f"[yellow]Warning:[/] {'; '.join(validation.errors)}"
-                        )
+                        _err.print(f"[yellow]Warning:[/] {'; '.join(validation.errors)}")
                     entries.append(entry)
         elif (child / "SKILL.md").exists():
             entry = SkillEntry(
@@ -106,9 +100,7 @@ def discover_skills(skills_dir: Path) -> list[SkillEntry]:
             )
             validation = validate_skill(entry)
             if not validation.valid:
-                _err.print(
-                    f"[yellow]Warning:[/] {'; '.join(validation.errors)}"
-                )
+                _err.print(f"[yellow]Warning:[/] {'; '.join(validation.errors)}")
             entries.append(entry)
         # else: directory with no SKILL.md and no skill children (e.g. assets/) — skip
 
@@ -134,9 +126,7 @@ def install_skill(
     # vice-versa — this would create circular symlinks that corrupt the repo.
     source_resolved = skill.path.resolve()
     target_parent = claude_skills_dir.resolve()
-    if str(target_parent).startswith(str(source_resolved.parent) + "/") or str(
-        source_resolved
-    ).startswith(str(target_parent) + "/"):
+    if paths_overlap(source_resolved, target_parent):
         _err.print(
             f"[red]Error:[/] Refusing circular install — target {target_parent} "
             f"overlaps source {source_resolved.parent}"
@@ -198,8 +188,6 @@ def remove_skill(
             else:
                 shutil.rmtree(target)
         else:
-            _err.print(
-                f"[yellow]Warning:[/] {target} not found — removing registry entry only"
-            )
+            _err.print(f"[yellow]Warning:[/] {target} not found — removing registry entry only")
 
     reg.remove(name, ctx=_ctx)

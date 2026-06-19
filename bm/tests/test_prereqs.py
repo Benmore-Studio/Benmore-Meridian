@@ -1,8 +1,8 @@
 """Tests for bm.prereqs module."""
+
 from unittest.mock import patch
 
-from bm.prereqs import Prereq, PREREQS, _get_package_manager_prereq, check_prereqs
-
+from bm.prereqs import PREREQS, Prereq, _get_package_manager_prereq, check_prereqs
 
 # -- Prereq.is_installed() --
 

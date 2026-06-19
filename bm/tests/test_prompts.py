@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from bm.prompts import create_prompt, discover_prompts, export_prompt, render_prompt, unexport_prompt
+from bm.prompts import (
+    create_prompt,
+    discover_prompts,
+    export_prompt,
+    render_prompt,
+    unexport_prompt,
+)
 
 
 @pytest.fixture

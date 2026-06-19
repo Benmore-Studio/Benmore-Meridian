@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "name",
+      "description",
+      "tags",
+      "scope",
+      "project",
+      "starred",
+      "use_count"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "scope": {
+        "type": "string"
+      },
+      "project": {
+        "type": "string"
+      },
+      "starred": {
+        "type": "boolean"
+      },
+      "use_count": {
+        "type": "integer"
+      }
+    }
+  }
+}

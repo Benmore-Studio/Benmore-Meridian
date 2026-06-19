@@ -4,20 +4,18 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import suppress
 
 # Force UTF-8 mode on Windows to support emoji/unicode output in Rich tables.
 if sys.platform == "win32":
     os.environ.setdefault("PYTHONUTF8", "1")
     for stream in (sys.stdout, sys.stderr):
         if stream and hasattr(stream, "reconfigure"):
-            try:
+            with suppress(Exception):
                 stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-            except Exception:
-                pass
 
 import json
 import shutil
-from dataclasses import asdict
 from pathlib import Path
 
 import typer
@@ -26,6 +24,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from bm.benmore import app as benmore_app
 from bm.config import (
     CLAUDE_COMMANDS_DIR,
     CLAUDE_SKILLS_DIR,
@@ -35,6 +34,7 @@ from bm.config import (
     REPO_ROOT,
     SKILLS_DIR,
 )
+from bm.debrief import run_debrief
 from bm.dryrun import DryRunContext
 from bm.hooks import hooks_status, install_hooks, remove_hooks
 from bm.installer import discover_skills, install_skill, remove_skill
@@ -50,6 +50,7 @@ from bm.models import (
 from bm.plugins import format_install_guide, get_plugin_status
 from bm.prompt_registry import PromptRegistry
 from bm.prompts import (
+    PromptEntry,
     create_prompt,
     discover_prompts,
     export_prompt,
@@ -57,11 +58,26 @@ from bm.prompts import (
     unexport_prompt,
 )
 from bm.registry import Registry
+from bm.schema import build_benmore_openapi, get_cli_json_schema
+from bm.serialization import (
+    debrief_payload,
+    print_json_payload,
+    prompt_list_payload,
+    registry_list_payload,
+    skill_list_payload,
+    skill_status_payload,
+    suggestion_payload,
+)
+from bm.skill_matcher import SkillMatcher
 from bm.status import check_skill_status
 from bm.tools import TOOLS, install_tool
-from bm.debrief import run_debrief
-from bm.skill_matcher import SkillMatcher
-from bm.updater import get_changelog_section, get_current_tag, get_remote_tag, git_pull, is_update_available
+from bm.updater import (
+    get_changelog_section,
+    get_current_tag,
+    get_remote_tag,
+    git_pull,
+    is_update_available,
+)
 
 app = typer.Typer(name="bm", help="Benmore skill manager", add_completion=False)
 skill_app = typer.Typer(help="Manage individual skills")
@@ -69,17 +85,13 @@ registry_app = typer.Typer(help="Manage skill registry")
 tools_app = typer.Typer(help="Install developer CLI tools")
 prompt_app = typer.Typer(help="Save, search, and reuse prompts")
 hooks_app = typer.Typer(help="Manage git hooks for auto-sync")
+schema_app = typer.Typer(help="Print checked-in JSON Schema and OpenAPI contracts")
 app.add_typer(skill_app, name="skill")
 app.add_typer(registry_app, name="registry")
 app.add_typer(tools_app, name="tools")
 app.add_typer(prompt_app, name="prompt")
 app.add_typer(hooks_app, name="hooks")
-
-# Benmore API integration. We import the bm.benmore subapp regardless of
-# whether benmore_client itself is installed — benmore.py captures the
-# underlying ImportError and surfaces it inside each command, so the user
-# gets actionable diagnostics instead of a silent "no such command".
-from bm.benmore import app as benmore_app
+app.add_typer(schema_app, name="schema")
 
 app.add_typer(benmore_app, name="benmore")
 
@@ -107,7 +119,7 @@ def _auto_install_new_skills(
     newly_installed: list[str] = []
     new_entries: list[RegistryEntry] = []
 
-    for skill, st in zip(skills, skill_statuses):
+    for skill, st in zip(skills, skill_statuses, strict=True):
         if st in (SkillStatus.SYMLINKED, SkillStatus.COPIED):
             continue
         result = install_skill(skill, CLAUDE_SKILLS_DIR)
@@ -142,9 +154,7 @@ def _render_dashboard() -> None:
     skills = discover_skills(SKILLS_DIR)
     skill_statuses = [check_skill_status(s, CLAUDE_SKILLS_DIR) for s in skills]
     installed_skills = sum(
-        1
-        for st in skill_statuses
-        if st in (SkillStatus.SYMLINKED, SkillStatus.COPIED)
+        1 for st in skill_statuses if st in (SkillStatus.SYMLINKED, SkillStatus.COPIED)
     )
     total_skills = len(skills)
 
@@ -202,7 +212,8 @@ def _render_dashboard() -> None:
     try:
         if is_update_available():
             console.print(
-                "\n[bold yellow]\u26a0 update available[/bold yellow] \u2014 run [bold]bm update[/bold]"
+                "\n[bold yellow]\u26a0 update available[/bold yellow] \u2014 "
+                "run [bold]bm update[/bold]"
             )
     except Exception:
         pass  # never crash the dashboard on network issues
@@ -210,17 +221,13 @@ def _render_dashboard() -> None:
     # ── Warnings ──────────────────────────────────────────────────────────────
     if missing_tools:
         names = ", ".join(missing_tools)
-        console.print(
-            f"\n[yellow]\u26a0  {len(missing_tools)} tools missing:[/yellow] {names}"
-        )
+        console.print(f"\n[yellow]\u26a0  {len(missing_tools)} tools missing:[/yellow] {names}")
         console.print("   [dim]\u2192 bm tools install[/dim]")
 
     missing_plugins = [name for name, ok in plugin_status.items() if not ok]
     if missing_plugins:
         names = ", ".join(missing_plugins)
-        console.print(
-            f"\n[yellow]\u26a0  {len(missing_plugins)} plugins missing:[/yellow] {names}"
-        )
+        console.print(f"\n[yellow]\u26a0  {len(missing_plugins)} plugins missing:[/yellow] {names}")
         console.print("   [dim]\u2192 bm plugins[/dim]")
 
     if not hooks_ok:
@@ -397,20 +404,7 @@ def status(
     statuses = [(skill, check_skill_status(skill, CLAUDE_SKILLS_DIR)) for skill in skills]
 
     if json_output:
-        console.print(
-            json.dumps(
-                [
-                    {
-                        "name": sk.name,
-                        "status": st.value,
-                        "scope": sk.scope.value,
-                        "project": sk.project,
-                    }
-                    for sk, st in statuses
-                ],
-                indent=2,
-            )
-        )
+        print_json_payload(skill_status_payload(statuses))
         return
 
     table = Table(title="Skill Status", box=box.ROUNDED)
@@ -510,18 +504,12 @@ def update(
                     added_names.append(skill.name)
         reg.batch_add(new_entries, ctx=ctx)
         if not dry_run:
-            linked = sum(
-                1 for e in new_entries if e.install_method == InstallMethod.SYMLINK
-            )
-            copied = sum(
-                1 for e in new_entries if e.install_method == InstallMethod.COPY
-            )
+            linked = sum(1 for e in new_entries if e.install_method == InstallMethod.SYMLINK)
+            copied = sum(1 for e in new_entries if e.install_method == InstallMethod.COPY)
             console.print(f"✅ {linked} linked  ⚙️  {copied} copied")
             if added_names:
                 names = ", ".join(f"[cyan]{n}[/]" for n in added_names)
-                console.print(
-                    f"[bold green]✨ {len(added_names)} new skill(s) added:[/] {names}"
-                )
+                console.print(f"[bold green]✨ {len(added_names)} new skill(s) added:[/] {names}")
 
     if dry_run:
         ctx.render(console)
@@ -542,7 +530,7 @@ def suggest(
         raise typer.Exit(0)
 
     if json_output:
-        console.print(json.dumps([{"name": s.name, "reason": s.reason, "status": s.status, "score": s.score} for s in suggestions]))
+        print_json_payload(suggestion_payload(suggestions), indent=None)
         return
 
     table = Table(title=f"Skill Suggestions for [cyan]{path}[/cyan]", box=box.ROUNDED)
@@ -552,7 +540,9 @@ def suggest(
     table.add_column("Status")
 
     for i, s in enumerate(suggestions, 1):
-        status_str = "[green]installed ✓[/green]" if s.status == "installed" else "[dim]bm install[/dim]"
+        status_str = (
+            "[green]installed ✓[/green]" if s.status == "installed" else "[dim]bm install[/dim]"
+        )
         table.add_row(str(i), s.name, s.reason, status_str)
 
     console.print(table)
@@ -581,13 +571,17 @@ def context(
         if _copy_to_clipboard(snippet):
             console.print("[green]\u2713 Copied to clipboard[/green]")
         else:
-            console.print("[yellow]Clipboard not available \u2014 copy the text above manually[/yellow]")
+            console.print(
+                "[yellow]Clipboard not available \u2014 copy the text above manually[/yellow]"
+            )
 
 
 @app.command("explore")
 def explore(
     path: Path = typer.Argument(Path("."), help="Project directory to scan"),
-    output: Path = typer.Option(Path("docs/bm-suggestions.md"), "--output", "-o", help="Output file path"),
+    output: Path = typer.Option(
+        Path("docs/bm-suggestions.md"), "--output", "-o", help="Output file path"
+    ),
 ) -> None:
     """Deep project scan — writes a skill suggestion report to docs/bm-suggestions.md."""
     matcher = SkillMatcher(SKILLS_DIR, CLAUDE_SKILLS_DIR)
@@ -595,16 +589,16 @@ def explore(
     summary = matcher.stack_summary(path.resolve())
 
     lines = [
-        f"# bm explore — Skill Suggestions",
-        f"",
+        "# bm explore — Skill Suggestions",
+        "",
         f"**Scanned:** `{path.resolve()}`  ",
         f"**Date:** {__import__('datetime').date.today()}  ",
         f"**Detected stack:** {summary}",
-        f"",
-        f"## Ranked Suggestions",
-        f"",
-        f"| Rank | Skill | Reason | Status |",
-        f"|------|-------|--------|--------|",
+        "",
+        "## Ranked Suggestions",
+        "",
+        "| Rank | Skill | Reason | Status |",
+        "|------|-------|--------|--------|",
     ]
     for i, s in enumerate(suggestions, 1):
         lines.append(f"| {i} | `{s.name}` | {s.reason} | {s.status} |")
@@ -614,7 +608,9 @@ def explore(
 
     if available:
         lines += ["", "## Install Commands", ""]
-        lines += [f"```bash"] + [f"bm install  # then symlink {s.name}" for s in available[:5]] + ["```"]
+        lines += (
+            ["```bash"] + [f"bm install  # then symlink {s.name}" for s in available[:5]] + ["```"]
+        )
 
     if installed:
         lines += ["", "## Already Installed", ""]
@@ -626,7 +622,10 @@ def explore(
 
     console.print(f"[green]✓ Report written to[/green] [cyan]{output}[/cyan]")
     console.print(f"  Detected: [bold]{summary}[/bold]")
-    console.print(f"  Suggestions: {len(suggestions)} skills ({len(installed)} installed, {len(available)} available)")
+    console.print(
+        f"  Suggestions: {len(suggestions)} skills "
+        f"({len(installed)} installed, {len(available)} available)"
+    )
 
 
 @app.command("debrief")
@@ -643,7 +642,7 @@ def debrief_cmd(
         raise typer.Exit(0)
 
     if json_output:
-        console.print(json.dumps([{"name": c.name, "rationale": c.rationale, "score": c.score, "command": c.command} for c in candidates]))
+        print_json_payload(debrief_payload(candidates), indent=None)
         return
 
     rows = "\n".join(
@@ -655,7 +654,10 @@ def debrief_cmd(
     console.print(
         Panel(
             rows,
-            title=f"[bold]bm debrief[/bold] — {len(candidates)} skill candidate(s) from last {limit} commits",
+            title=(
+                f"[bold]bm debrief[/bold] — {len(candidates)} skill candidate(s) "
+                f"from last {limit} commits"
+            ),
             border_style="cyan",
         )
     )
@@ -956,20 +958,7 @@ def skill_list(
         skills = [s for s in skills if s.project == project]
 
     if json_output:
-        console.print(
-            json.dumps(
-                [
-                    {
-                        "name": s.name,
-                        "scope": s.scope.value,
-                        "project": s.project,
-                        "path": str(s.path),
-                    }
-                    for s in skills
-                ],
-                indent=2,
-            )
-        )
+        print_json_payload(skill_list_payload(skills))
         return
 
     table = Table(box=box.SIMPLE)
@@ -1070,9 +1059,7 @@ def skill_remove(
 
 @registry_app.command("sync")
 def registry_sync(
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Show what would sync without writing"
-    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would sync without writing"),
 ) -> None:
     """Scan ~/.claude/skills/ and update registry (detects externally installed skills)."""
     reg = Registry(REGISTRY_FILE)
@@ -1085,9 +1072,7 @@ def registry_sync(
     else:
         after = len(reg.list_all())
         added = after - before
-        console.print(
-            f"[green]Registry synced.[/] {before} → {after} entries ({added:+d} new)"
-        )
+        console.print(f"[green]Registry synced.[/] {before} → {after} entries ({added:+d} new)")
 
 
 @registry_app.command("list")
@@ -1098,7 +1083,7 @@ def registry_list(
     reg = Registry(REGISTRY_FILE)
     entries = reg.list_all()
     if json_output:
-        console.print(json.dumps([asdict(e) for e in entries], indent=2, default=str))
+        print_json_payload(registry_list_payload(entries))
         return
     table = Table(title=f"Registry ({len(entries)} skills)", box=box.SIMPLE)
     table.add_column("Name", style="cyan")
@@ -1108,6 +1093,46 @@ def registry_list(
     for e in entries:
         table.add_row(e.name, e.source.value, e.scope.value, e.install_method)
     console.print(table)
+
+
+# ── schema sub-commands ───────────────────────────────────────────────────────
+
+
+def _write_or_print_json(payload: object, output: Path | None) -> None:
+    text = json.dumps(payload, indent=2, default=str) + "\n"
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding="utf-8")
+        console.print(f"[green]Wrote schema to[/green] [cyan]{output}[/cyan]")
+        return
+    print(text, end="")
+
+
+@schema_app.command("json")
+def schema_json(
+    name: str = typer.Argument(..., help="Schema name, e.g. status or registry-list"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write schema to a file"),
+) -> None:
+    """Print a public bm CLI JSON Schema artifact."""
+    try:
+        schema = get_cli_json_schema(name)
+    except KeyError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    _write_or_print_json(schema, output)
+
+
+@schema_app.command("openapi")
+def schema_openapi(
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write OpenAPI to a file"),
+) -> None:
+    """Print the generated benmore_client OpenAPI artifact."""
+    try:
+        openapi = build_benmore_openapi()
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    _write_or_print_json(openapi, output)
 
 
 # ── tools sub-commands ─────────────────────────────────────────────────────────
@@ -1307,7 +1332,7 @@ def _copy_to_clipboard(text: str) -> bool:
         return False
 
 
-def _find_prompt(prompts: list, name: str):
+def _find_prompt(prompts: list[PromptEntry], name: str) -> PromptEntry | None:
     """Find a prompt by name. Returns None if not found."""
     return next((p for p in prompts if p.name == name), None)
 
@@ -1342,23 +1367,7 @@ def prompt_list(
         return
 
     if json_output:
-        console.print(
-            json.dumps(
-                [
-                    {
-                        "name": p.name,
-                        "description": p.description,
-                        "tags": p.tags,
-                        "scope": p.scope,
-                        "project": p.project,
-                        "starred": preg.get(p.name).starred,
-                        "use_count": preg.get(p.name).use_count,
-                    }
-                    for p in prompts
-                ],
-                indent=2,
-            )
-        )
+        print_json_payload(prompt_list_payload(prompts, preg))
         return
 
     table = Table(title=f"Saved Prompts ({len(prompts)})", box=box.ROUNDED)
@@ -1372,7 +1381,13 @@ def prompt_list(
         state = preg.get(p.name)
         star = "\u2605" if state.starred else ""
         tags_str = ", ".join(p.tags[:3]) if p.tags else ""
-        table.add_row(p.name, p.description[:50] or "[dim]\u2014[/]", tags_str, star, str(state.use_count or ""))
+        table.add_row(
+            p.name,
+            p.description[:50] or "[dim]\u2014[/]",
+            tags_str,
+            star,
+            str(state.use_count or ""),
+        )
 
     console.print(table)
     console.print()
@@ -1394,7 +1409,9 @@ def prompt_add(
     )
     console.print(f"[green]\u2705 Created prompt '[cyan]{name}[/cyan]'[/] at {dest}")
     console.print(f"  [dim]\u2192 Edit {dest}/PROMPT.md with your prompt text[/dim]")
-    console.print(f"  [dim]\u2192 Then run [bold]bm prompt export {name}[/bold] to use as /command[/dim]")
+    console.print(
+        f"  [dim]\u2192 Then run [bold]bm prompt export {name}[/bold] to use as /command[/dim]"
+    )
 
 
 @prompt_app.command("info")
@@ -1410,11 +1427,17 @@ def prompt_info(name: str = typer.Argument(..., help="Prompt name")) -> None:
     state = preg.get(name)
 
     text = (prompt.path / "PROMPT.md").read_text(encoding="utf-8")
+    prompt_description = prompt.description or "[dim]\u2014[/]"
+    prompt_tags = ", ".join(prompt.tags) if prompt.tags else "[dim]\u2014[/]"
+    prompt_scope = f"  Scope:       {prompt.scope}"
+    if prompt.project:
+        prompt_scope += f" ({prompt.project})"
+    starred = "\u2605 yes" if state.starred else "no"
     console.print(f"[bold cyan]{name}[/]")
-    console.print(f"  Description: {prompt.description or '[dim]\u2014[/]'}")
-    console.print(f"  Tags:        {', '.join(prompt.tags) if prompt.tags else '[dim]\u2014[/]'}")
-    console.print(f"  Scope:       {prompt.scope}" + (f" ({prompt.project})" if prompt.project else ""))
-    console.print(f"  Starred:     {'\u2605 yes' if state.starred else 'no'}")
+    console.print(f"  Description: {prompt_description}")
+    console.print(f"  Tags:        {prompt_tags}")
+    console.print(prompt_scope)
+    console.print(f"  Starred:     {starred}")
     console.print(f"  Used:        {state.use_count} time(s)")
     console.print()
     console.print(Panel(text, title="PROMPT.md", border_style="dim"))
@@ -1456,9 +1479,7 @@ def prompt_search(
     matches = [
         p
         for p in prompts
-        if q in p.name.lower()
-        or q in p.description.lower()
-        or any(q in t.lower() for t in p.tags)
+        if q in p.name.lower() or q in p.description.lower() or any(q in t.lower() for t in p.tags)
     ]
     if tag:
         matches = [p for p in matches if tag.lower() in [t.lower() for t in p.tags]]
@@ -1469,10 +1490,15 @@ def prompt_search(
 
     for p in matches:
         tags = f" [dim]({', '.join(p.tags)})[/dim]" if p.tags else ""
-        console.print(f"  [cyan]{p.name}[/] \u2014 {p.description or '[dim]no description[/]'}{tags}")
+        console.print(
+            f"  [cyan]{p.name}[/] \u2014 {p.description or '[dim]no description[/]'}{tags}"
+        )
 
     console.print()
-    console.print(f"  [dim]{len(matches)} result(s). Use [bold]bm prompt info <name>[/bold] for details.[/dim]")
+    console.print(
+        f"  [dim]{len(matches)} result(s). Use "
+        "[bold]bm prompt info <name>[/bold] for details.[/dim]"
+    )
 
 
 @prompt_app.command("export")
@@ -1485,8 +1511,10 @@ def prompt_export_cmd(
 
     if all_prompts:
         exported = sum(1 for p in prompts if export_prompt(p, CLAUDE_COMMANDS_DIR))
-        console.print(f"[green]\u2705 Exported {exported} prompt(s)[/] \u2192 {CLAUDE_COMMANDS_DIR}")
-        console.print(f"  [dim]Use them as /commands in Claude Code[/dim]")
+        console.print(
+            f"[green]\u2705 Exported {exported} prompt(s)[/] \u2192 {CLAUDE_COMMANDS_DIR}"
+        )
+        console.print("  [dim]Use them as /commands in Claude Code[/dim]")
         return
 
     if not name:
@@ -1525,7 +1553,7 @@ def prompt_star(name: str = typer.Argument(..., help="Prompt name")) -> None:
     preg = PromptRegistry(PROMPT_REGISTRY_FILE)
     preg.star(name)
     console.print(f"[yellow]\u2605[/] Starred '{name}'")
-    console.print(f"  [dim]\u2192 View starred: [bold]bm prompt list --starred[/bold][/dim]")
+    console.print("  [dim]\u2192 View starred: [bold]bm prompt list --starred[/bold][/dim]")
 
 
 @prompt_app.command("unstar")

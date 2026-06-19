@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "name",
+      "rationale",
+      "score",
+      "command"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "rationale": {
+        "type": "string"
+      },
+      "score": {
+        "type": "number"
+      },
+      "command": {
+        "type": "string"
+      }
+    }
+  }
+}

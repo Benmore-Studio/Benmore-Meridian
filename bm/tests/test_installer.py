@@ -155,9 +155,7 @@ def test_remove_skill_warns_when_target_already_missing(
     assert reg.get(skill_name) is None
 
 
-def test_remove_skill_raises_for_external_skill(
-    tmp_claude_skills: Path, tmp_path: Path
-) -> None:
+def test_remove_skill_raises_for_external_skill(tmp_claude_skills: Path, tmp_path: Path) -> None:
     skill_name = "external-skill"
     reg_file = tmp_path / "registry.json"
     reg = Registry(reg_file)
