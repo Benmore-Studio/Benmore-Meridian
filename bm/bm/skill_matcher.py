@@ -70,6 +70,31 @@ CATEGORY_ALIASES: dict[str, list[str]] = {
 }
 
 
+INTENT_SKILL_SETS: dict[str, list[str]] = {
+    "seo": ["ai-seo", "seo-audit", "programmatic-seo", "site-capture"],
+    "search": ["ai-seo", "seo-audit", "programmatic-seo", "site-capture"],
+    "security": [
+        "dependency-security-audit",
+        "security-compliance-audit",
+        "multi-tenant-scan",
+        "multi-tenant-guard",
+    ],
+    "hipaa": [
+        "hipaa-compliance-guard",
+        "healthcare-audit-logger",
+        "audit-trail",
+        "security-compliance-audit",
+    ],
+    "soc2": ["security-compliance-audit", "audit-trail", "dependency-security-audit"],
+    "gdpr": ["gdpr-compliance", "audit-trail", "security-compliance-audit"],
+    "auth": ["universal-auth", "role-based-authentication", "django-react-2fa", "otp-verification"],
+    "payments": ["stripe-best-practices", "stripe-integration", "upgrade-stripe"],
+    "stripe": ["stripe-best-practices", "stripe-integration", "upgrade-stripe"],
+    "frontend": ["frontend-productionize", "web-design-guidelines", "minimalist-ui-design"],
+    "docs": ["docx", "pdf", "presentation-maker", "release-notes"],
+}
+
+
 SKILL_CATEGORY_OVERRIDES: dict[str, str] = {
     "audit-trail": "Security & Compliance",
     "dependency-security-audit": "Security & Compliance",
@@ -172,6 +197,61 @@ class SkillMatcher:
                 )
             )
 
+        suggestions.sort(key=lambda s: (-s.score, s.category, s.name))
+        return suggestions[:top]
+
+    def scan_intent(
+        self,
+        intent: str,
+        top: int = 8,
+        exclude_installed: bool = False,
+    ) -> list[SkillSuggestion]:
+        """Return skills ranked by a natural-language task intent."""
+        self._build_keyword_index()
+        signals, reasons = self._detect_intent_signals(intent)
+        installed = self._installed_skill_names()
+        preferred = self._preferred_skills_for_signals(signals)
+
+        suggestions_by_name: dict[str, SkillSuggestion] = {}
+        for rank, skill_name in enumerate(preferred):
+            if (
+                skill_name not in self._keyword_index
+                and not (self._skills_dir / skill_name / "SKILL.md").exists()
+            ):
+                continue
+            is_installed = skill_name in installed
+            if exclude_installed and is_installed:
+                continue
+            signal = self._preferred_reason_signal(skill_name, signals)
+            suggestions_by_name[skill_name] = SkillSuggestion(
+                name=skill_name,
+                reason=reasons.get(signal, f"{signal} in task intent"),
+                status="installed" if is_installed else "available",
+                score=100 - rank,
+                category=self.category_for_skill(skill_name),
+            )
+
+        for skill_name, keywords in self._keyword_index.items():
+            matches = [kw for kw in keywords if kw in signals]
+            if not matches:
+                continue
+            is_installed = skill_name in installed
+            if exclude_installed and is_installed:
+                continue
+            existing = suggestions_by_name.get(skill_name)
+            score = len(matches)
+            if existing is not None:
+                existing.score += score
+                continue
+            suggestions_by_name[skill_name] = SkillSuggestion(
+                name=skill_name,
+                reason=self._best_reason(matches, reasons),
+                status="installed" if is_installed else "available",
+                score=score,
+                category=self.category_for_skill(skill_name),
+            )
+
+        suggestions = list(suggestions_by_name.values())
         suggestions.sort(key=lambda s: (-s.score, s.category, s.name))
         return suggestions[:top]
 
@@ -433,6 +513,53 @@ class SkillMatcher:
         self._extract_repo_text_signals(path, add)
 
         return signals, reasons
+
+    def _detect_intent_signals(self, intent: str) -> tuple[set[str], dict[str, str]]:
+        """Return signal keywords from a free-form task description."""
+        normalized = intent.lower().replace("_", "-")
+        tokens = set(re.findall(r"[a-z][a-z0-9+.-]*", normalized))
+        signals: set[str] = set(tokens)
+        reasons: dict[str, str] = {token: f"{token} in task intent" for token in tokens}
+
+        phrase_signals = {
+            "seo": ["seo", "search engine", "search visibility", "organic traffic"],
+            "search": ["search engine", "search visibility", "organic traffic"],
+            "programmatic": ["programmatic seo", "landing pages"],
+            "security": ["security", "secure", "vulnerability", "secrets"],
+            "hipaa": ["hipaa", "phi", "healthcare"],
+            "soc2": ["soc 2", "soc2"],
+            "gdpr": ["gdpr", "privacy"],
+            "auth": ["auth", "authentication", "authorization", "login"],
+            "2fa": ["2fa", "mfa", "totp", "otp"],
+            "stripe": ["stripe", "payments", "billing"],
+            "payments": ["payments", "billing"],
+            "frontend": ["frontend", "ui", "react", "next.js"],
+            "docs": ["docs", "documentation", "write a guide", "release notes"],
+        }
+        for signal, phrases in phrase_signals.items():
+            if signal in signals or any(phrase in normalized for phrase in phrases):
+                signals.add(signal)
+                reasons.setdefault(signal, f"{signal} in task intent")
+
+        if "improve" in signals and "seo" in signals:
+            signals.update({"search", "programmatic", "site", "content"})
+            for signal in ("search", "programmatic", "site", "content"):
+                reasons.setdefault(signal, "improve seo in task intent")
+
+        return signals, reasons
+
+    def _preferred_skills_for_signals(self, signals: set[str]) -> list[str]:
+        preferred: list[str] = []
+        for signal, skill_names in INTENT_SKILL_SETS.items():
+            if signal in signals:
+                preferred.extend(skill_names)
+        return list(dict.fromkeys(preferred))
+
+    def _preferred_reason_signal(self, skill_name: str, signals: set[str]) -> str:
+        for signal, skill_names in INTENT_SKILL_SETS.items():
+            if signal in signals and skill_name in skill_names:
+                return signal
+        return next(iter(signals), "intent")
 
     def _extract_repo_text_signals(self, path: Path, add: Any) -> None:
         """Scan small project metadata files for compliance, auth, and delivery signals."""

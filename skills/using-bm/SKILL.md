@@ -23,6 +23,8 @@ description: Use the bm CLI (Benmore skill manager) to install, update, and mana
 | Promote project skill → general | `bm skill generalize <name>` |
 | Remove a skill | `bm skill remove <name>` |
 | Discover skills relevant to a project | `bm suggest <path>` |
+| Discover skills from a task request like "improve SEO" | `bm suggest --intent "improve seo" --top 4 --install --cache` |
+| Remove bm-managed skills after a focused session | `bm uninstall --all --yes` |
 | Browse / search saved prompts | `bm prompt list` / `bm prompt search <q>` |
 | Save a prompt template | `bm prompt add <name>` |
 | Export prompt as Claude `/slash` command | `bm prompt export <name>` (or `--all`) |
@@ -59,6 +61,21 @@ bm hooks install      # auto-sync on future git pulls
 ```bash
 bm install            # or `bm update` to git pull + install
 ```
+
+### Focused agent session without skill clutter
+
+Use this when a user asks for a task like "improve SEO", "audit security", or
+"make this HIPAA-ready" and you want the relevant skills without loading the
+entire catalog into context.
+
+```bash
+bm suggest --intent "improve seo" --top 4 --install --cache
+# Run the suggested skills in Claude Code / Codex as needed.
+bm uninstall --all --yes
+```
+
+The cache lives at `~/.bm/suggestions.json`, so another agent can inspect the
+recommendation set without keeping all suggested skills installed.
 
 ### Creating a new skill from scratch
 
@@ -134,6 +151,8 @@ If `bm benmore` says "No API key found", suggest one of the above. If it says "4
 | User just ran `git pull` and skills look stale | `bm update` |
 | Skills behave oddly or symlinks broken | `bm doctor -y` |
 | New team member onboarding | `bm setup --yes` (one-shot install) |
+| User asks for a task domain like SEO/security/compliance | `bm suggest --intent "<task>" --top 4 --install --cache` |
+| User wants to avoid skill clutter after the task | `bm uninstall --all --yes` |
 | User reuses the same prompt many times | `bm prompt add <name>` then `bm prompt export <name>` |
 | User wants machine-readable output | Add `--json` to `status`, `skill list`, `prompt list`, `benmore *` |
 | User mentions a BEN number / Benmore project | `bm benmore lookup` then `context`/`status`/`summary` |

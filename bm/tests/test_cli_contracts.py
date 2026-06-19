@@ -177,6 +177,46 @@ def test_suggest_install_and_cache(tmp_path: Path, monkeypatch: Any) -> None:
     assert cached[0]["name"] == "django-production"
 
 
+def test_suggest_intent_installs_and_caches_seo_skills(tmp_path: Path, monkeypatch: Any) -> None:
+    skills_dir = tmp_path / "skills"
+    claude_dir = tmp_path / ".claude" / "skills"
+    registry_file = tmp_path / "registry.json"
+    cache_file = tmp_path / "suggestions.json"
+    project_dir = tmp_path / "project"
+    skills_dir.mkdir()
+    claude_dir.mkdir(parents=True)
+    project_dir.mkdir()
+    for name in ["ai-seo", "seo-audit", "programmatic-seo", "site-capture", "pdf"]:
+        _skill(skills_dir, name)
+
+    monkeypatch.setattr(cli, "SKILLS_DIR", skills_dir)
+    monkeypatch.setattr(cli, "CLAUDE_SKILLS_DIR", claude_dir)
+    monkeypatch.setattr(cli, "REGISTRY_FILE", registry_file)
+    monkeypatch.setattr(cli, "SUGGESTION_CACHE_FILE", cache_file)
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "suggest",
+            str(project_dir),
+            "--intent",
+            "improve seo",
+            "--top",
+            "4",
+            "--install",
+            "--cache",
+        ],
+    )
+
+    assert result.exit_code == 0
+    cached = json.loads(cache_file.read_text(encoding="utf-8"))
+    names = [item["name"] for item in cached]
+    assert names == ["ai-seo", "seo-audit", "programmatic-seo", "site-capture"]
+    for name in names:
+        assert (claude_dir / name).exists()
+        assert Registry(registry_file).get(name) is not None
+
+
 def test_suggest_json_no_matches_outputs_empty_array(tmp_path: Path, monkeypatch: Any) -> None:
     skills_dir = tmp_path / "skills"
     claude_dir = tmp_path / ".claude" / "skills"

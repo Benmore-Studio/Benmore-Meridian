@@ -7,8 +7,8 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-93%20passing-brightgreen.svg)](#contributing)
-[![Version](https://img.shields.io/badge/version-1.10.1-blue.svg)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-94%20passing-brightgreen.svg)](#contributing)
+[![Version](https://img.shields.io/badge/version-1.10.2-blue.svg)](CHANGELOG.md)
 [![skills.sh](https://skills.sh/b/Benmore-Studio/Benmore-Meridian)](https://skills.sh/Benmore-Studio/Benmore-Meridian)
 
 Install 75+ Claude Code skills in one command. Edit once, reflect everywhere via symlinks.
@@ -44,7 +44,7 @@ Read the FDE principles, install Ghostty + Raycast, then run `bm setup --yes` �
 
 - ⚡ **One command install** — `bm install` symlinks all 75+ skills into Claude Code instantly.
 - 🧹 **One command cleanup** — `bm uninstall --all` removes bm-managed installed skills without deleting source files.
-- 🔎 **Agent-friendly suggestions** — `bm suggest . --install --cache` recommends, installs, and caches relevant skills without loading every skill into context.
+- 🔎 **Agent-friendly suggestions** — `bm suggest --intent "improve seo" --install --cache` recommends, installs, and caches relevant skills without loading every skill into context.
 - ✅ **Symlink-first** — skills live in the repo; edit once and changes reflect everywhere with no reinstall.
 - 🎯 **Project skill lifecycle** — create scoped skills with `bm skill add x --project p`, promote to general when proven.
 - 🔧 **Registry tracking** — every installed skill is recorded in `~/.bm/registry.json`, however it was installed.
@@ -61,9 +61,11 @@ Read the FDE principles, install Ghostty + Raycast, then run `bm setup --yes` �
 
 ```mermaid
 flowchart LR
+    request[Task request: improve seo] --> intent[bm suggest --intent improve seo --json]
     project[Project files] --> scan[bm suggest . --json]
+    intent --> rank[Rank matching skills]
     scan --> rank[Rank matching skills]
-    rank --> install[bm suggest . --install --cache]
+    rank --> install[bm suggest --intent improve seo --install --cache]
     install --> claude[Claude Code sees only useful skills]
     install --> cache[~/.bm/suggestions.json]
     claude --> cleanup[bm uninstall --all --yes]
@@ -76,7 +78,7 @@ session ends. Source skills stay in the repo; external skills stay untouched.
 
 ## Why This Design Is Highly Optimal
 
-- **Low context pressure** — agents can call `bm context --global --json` for a grouped catalog, or `bm suggest . --top 4 --install --cache` for only the skills relevant to the current project.
+- **Low context pressure** — agents can call `bm context --global --json` for a grouped catalog, or `bm suggest --intent "improve seo" --top 4 --install --cache` for only the skills relevant to the task.
 - **Reversible installs** — symlink-first install and `bm uninstall --all --yes` make cleanup cheap, so experimentation does not permanently clutter Claude Code.
 - **Machine-readable contracts** — JSON commands keep stdout clean for Codex/Claude automation and move human diagnostics to Rich output or stderr.
 - **Fast path plus fallback** — PyO3 handles hot filesystem/parsing helpers when native wheels are available; pure Python fallback keeps source/editable installs working.
@@ -90,7 +92,7 @@ flowchart TD
     gates --> python[Ruff + mypy + basedpyright + pytest]
     gates --> rust[Cargo test + maturin wheel]
     rust --> verify[Verify wheel contains bm._native]
-    python --> tag[v1.10.1 tag]
+    python --> tag[v1.10.2 tag]
     verify --> tag
     tag --> publish[PyPI trusted publish]
     tag --> release[GitHub Release]
@@ -141,6 +143,7 @@ For a smaller context footprint, install only the skills that match a project:
 
 ```bash
 bm suggest . --top 4 --install --cache
+bm suggest --intent "improve seo" --top 4 --install --cache
 bm uninstall --all --yes     # remove bm-managed installed skills later
 ```
 
@@ -183,7 +186,7 @@ bm update    # git pull + reinstalls all skills
 
 | Command | Description |
 |---------|-------------|
-| **`bm suggest [path] [--top N] [--install] [--cache] [--json]`** | Scan project → ranked skill suggestions; optionally install/cache them |
+| **`bm suggest [path] [--intent <task>] [--top N] [--install] [--cache] [--json]`** | Scan project or task intent → ranked skill suggestions; optionally install/cache them |
 | **`bm context [path] [--top N] [--global] [--json] [--copy]`** | Generate project context, recommendations, and optional full grouped skill catalog |
 | **`bm explore [path]`** | Deep scan → writes `docs/bm-suggestions.md` report |
 | **`bm debrief [--since <tag>] [--limit N] [--json]`** | Surface skill candidates from recent git history |
@@ -374,7 +377,7 @@ Benmore-Meridian/
 │   │   ├── config.py      # Path constants + REPO_ROOT discovery
 │   │   └── models.py      # All dataclasses and enums
 │   ├── native/            # Optional PyO3 helper crate
-│   ├── tests/             # 93 tests, mypy, basedpyright, ruff clean
+│   ├── tests/             # 94 tests, mypy, basedpyright, ruff clean
 │   └── README.md          # Full bm command reference + architecture
 ├── skills/                # 75+ Claude Code skills (symlinked to ~/.claude/skills/)
 ├── guides/                # Developer onboarding documentation

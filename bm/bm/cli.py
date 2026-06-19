@@ -584,6 +584,9 @@ def update(
 def suggest(
     path: Path = typer.Argument(Path("."), help="Project directory to scan"),
     top: int = typer.Option(8, "--top", "-n", help="Number of suggestions to show"),
+    intent: str = typer.Option(
+        "", "--intent", "-i", help='Natural-language task intent, e.g. "improve seo"'
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     install_suggestions: bool = typer.Option(
         False, "--install", help="Install available suggested skills"
@@ -593,7 +596,9 @@ def suggest(
 ) -> None:
     """Scan a project and suggest relevant skills based on detected stack."""
     matcher = SkillMatcher(SKILLS_DIR, CLAUDE_SKILLS_DIR)
-    suggestions = matcher.scan(path.resolve(), top=top)
+    suggestions = (
+        matcher.scan_intent(intent, top=top) if intent else matcher.scan(path.resolve(), top=top)
+    )
 
     if not suggestions:
         if json_output:
@@ -613,7 +618,12 @@ def suggest(
         )
         console.print(f"[green]Cached suggestions:[/] {SUGGESTION_CACHE_FILE}")
 
-    table = Table(title=f"Skill Suggestions for [cyan]{path}[/cyan]", box=box.ROUNDED)
+    title = (
+        f'Skill Suggestions for intent [cyan]"{intent}"[/cyan]'
+        if intent
+        else f"Skill Suggestions for [cyan]{path}[/cyan]"
+    )
+    table = Table(title=title, box=box.ROUNDED)
     table.add_column("Rank", style="dim", width=5)
     table.add_column("Skill", style="bold cyan")
     table.add_column("Why")

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## v1.10.2 — 2026-06-19
+
+### Agent Workflow
+
+- Added `bm suggest --intent <task>` for natural-language task requests such as `bm suggest --intent "improve seo" --top 4 --install --cache`.
+- Intent suggestions reuse the same JSON/cache/install behavior as project scanning, so agents can recommend skills, install only the focused set, cache the recommendation list, and clean up with `bm uninstall --all --yes`.
+- Updated `using-bm`, `AGENTS.md`, and public READMEs so Claude Code/Codex agents know the task-intent workflow.
+
+---
+
 ## v1.10.1 — 2026-06-19
 
 ### Public Release Polish

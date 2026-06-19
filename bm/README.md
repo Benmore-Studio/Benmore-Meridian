@@ -3,7 +3,7 @@
 **The skill manager for Claude Code.**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-1.10.1-green)](https://github.com/Benmore-Studio/Benmore-Meridian)
+[![Version](https://img.shields.io/badge/version-1.10.2-green)](https://github.com/Benmore-Studio/Benmore-Meridian)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 [![Tests](https://img.shields.io/badge/tests-88%20passing-brightgreen)](tests/)
 [![Skills](https://img.shields.io/badge/skills-50%2B-purple)](../skills/)
@@ -31,7 +31,7 @@ That's it. 50+ Claude Code skills are now symlinked and ready.
 
 - **Symlink-first install** — skills live in the repo. `bm install` creates symlinks in `~/.claude/skills/`. Edit a skill file once, and every Claude Code session sees the change immediately.
 - **Clean uninstall** — `bm uninstall --all` unlinks bm-managed installed skills without deleting source files or external skills.
-- **Context-aware suggestions** — `bm suggest . --top 4 --install --cache` recommends only relevant skills, installs them, and saves the recommendation cache.
+- **Context-aware suggestions** — `bm suggest --intent "improve seo" --top 4 --install --cache` recommends only relevant skills, installs them, and saves the recommendation cache.
 - **Project skill lifecycle** — create project-scoped skills (`bm skill add x --project myapp`), then promote them to general availability (`bm skill generalize x`) once they prove universal.
 - **Registry tracking** — every installed skill is recorded in `~/.bm/registry.json` with its source, scope, and install method, regardless of how it got there.
 - **Claude-native output** — every command supports `--json` so Claude agents can query `bm status --json` directly and act on the result.
@@ -112,7 +112,8 @@ Skills
   bm skill remove <name> [--dry-run]                     Remove a skill (v1.1)
 
 Discovery
-  bm suggest [path] [--top N] [--install] [--cache]       Recommend and optionally install/cache skills
+  bm suggest [path] [--intent <task>] [--top N] [--install] [--cache]
+                                                            Recommend and optionally install/cache skills
 
 Registry
   bm registry list [--json]                      List all registry entries
