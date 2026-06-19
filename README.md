@@ -412,6 +412,7 @@ Public project policies:
 - [Authors and credits](AUTHORS.md)
 - [License](LICENSE)
 - [Release hardening plan](docs/RELEASE_HARDENING.md)
+- [Release audit](docs/RELEASE_AUDIT.md)
 
 ```bash
 # Run the full check suite before submitting
