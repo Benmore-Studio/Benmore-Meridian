@@ -146,7 +146,9 @@ class BenmoreClient:
             RuntimeError: Client used outside an `async with` block
         """
         if self._client is None:
-            raise RuntimeError("Client not initialized. Use 'async with' context manager.")
+            raise RuntimeError(
+                "Client not initialized. Use 'async with' context manager."
+            )
 
         url = f"{self.base_url}{path}"
         method_upper = method.upper()
@@ -198,7 +200,7 @@ class BenmoreClient:
         """
         if not value:
             raise ValueError(f"{name} must not be empty")
-        if any(ch in value for ch in ("/"  , "?", "#")):
+        if any(ch in value for ch in ("/", "?", "#")):
             raise ValueError(f"{name} contains invalid characters: {value!r}")
 
     @staticmethod
@@ -309,9 +311,11 @@ class BenmoreClient:
         if full:
             params["full"] = "true"
         if days is not None:
-            params["days"] = days
+            params["days"] = str(days)
 
-        data = await self._request("GET", f"/projects/{project_id}/context/", params=params)
+        data = await self._request(
+            "GET", f"/projects/{project_id}/context/", params=params
+        )
         # The model validator flattens {project: {...}, ...} into top-level
         # fields and unwraps meetings.items, so callers can read .id/.title/.team
         # directly.
@@ -362,7 +366,9 @@ class BenmoreClient:
         if description is not None:
             json_data["description"] = description
 
-        data = await self._request("PATCH", f"/projects/{project_id}/update/", json=json_data)
+        data = await self._request(
+            "PATCH", f"/projects/{project_id}/update/", json=json_data
+        )
         return Project(**data)
 
     # ─── Team ──────────────────────────────────────────────────────
@@ -412,7 +418,9 @@ class BenmoreClient:
         if usernames:
             json_data["usernames"] = usernames
 
-        return await self._request("POST", f"/projects/{project_id}/team/", json=json_data)
+        return await self._request(
+            "POST", f"/projects/{project_id}/team/", json=json_data
+        )
 
     async def team_remove(
         self,

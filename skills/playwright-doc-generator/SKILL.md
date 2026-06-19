@@ -1,5 +1,5 @@
 ---
-name: client-platform-walkthrough
+name: playwright-doc-generator
 description: Use when the user asks for a client-facing platform guide, product walkthrough, onboarding documentation, demo doc, sales handoff, customer-facing tour, or any "thorough docs for clients" of a web application. Trigger whenever the user mentions making a guide for clients, walkthrough docs, screenshot-driven documentation, customer onboarding tour, or wants to document a platform for non-engineers. Also trigger on phrases like "make a guide", "client doc", "user manual for X", "walk through the platform", "screenshots for clients", or when the user gestures at an existing engineer-facing guide and asks for a customer version. Generates a comprehensive screenshot-driven walkthrough that combines parallel codebase research (via subagents), systematic page-capture via the playwright-cli skill, and a structured business-language markdown deliverable.
 ---
 

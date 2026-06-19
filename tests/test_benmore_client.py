@@ -13,23 +13,12 @@ Run:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import httpx
 import pytest
 import pydantic
 import respx
 
-# ---------------------------------------------------------------------------
-# PYTHONPATH: ensure benmore_client is importable from repo root
-# ---------------------------------------------------------------------------
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
+from benmore_client.client import BenmoreClient
 from benmore_client.enums import (
     DocumentType,
     IterationStatus,
@@ -50,7 +39,6 @@ from benmore_client.models import (
     ProjectStatus,
     TeamMember,
 )
-from benmore_client.client import BenmoreClient
 
 
 # ============================================================================
@@ -253,14 +241,18 @@ class TestTeamMemberModel:
     """Tests for TeamMember Pydantic model."""
 
     def test_valid_creation(self):
-        member = TeamMember(id="u1", username="jdoe", name="Jane Doe", email="j@example.com")
+        member = TeamMember(
+            id="u1", username="jdoe", name="Jane Doe", email="j@example.com"
+        )
         assert member.id == "u1"
         assert member.username == "jdoe"
         assert member.name == "Jane Doe"
         assert member.email == "j@example.com"
 
     def test_optional_fields_default_to_none(self):
-        member = TeamMember(id="u1", username="jdoe", name="Jane Doe", email="j@example.com")
+        member = TeamMember(
+            id="u1", username="jdoe", name="Jane Doe", email="j@example.com"
+        )
         assert member.role is None
         assert member.joined_at is None
 
@@ -287,7 +279,9 @@ class TestTeamMemberModel:
         assert member.custom_field == "custom_value"  # type: ignore[attr-defined]
 
     def test_model_dump(self):
-        member = TeamMember(id="u1", username="jdoe", name="Jane Doe", email="j@example.com")
+        member = TeamMember(
+            id="u1", username="jdoe", name="Jane Doe", email="j@example.com"
+        )
         data = member.model_dump()
         assert data["id"] == "u1"
         assert data["username"] == "jdoe"
@@ -305,12 +299,20 @@ class TestTeamMemberModel:
 
     def test_title_maps_to_role(self):
         # API returns `title` (e.g. "Senior Fullstack Developer"); validator maps to `role`.
-        member = TeamMember(username="jdoe", name="Jane", title="Senior Fullstack Developer")
+        member = TeamMember(
+            username="jdoe", name="Jane", title="Senior Fullstack Developer"
+        )
         assert member.role == "Senior Fullstack Developer"
 
     def test_wrong_type_raises(self):
         with pytest.raises(pydantic.ValidationError):
-            TeamMember(id="u1", username="jdoe", name="Jane", email="j@x.com", joined_at="not-a-date")
+            TeamMember(
+                id="u1",
+                username="jdoe",
+                name="Jane",
+                email="j@x.com",
+                joined_at="not-a-date",
+            )
 
 
 class TestChannelModel:
@@ -405,7 +407,9 @@ class TestMeetingModel:
     def test_extra_fields_allowed(self):
         # action_items is now a defined Optional[str] field on Meeting (refactor added it).
         # Use a genuinely-extra key to exercise extra="allow".
-        m = Meeting(id="m1", title="Standup", date="2024-03-01T09:00:00", custom_tag="sync")
+        m = Meeting(
+            id="m1", title="Standup", date="2024-03-01T09:00:00", custom_tag="sync"
+        )
         assert m.custom_tag == "sync"  # type: ignore[attr-defined]
 
     def test_model_dump(self):
@@ -810,7 +814,7 @@ class TestClientContextManager:
     @pytest.mark.asyncio
     async def test_aexit_closes_client(self, client: BenmoreClient):
         async with client:
-            inner_client = client._client
+            assert client._client is not None
         # After exiting, _client is still set but httpx client is closed
         # (no assertion needed — just verify no exception)
 
@@ -910,8 +914,18 @@ class TestProjectsList:
             return_value=httpx.Response(
                 200,
                 json=[
-                    {"id": "uuid1", "title": "Project A [BEN-001]", "status": None, "phase": "implementation"},
-                    {"id": "uuid2", "title": "Project B [BEN-002]", "status": "active", "phase": "discovery"},
+                    {
+                        "id": "uuid1",
+                        "title": "Project A [BEN-001]",
+                        "status": None,
+                        "phase": "implementation",
+                    },
+                    {
+                        "id": "uuid2",
+                        "title": "Project B [BEN-002]",
+                        "status": "active",
+                        "phase": "discovery",
+                    },
                 ],
             )
         )
@@ -1053,12 +1067,23 @@ class TestProjectsContext:
                 json={
                     "id": PROJECT_ID,
                     "title": "Alpha",
-                    "team": [{"id": "u1", "username": "alice", "name": "Alice", "email": "a@x.com"}],
+                    "team": [
+                        {
+                            "id": "u1",
+                            "username": "alice",
+                            "name": "Alice",
+                            "email": "a@x.com",
+                        }
+                    ],
                     "channels": [{"id": "C1", "name": "alpha-dev"}],
-                    "meetings": [{"id": "m1", "title": "Standup", "date": "2024-03-01T09:00:00"}],
+                    "meetings": [
+                        {"id": "m1", "title": "Standup", "date": "2024-03-01T09:00:00"}
+                    ],
                     "documents": [{"id": "d1", "title": "Spec"}],
                     "blockers": ["Waiting for API keys"],
-                    "github_repos": [{"name": "repo", "url": "https://github.com/org/repo"}],
+                    "github_repos": [
+                        {"name": "repo", "url": "https://github.com/org/repo"}
+                    ],
                 },
             )
         )
@@ -1130,7 +1155,12 @@ class TestProjectsUpdate:
         route = respx.patch(f"{BASE_URL}/projects/{PROJECT_ID}/update/").mock(
             return_value=httpx.Response(
                 200,
-                json={"id": PROJECT_ID, "title": "Updated", "phase": "testing", "description": "New desc"},
+                json={
+                    "id": PROJECT_ID,
+                    "title": "Updated",
+                    "phase": "testing",
+                    "description": "New desc",
+                },
             )
         )
         async with client:
@@ -1149,7 +1179,9 @@ class TestProjectsUpdate:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_projects_update_no_fields_sends_empty_body(self, client: BenmoreClient):
+    async def test_projects_update_no_fields_sends_empty_body(
+        self, client: BenmoreClient
+    ):
         route = respx.patch(f"{BASE_URL}/projects/{PROJECT_ID}/update/").mock(
             return_value=httpx.Response(
                 200,
@@ -1179,7 +1211,11 @@ class TestTeamList:
                     "project_id": PROJECT_ID,
                     "project_title": "Project Title",
                     "team_members": [
-                        {"username": "alice", "name": "Alice Smith", "title": "Lead Developer"},
+                        {
+                            "username": "alice",
+                            "name": "Alice Smith",
+                            "title": "Lead Developer",
+                        },
                         {"username": "bob", "name": "Bob Jones", "title": "Designer"},
                     ],
                 },
@@ -1200,7 +1236,11 @@ class TestTeamList:
         respx.get(f"{BASE_URL}/projects/{PROJECT_ID}/team/").mock(
             return_value=httpx.Response(
                 200,
-                json={"results": [{"username": "charlie", "name": "Charlie", "email": "c@x.com"}]},
+                json={
+                    "results": [
+                        {"username": "charlie", "name": "Charlie", "email": "c@x.com"}
+                    ]
+                },
             )
         )
         async with client:
@@ -1306,8 +1346,12 @@ class TestCommsChannelInfo:
             channel = await client.comms_channel_info(PROJECT_ID)
         assert isinstance(channel, Channel)
         assert channel.id == "C0AQRCF0BSS"
-        assert channel.total_messages == 11  # Fixed: total_messages now has its own field
-        assert channel.member_count is None  # member_count is separate from total_messages
+        assert (
+            channel.total_messages == 11
+        )  # Fixed: total_messages now has its own field
+        assert (
+            channel.member_count is None
+        )  # member_count is separate from total_messages
         assert channel.last_message_ts == "2026-04-06T14:59:05+00:00"
 
     @pytest.mark.asyncio
@@ -1357,7 +1401,9 @@ class TestCommsChannelConnect:
             )
         )
         async with client:
-            channel = await client.comms_channel_connect(PROJECT_ID, channel_id="C123NEW")
+            channel = await client.comms_channel_connect(
+                PROJECT_ID, channel_id="C123NEW"
+            )
         assert isinstance(channel, Channel)
         assert channel.id == "C123NEW"
 
@@ -1527,10 +1573,14 @@ class TestCommsMeetingCreate:
     @pytest.mark.asyncio
     @respx.mock
     async def test_comms_meeting_create_minimal(self, client: BenmoreClient):
-        route = respx.post(f"{BASE_URL}/projects/{PROJECT_ID}/comms/meetings/").mock(
+        respx.post(f"{BASE_URL}/projects/{PROJECT_ID}/comms/meetings/").mock(
             return_value=httpx.Response(
                 200,
-                json={"id": "m-new", "title": "New Meeting", "date": "2024-04-01T10:00:00"},
+                json={
+                    "id": "m-new",
+                    "title": "New Meeting",
+                    "date": "2024-04-01T10:00:00",
+                },
             )
         )
         async with client:
@@ -1556,7 +1606,7 @@ class TestCommsMeetingCreate:
             )
         )
         async with client:
-            meeting = await client.comms_meeting_create(
+            await client.comms_meeting_create(
                 PROJECT_ID,
                 title="Full Meeting",
                 date="2024-04-01T10:00:00",
@@ -1605,7 +1655,12 @@ class TestGitHubConnect:
         route = respx.patch(f"{BASE_URL}/projects/{PROJECT_ID}/github/").mock(
             return_value=httpx.Response(
                 200,
-                json={"id": "gh99", "title": "Connected Board", "items": [], "iterations": []},
+                json={
+                    "id": "gh99",
+                    "title": "Connected Board",
+                    "items": [],
+                    "iterations": [],
+                },
             )
         )
         async with client:
@@ -1638,7 +1693,13 @@ class TestGitHubItemCreate:
         route = respx.post(f"{BASE_URL}/projects/{PROJECT_ID}/github/items/").mock(
             return_value=httpx.Response(
                 200,
-                json={"id": "item1", "title": "Task", "status": "Todo", "priority": "high", "size": "medium"},
+                json={
+                    "id": "item1",
+                    "title": "Task",
+                    "status": "Todo",
+                    "priority": "high",
+                    "size": "medium",
+                },
             )
         )
         async with client:
@@ -1706,7 +1767,11 @@ class TestGitHubRepos:
                 200,
                 json={
                     "results": [
-                        {"name": "backend", "url": "https://github.com/org/backend", "commits": 120},
+                        {
+                            "name": "backend",
+                            "url": "https://github.com/org/backend",
+                            "commits": 120,
+                        },
                     ]
                 },
             )
@@ -1740,7 +1805,11 @@ class TestGitHubRepoLink:
         route = respx.post(f"{BASE_URL}/projects/{PROJECT_ID}/github/repos/").mock(
             return_value=httpx.Response(
                 200,
-                json={"id": "r1", "url": "https://github.com/org/repo", "status": "linked"},
+                json={
+                    "id": "r1",
+                    "url": "https://github.com/org/repo",
+                    "status": "linked",
+                },
             )
         )
         async with client:
@@ -1796,7 +1865,9 @@ class TestFlashDocumentsList:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_flash_documents_list_list_response_handled(self, client: BenmoreClient):
+    async def test_flash_documents_list_list_response_handled(
+        self, client: BenmoreClient
+    ):
         """flash_documents_list now handles raw list responses correctly."""
         respx.get(f"{BASE_URL}/flash-documents/").mock(
             return_value=httpx.Response(
@@ -1842,11 +1913,16 @@ class TestFlashDocumentsCreate:
         route = respx.post(f"{BASE_URL}/flash-documents/").mock(
             return_value=httpx.Response(
                 200,
-                json={"id": "fd-new", "title": "Full Doc", "type": "specification", "content": "# Spec"},
+                json={
+                    "id": "fd-new",
+                    "title": "Full Doc",
+                    "type": "specification",
+                    "content": "# Spec",
+                },
             )
         )
         async with client:
-            doc = await client.flash_documents_create(
+            await client.flash_documents_create(
                 title="Full Doc", content="# Spec", doc_type="specification"
             )
         import json
@@ -1880,7 +1956,11 @@ class TestFlashDocumentsUpdate:
         route = respx.patch(f"{BASE_URL}/flash-documents/my-doc-slug/").mock(
             return_value=httpx.Response(
                 200,
-                json={"id": "fd1", "title": "Updated Title", "content": "Updated content"},
+                json={
+                    "id": "fd1",
+                    "title": "Updated Title",
+                    "content": "Updated content",
+                },
             )
         )
         async with client:
@@ -1935,13 +2015,21 @@ class TestGetTeamChannels:
         respx.get(f"{BASE_URL}/projects/p1/comms/").mock(
             return_value=httpx.Response(
                 200,
-                json={"channel_id": "C1", "total_messages": 5, "last_message_at": "2024-01-01T00:00:00"},
+                json={
+                    "channel_id": "C1",
+                    "total_messages": 5,
+                    "last_message_at": "2024-01-01T00:00:00",
+                },
             )
         )
         respx.get(f"{BASE_URL}/projects/p2/comms/").mock(
             return_value=httpx.Response(
                 200,
-                json={"channel_id": "C2", "total_messages": 10, "last_message_at": "2024-01-02T00:00:00"},
+                json={
+                    "channel_id": "C2",
+                    "total_messages": 10,
+                    "last_message_at": "2024-01-02T00:00:00",
+                },
             )
         )
         async with client:
@@ -1967,7 +2055,9 @@ class TestGetTeamChannels:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_get_team_channels_fetches_projects_when_none(self, client: BenmoreClient):
+    async def test_get_team_channels_fetches_projects_when_none(
+        self, client: BenmoreClient
+    ):
         """When project_ids is None, should fetch projects list first."""
         respx.get(f"{BASE_URL}/projects/").mock(
             return_value=httpx.Response(
@@ -1995,7 +2085,11 @@ class TestGetProjectTeamByRole:
                 200,
                 json={
                     "team_members": [
-                        {"username": "alice", "name": "Alice", "title": "Lead Developer"},
+                        {
+                            "username": "alice",
+                            "name": "Alice",
+                            "title": "Lead Developer",
+                        },
                         {"username": "bob", "name": "Bob", "title": "Designer"},
                     ]
                 },
@@ -2013,15 +2107,25 @@ class TestGetProjectTeamByRole:
                 200,
                 json={
                     "team_members": [
-                        {"username": "alice", "name": "Alice", "title": "Lead Developer"},
+                        {
+                            "username": "alice",
+                            "name": "Alice",
+                            "title": "Lead Developer",
+                        },
                         {"username": "bob", "name": "Bob", "title": "Designer"},
-                        {"username": "carol", "name": "Carol", "title": "Lead Developer"},
+                        {
+                            "username": "carol",
+                            "name": "Carol",
+                            "title": "Lead Developer",
+                        },
                     ]
                 },
             )
         )
         async with client:
-            leads = await client.get_project_team_by_role(PROJECT_ID, role="Lead Developer")
+            leads = await client.get_project_team_by_role(
+                PROJECT_ID, role="Lead Developer"
+            )
         assert len(leads) == 2
         assert all(m.role == "Lead Developer" for m in leads)
 
@@ -2082,7 +2186,9 @@ class TestClientEdgeCases:
     @pytest.mark.asyncio
     @respx.mock
     async def test_connection_error(self, client: BenmoreClient):
-        respx.get(f"{BASE_URL}/projects/").mock(side_effect=httpx.ConnectError("Connection refused"))
+        respx.get(f"{BASE_URL}/projects/").mock(
+            side_effect=httpx.ConnectError("Connection refused")
+        )
         async with client:
             with pytest.raises(httpx.ConnectError):
                 await client.projects_list()
@@ -2090,7 +2196,9 @@ class TestClientEdgeCases:
     @pytest.mark.asyncio
     @respx.mock
     async def test_timeout_error(self, client: BenmoreClient):
-        respx.get(f"{BASE_URL}/projects/").mock(side_effect=httpx.ReadTimeout("Timeout"))
+        respx.get(f"{BASE_URL}/projects/").mock(
+            side_effect=httpx.ReadTimeout("Timeout")
+        )
         async with client:
             with pytest.raises(httpx.ReadTimeout):
                 await client.projects_list()

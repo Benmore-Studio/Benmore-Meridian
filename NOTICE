@@ -1,0 +1,10 @@
+Benmore-Meridian
+
+This project includes the `bm` CLI and a public collection of agent skills for
+Claude Code, Codex, and other compatible coding agents.
+
+Primary credit: Arkash Jain
+Project affiliation: Benmore Studio
+
+The project is distributed under the MIT License. Redistributed copies must
+retain the copyright notice and license text.

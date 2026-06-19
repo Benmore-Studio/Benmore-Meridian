@@ -12,7 +12,7 @@ if sys.platform == "win32":
     for stream in (sys.stdout, sys.stderr):
         if stream and hasattr(stream, "reconfigure"):
             with suppress(Exception):
-                stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+                stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined,unused-ignore]
 
 import json
 import shutil
@@ -33,6 +33,7 @@ from bm.config import (
     REGISTRY_FILE,
     REPO_ROOT,
     SKILLS_DIR,
+    SUGGESTION_CACHE_FILE,
 )
 from bm.debrief import run_debrief
 from bm.dryrun import DryRunContext
@@ -247,6 +248,7 @@ def _render_dashboard() -> None:
     _cmd("bm setup", "Install everything: skills, tools, plugins, hooks")
     _cmd("bm doctor", "Full health check \u2014 find and fix problems")
     _cmd("bm update", "Git pull latest + reinstall all skills")
+    _cmd("bm uninstall --all", "Unlink bm-managed installed skills")
 
     console.print()
     console.rule("[bold]Skills[/bold]")
@@ -272,7 +274,7 @@ def _render_dashboard() -> None:
     console.print()
     console.rule("[bold]Discovery[/bold]")
     console.print()
-    _cmd("bm suggest [path]", "Suggest skills for a project (zero API cost)")
+    _cmd("bm suggest [path] --install", "Suggest and install relevant skills")
     _cmd("bm context [path]", "CLAUDE.md snippet with stack + skills")
     _cmd("bm explore [path]", "Deep scan \u2192 docs/bm-suggestions.md")
     _cmd("bm debrief", "Surface skill candidates from git history")
@@ -324,6 +326,19 @@ _RESULT_ICON: dict[InstallResult, str] = {
     InstallResult.FAILED: "❌",
     InstallResult.SKIPPED: "⏭️ ",
 }
+
+
+def _registry_entry_for_skill(skill: SkillEntry, result: InstallResult) -> RegistryEntry:
+    return RegistryEntry(
+        name=skill.name,
+        installed_path=str(CLAUDE_SKILLS_DIR / skill.name),
+        source=skill.source,
+        scope=skill.scope,
+        project=skill.project,
+        install_method=InstallMethod.SYMLINK
+        if result == InstallResult.SYMLINKED
+        else InstallMethod.COPY,
+    )
 
 
 def _scope_label(skill: SkillEntry) -> str:
@@ -393,6 +408,56 @@ def install(
     else:
         console.print(f"\n[bold green]Done![/] {len(skills)} skills \u2192 {CLAUDE_SKILLS_DIR}")
         console.print("[dim]Tip: run [bold]bm prompt list[/] to see saved prompts.[/]")
+
+
+@app.command()
+def uninstall(
+    names: list[str] = typer.Argument(None, help="Skill names to uninstall"),
+    all_skills: bool = typer.Option(False, "--all", help="Uninstall every bm-managed skill"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview removals without writing"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation for --all"),
+) -> None:
+    """Unlink installed bm-managed skills without touching source skill files."""
+    reg = Registry(REGISTRY_FILE)
+    entries = reg.list_all()
+
+    if all_skills:
+        targets = [entry.name for entry in entries if entry.source != SkillSource.EXTERNAL]
+        if not targets:
+            console.print("[dim]No bm-managed skills are registered.[/dim]")
+            return
+        if not dry_run and not yes:
+            typer.confirm(
+                f"Uninstall {len(targets)} bm-managed skill(s) from {CLAUDE_SKILLS_DIR}?",
+                abort=True,
+            )
+    else:
+        targets = list(names) if names else []
+        if not targets:
+            console.print("[red]Provide skill names or pass --all.[/red]")
+            raise typer.Exit(1)
+
+    ctx = DryRunContext(dry_run=dry_run)
+    removed: list[str] = []
+    skipped: list[str] = []
+
+    for name in targets:
+        entry = reg.get(name)
+        if entry and entry.source == SkillSource.EXTERNAL:
+            skipped.append(name)
+            continue
+        try:
+            remove_skill(name, CLAUDE_SKILLS_DIR, reg, ctx)
+            removed.append(name)
+        except ValueError:
+            skipped.append(name)
+
+    if dry_run:
+        ctx.render(console)
+    if removed:
+        console.print(f"[green]Uninstalled {len(removed)} skill(s):[/] {', '.join(removed)}")
+    if skipped:
+        console.print("[yellow]Skipped external/unmanaged skill(s):[/] " + ", ".join(skipped))
 
 
 @app.command()
@@ -519,13 +584,26 @@ def update(
 def suggest(
     path: Path = typer.Argument(Path("."), help="Project directory to scan"),
     top: int = typer.Option(8, "--top", "-n", help="Number of suggestions to show"),
+    intent: str = typer.Option(
+        "", "--intent", "-i", help='Natural-language task intent, e.g. "improve seo"'
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+    install_suggestions: bool = typer.Option(
+        False, "--install", help="Install available suggested skills"
+    ),
+    cache: bool = typer.Option(False, "--cache", help="Save suggestions to ~/.bm/suggestions.json"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview installs without writing"),
 ) -> None:
     """Scan a project and suggest relevant skills based on detected stack."""
     matcher = SkillMatcher(SKILLS_DIR, CLAUDE_SKILLS_DIR)
-    suggestions = matcher.scan(path.resolve(), top=top)
+    suggestions = (
+        matcher.scan_intent(intent, top=top) if intent else matcher.scan(path.resolve(), top=top)
+    )
 
     if not suggestions:
+        if json_output:
+            print_json_payload([], indent=None)
+            return
         console.print("[dim]No matching skills detected for this project.[/dim]")
         raise typer.Exit(0)
 
@@ -533,7 +611,19 @@ def suggest(
         print_json_payload(suggestion_payload(suggestions), indent=None)
         return
 
-    table = Table(title=f"Skill Suggestions for [cyan]{path}[/cyan]", box=box.ROUNDED)
+    if cache:
+        SUGGESTION_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SUGGESTION_CACHE_FILE.write_text(
+            json.dumps(suggestion_payload(suggestions), indent=2), encoding="utf-8"
+        )
+        console.print(f"[green]Cached suggestions:[/] {SUGGESTION_CACHE_FILE}")
+
+    title = (
+        f'Skill Suggestions for intent [cyan]"{intent}"[/cyan]'
+        if intent
+        else f"Skill Suggestions for [cyan]{path}[/cyan]"
+    )
+    table = Table(title=title, box=box.ROUNDED)
     table.add_column("Rank", style="dim", width=5)
     table.add_column("Skill", style="bold cyan")
     table.add_column("Why")
@@ -547,23 +637,93 @@ def suggest(
 
     console.print(table)
 
+    if install_suggestions:
+        available_names = [s.name for s in suggestions if s.status == "available"]
+        if not available_names:
+            console.print("[dim]All suggested skills are already installed.[/dim]")
+            return
+
+        skills_by_name = {skill.name: skill for skill in discover_skills(SKILLS_DIR)}
+        reg = Registry(REGISTRY_FILE)
+        ctx = DryRunContext(dry_run=dry_run)
+        entries: list[RegistryEntry] = []
+        failed: list[str] = []
+
+        for name in available_names:
+            skill = skills_by_name.get(name)
+            if skill is None:
+                failed.append(name)
+                continue
+            result = install_skill(skill, CLAUDE_SKILLS_DIR, ctx=ctx)
+            if result == InstallResult.FAILED:
+                failed.append(name)
+            else:
+                entries.append(_registry_entry_for_skill(skill, result))
+
+        reg.batch_add(entries, ctx=ctx)
+        if dry_run:
+            ctx.render(console)
+        if entries:
+            console.print(
+                f"[green]Installed {len(entries)} suggested skill(s):[/] "
+                + ", ".join(entry.name for entry in entries)
+            )
+        if failed:
+            console.print(f"[red]Failed:[/] {', '.join(failed)}")
+
 
 @app.command("context")
 def context(
     path: Path = typer.Argument(Path("."), help="Project directory to scan"),
+    top: int = typer.Option(8, "--top", "-n", help="Number of recommended skills to include"),
+    global_context: bool = typer.Option(
+        False, "--global", help="Include the full repo skill catalog grouped by category"
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     copy: bool = typer.Option(False, "--copy", "-c", help="Copy output to clipboard"),
 ) -> None:
     """Generate a CLAUDE.md snippet with detected stack and recommended skills."""
     matcher = SkillMatcher(SKILLS_DIR, CLAUDE_SKILLS_DIR)
-    suggestions = matcher.scan(path.resolve(), top=5)
-    summary = matcher.stack_summary(path.resolve())
+    resolved_path = path.resolve()
+    suggestions = matcher.scan(resolved_path, top=top)
+    summary = matcher.stack_summary(resolved_path)
+    catalog = matcher.catalog_by_category() if global_context else {}
+
+    if json_output:
+        print_json_payload(
+            {
+                "path": str(resolved_path),
+                "stack": summary,
+                "recommended_skills": suggestion_payload(suggestions),
+                "skill_catalog": catalog,
+            },
+            indent=None,
+        )
+        return
 
     skill_names = ", ".join(s.name for s in suggestions) if suggestions else "none detected"
+    recommendation_lines = [
+        f"- `{suggestion.name}` ({suggestion.category}, {suggestion.status}): {suggestion.reason}"
+        for suggestion in suggestions
+    ]
+    recommendations = "\n".join(recommendation_lines) if recommendation_lines else "- none detected"
 
     snippet = f"""## Project Stack (auto-detected by bm context)
-- {summary}
+- Path: `{resolved_path}`
+- Stack: {summary}
 - Recommended skills: {skill_names}
+
+## Recommended Skill Context
+{recommendations}
 """
+
+    if global_context:
+        catalog_lines = ["", "## Global Skill Catalog"]
+        for category, names in catalog.items():
+            catalog_lines.append("")
+            catalog_lines.append(f"### {category}")
+            catalog_lines.extend(f"- `{name}`" for name in names)
+        snippet += "\n".join(catalog_lines) + "\n"
 
     console.print(snippet)
 
