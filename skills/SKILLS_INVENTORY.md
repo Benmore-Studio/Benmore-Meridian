@@ -10,7 +10,7 @@ pipx install ./bm && bm install
 
 ---
 
-## General Skills (57 total)
+## General Skills (58 total)
 
 ### 🚀 Production & Deployment
 
@@ -44,6 +44,7 @@ pipx install ./bm && bm install
 | `receiving-code-review` | Marketplace | ✅ Active | Handle code review feedback with technical rigor |
 | `django-celery-expert` | Marketplace | ✅ Active | Django + Celery async task processing |
 | `qa-plan` | Locally owned | ✅ Active | Generate QA test plans from code changes with blast radius analysis and risk scoring |
+| `qa-memory-bank` | Locally owned | ✅ Active | Persistent file-based QA workspace with issue lifecycle, trackers, and session logs that survive across Claude sessions |
 
 ### 💳 Payments & Integration
 
