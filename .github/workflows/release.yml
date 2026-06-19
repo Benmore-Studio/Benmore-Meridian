@@ -6,33 +6,26 @@ on:
       - "bm/**"
       - "benmore_client/**"
       - "skills/**"
+      - "skills.sh.json"
       - ".github/workflows/release.yml"
-      - "AGENTS.md"
-      - "AUTHORS.md"
-      - "CODE_OF_CONDUCT.md"
+      - "*.md"
       - "LICENSE"
       - "NOTICE"
-      - "README.md"
-      - "SECURITY.md"
-      - "skills.sh.json"
   push:
+    # No paths filter here: a paths filter on a tag push can silently skip the
+    # release jobs, so tags (and main) must always trigger the workflow.
     branches:
       - main
     tags:
       - "v*"
-    paths:
-      - "bm/**"
-      - "benmore_client/**"
-      - "skills/**"
-      - ".github/workflows/release.yml"
-      - "AGENTS.md"
-      - "AUTHORS.md"
-      - "CODE_OF_CONDUCT.md"
-      - "LICENSE"
-      - "NOTICE"
-      - "README.md"
-      - "SECURITY.md"
-      - "skills.sh.json"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel superseded PR runs, but never cancel a tag release mid-publish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   ci:
@@ -49,14 +42,25 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Rust + native wheel work is identical across Python versions thanks to
+      # the abi3 build, so it only runs once per OS (on 3.11) to save CI time.
       - name: Set up Rust
+        if: matrix.python-version == '3.11'
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        if: matrix.python-version == '3.11'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bm/native
 
       - name: Ruff format
         working-directory: bm
@@ -79,18 +83,22 @@ jobs:
         run: uv run --extra dev pytest tests/ -q
 
       - name: Rust tests
+        if: matrix.python-version == '3.11'
         working-directory: bm
         run: cargo test --manifest-path native/Cargo.toml
 
       - name: Build sdist
+        if: matrix.python-version == '3.11'
         working-directory: bm
         run: uv build --sdist
 
       - name: Build native wheel
+        if: matrix.python-version == '3.11'
         working-directory: bm
         run: uv run --extra dev maturin build --release --out dist
 
       - name: Verify native wheel
+        if: matrix.python-version == '3.11'
         working-directory: bm
         shell: bash
         run: uv run python scripts/verify_native_wheel.py dist/*.whl
@@ -112,6 +120,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -130,43 +140,55 @@ jobs:
           if-no-files-found: error
 
   build-wheels:
-    name: Build release wheels
-    runs-on: ${{ matrix.os }}
+    name: Wheels ${{ matrix.platform.runner }} ${{ matrix.platform.target }}
+    runs-on: ${{ matrix.platform.runner }}
     needs: ci
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.11", "3.12"]
+        # One abi3 wheel per (os, arch) covers every CPython >= 3.11.
+        platform:
+          - runner: ubuntu-latest
+            target: x86_64
+          - runner: ubuntu-latest
+            target: aarch64
+          - runner: macos-latest
+            target: universal2
+          - runner: windows-latest
+            target: x64
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build native wheel
-        working-directory: bm
-        run: uv run --extra dev maturin build --release --out dist
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: bm
+          target: ${{ matrix.platform.target }}
+          # manylinux: auto builds inside a manylinux container on Linux so the
+          # wheel is portable across glibc versions (incl. aarch64 via cross).
+          manylinux: auto
+          args: --release --out dist
+          sccache: true
 
       - name: Verify native wheel
         working-directory: bm
         shell: bash
-        run: uv run python scripts/verify_native_wheel.py dist/*.whl
+        run: |
+          for wheel in dist/*.whl; do
+            python scripts/verify_native_wheel.py "$wheel"
+          done
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
-          name: bm-wheel-${{ matrix.os }}-py${{ matrix.python-version }}
+          name: bm-wheel-${{ matrix.platform.runner }}-${{ matrix.platform.target }}
           path: bm/dist/*.whl
           if-no-files-found: error
 
@@ -185,6 +207,18 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+
+      - name: Verify tag matches package version
+        working-directory: bm
+        shell: bash
+        run: |
+          pkg_version="$(grep -m1 '^version = ' pyproject.toml | sed -E 's/version = "(.*)"/\1/')"
+          tag_version="${GITHUB_REF_NAME#v}"
+          echo "pyproject=$pkg_version tag=$tag_version"
+          if [ "$pkg_version" != "$tag_version" ]; then
+            echo "::error::Tag $tag_version does not match pyproject version $pkg_version"
+            exit 1
+          fi
 
       - name: Download distributions
         uses: actions/download-artifact@v4
