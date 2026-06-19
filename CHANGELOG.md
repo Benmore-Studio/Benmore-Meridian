@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## v1.10.3 — 2026-06-19
+
+### Release Pipeline Hardening
+
+- Fixed the CI/release workflow: the quality-gate steps ran `uv run ruff/mypy/pytest` without `--extra dev`, so those tools were never installed in clean CI and every prior tag run (`v1.10.0`–`v1.10.2`) failed at the first step and never published. All tool steps now use `--extra dev`.
+- Removed the generated `bm/.coverage` from version control and extended `.gitignore` with coverage and Rust/native build artifacts (`target/`, `*.so`, `Cargo.lock`, `htmlcov/`, `.pytest_cache/`).
+- Added a tag-vs-`pyproject` version guard before publishing, and removed the `paths` filter from the tag push trigger so releases always fire.
+
+### Security
+
+- Bumped `pyo3` 0.22 → 0.29 to clear the RUSTSEC high/medium/low advisories for `pyo3 < 0.29`.
+- Bumped `idna` 3.11 → 3.18 in `bm/uv.lock` to clear GHSA advisory for `idna < 3.15`.
+
+### Native / Performance
+
+- Built the native extension as a single `abi3` (stable ABI) wheel for CPython ≥ 3.11, so one wheel per platform covers all supported Python versions instead of one per version.
+- Added a `[profile.release]` (LTO, single codegen unit, symbol stripping) for a smaller, faster `bm._native` extension.
+- Release wheels now build via `PyO3/maturin-action` with `manylinux: auto`, covering Linux `x86_64` + `aarch64`, macOS `universal2`, and Windows `x64`.
+- Added uv dependency caching, `Swatinem/rust-cache`, `sccache`, and a `concurrency` group (cancel superseded PR runs) to speed up CI.
+
 ## v1.10.2 — 2026-06-19
 
 ### Agent Workflow
