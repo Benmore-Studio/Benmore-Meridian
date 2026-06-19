@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## v1.10.0 — 2026-06-19
+
+### Public Release
+
+- Added public repository compliance files: `CODE_OF_CONDUCT.md`, `SECURITY.md`, `AUTHORS.md`, and `NOTICE`.
+- Updated package metadata for PyPI distribution as `benmore-bm`, including project URLs, classifiers, keywords, and public license attribution.
+- Added `skills.sh.json` and README badges so the full skill catalog can be indexed and grouped on skills.sh.
+
+### CLI Usability
+
+- Added top-level `bm uninstall` for removing bm-managed installed skills without deleting source skills or external registry entries.
+- Extended `bm suggest` with `--install`, `--cache`, and `--dry-run` so agents can recommend, install, and persist project-relevant skills in one flow.
+- Fixed `bm suggest --json` so no-match results emit valid `[]` JSON with no prose.
+- Extended `bm context` with `--top`, `--global`, and `--json` so agents can load concise project context or a full grouped skill catalog.
+- Improved skill matching with category aliases and metadata signals for HIPAA, SOC 2, GDPR, PHI, audit logging, MFA, tenant isolation, security, frontend, backend, deployment, docs, SEO, and payments.
+
+### Release Pipeline
+
+- Replaced the release workflow with staged CI and tag release jobs covering Ruff format/lint, mypy, basedpyright, pytest, schema smoke tests, Rust unit tests, sdist builds, and native `maturin` wheel builds.
+- Release tags now build and upload a source distribution plus native wheels for Linux, macOS, and Windows across Python 3.11 and 3.12 before publishing to PyPI.
+
+### Fixes
+
+- Fixed `playwright-doc-generator` frontmatter so discovery no longer warns about a mismatched skill name.
+- Fixed type issues in OpenAPI schema generation and `benmore_client` context query params.
+- Cleaned root client tests so the stricter release lint gate passes.
+
+---
+
 ## v1.9.0 — 2026-04-09
 
 ### New Skills

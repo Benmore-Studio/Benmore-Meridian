@@ -4,10 +4,26 @@ build-backend = "hatchling.build"
 
 [project]
 name = "benmore-bm"
-version = "1.8.0"
+version = "1.10.0"
 description = "Benmore skill manager for Claude Code"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "Arkash Jain", email = "arkjain@bu.edu" },
+    { name = "Benmore Studio" },
+]
+keywords = ["agent-skills", "claude-code", "codex", "skills", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+]
 dependencies = [
     "typer>=0.24.1",
     "rich>=13",
@@ -16,6 +32,12 @@ dependencies = [
 
 [project.scripts]
 bm = "bm.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/Benmore-Studio/Benmore-Meridian"
+Repository = "https://github.com/Benmore-Studio/Benmore-Meridian"
+Issues = "https://github.com/Benmore-Studio/Benmore-Meridian/issues"
+Skills = "https://skills.sh/Benmore-Studio/Benmore-Meridian"
 
 [tool.uv.sources]
 benmore-client = { path = "../benmore_client", editable = true }

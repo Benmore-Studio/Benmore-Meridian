@@ -38,6 +38,7 @@ PLUGINS_DIR: Path = CLAUDE_DIR / "plugins"
 BM_DIR: Path = Path.home() / ".bm"
 REGISTRY_FILE: Path = BM_DIR / "registry.json"
 PROMPT_REGISTRY_FILE: Path = BM_DIR / "prompts.json"
+SUGGESTION_CACHE_FILE: Path = BM_DIR / "suggestions.json"
 
 PLUGIN_MARKERS: dict[str, Path] = {
     "Superpowers": PLUGINS_DIR / "cache" / "claude-plugins-official",

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Discover",
+      "description": "Find and recommend the right agent skills for a project.",
+      "skills": [
+        "find-skills",
+        "project-primer",
+        "better-scope-gen",
+        "feature-alignment"
+      ]
+    },
+    {
+      "title": "SEO",
+      "description": "Improve search visibility, AI answer visibility, and content systems.",
+      "skills": [
+        "ai-seo",
+        "programmatic-seo",
+        "seo-audit"
+      ]
+    },
+    {
+      "title": "Frontend",
+      "description": "Build, test, and productionize frontend applications.",
+      "skills": [
+        "frontend-productionize",
+        "web-design-guidelines",
+        "minimalist-ui-design",
+        "playwright-doc-generator",
+        "site-capture"
+      ]
+    },
+    {
+      "title": "Backend",
+      "description": "Production backend patterns for Django, FastAPI, Celery, auth, and APIs.",
+      "skills": [
+        "django-celery-expert",
+        "fastapi-templates",
+        "productionize-app",
+        "universal-auth",
+        "benmore-api"
+      ]
+    },
+    {
+      "title": "Security",
+      "description": "Security, compliance, audit, and dependency review workflows.",
+            "skills": [
+                "dependency-security-audit",
+                "security-compliance-audit",
+                "multi-tenant-guard",
+                "multi-tenant-scan",
+                "hipaa-compliance-guard",
+                "healthcare-audit-logger",
+                "audit-trail",
+                "gdpr-compliance",
+                "django-react-2fa",
+                "otp-verification",
+                "role-based-authentication",
+                "universal-auth",
+                "service-invariant-guard"
+            ]
+        },
+    {
+      "title": "Documents",
+      "description": "Generate, inspect, and edit professional documents and presentations.",
+      "skills": [
+        "pdf",
+        "docx",
+        "xlsx",
+        "presentation-maker",
+        "release-notes"
+      ]
+    },
+    {
+      "title": "Deployment",
+      "description": "Operate deployment CLIs and cloud release workflows.",
+      "skills": [
+        "vercel-cli",
+        "heroku-cli",
+        "doctl-cli",
+        "sentry-cli"
+      ]
+    }
+  ]
+}

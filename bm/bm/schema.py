@@ -174,10 +174,11 @@ def build_benmore_openapi() -> dict[str, Any]:
             ProjectStatus,
             TeamMember,
         )
+        from pydantic import BaseModel
     except ImportError as exc:  # pragma: no cover - exercised by CLI error path.
         raise RuntimeError("benmore_client is required to generate OpenAPI") from exc
 
-    models = [
+    models: list[type[BaseModel]] = [
         Channel,
         Document,
         GitHubBoard,

@@ -3,10 +3,11 @@
 **The skill manager for Claude Code.**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-1.8.0-green)](https://github.com/Benmore-Studio/Benmore-Meridian)
+[![Version](https://img.shields.io/badge/version-1.10.0-green)](https://github.com/Benmore-Studio/Benmore-Meridian)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 [![Tests](https://img.shields.io/badge/tests-88%20passing-brightgreen)](tests/)
 [![Skills](https://img.shields.io/badge/skills-50%2B-purple)](../skills/)
+[![skills.sh](https://skills.sh/b/Benmore-Studio/Benmore-Meridian)](https://skills.sh/Benmore-Studio/Benmore-Meridian)
 
 ```bash
 uv tool install benmore-bm
@@ -29,6 +30,8 @@ That's it. 50+ Claude Code skills are now symlinked and ready.
 **With bm:**
 
 - **Symlink-first install** — skills live in the repo. `bm install` creates symlinks in `~/.claude/skills/`. Edit a skill file once, and every Claude Code session sees the change immediately.
+- **Clean uninstall** — `bm uninstall --all` unlinks bm-managed installed skills without deleting source files or external skills.
+- **Context-aware suggestions** — `bm suggest . --top 4 --install --cache` recommends only relevant skills, installs them, and saves the recommendation cache.
 - **Project skill lifecycle** — create project-scoped skills (`bm skill add x --project myapp`), then promote them to general availability (`bm skill generalize x`) once they prove universal.
 - **Registry tracking** — every installed skill is recorded in `~/.bm/registry.json` with its source, scope, and install method, regardless of how it got there.
 - **Claude-native output** — every command supports `--json` so Claude agents can query `bm status --json` directly and act on the result.
@@ -95,6 +98,7 @@ All commands support `--help` for detailed usage.
 ```
 Core
   bm install  [--rsync] [--dry-run]              Symlink all skills → ~/.claude/skills/
+  bm uninstall [names...] [--all] [--dry-run]    Unlink bm-managed installed skills
   bm status   [--json]                           Show skill status table or JSON
   bm update   [name] [--rsync] [--dry-run]       git pull + reinstall one or all skills
   bm doctor                                      Full health check: skills + plugins
@@ -106,6 +110,9 @@ Skills
   bm skill info <name>                                   Show skill path, scope, status, source
   bm skill generalize <name>                             Promote project skill to general
   bm skill remove <name> [--dry-run]                     Remove a skill (v1.1)
+
+Discovery
+  bm suggest [path] [--top N] [--install] [--cache]       Recommend and optionally install/cache skills
 
 Registry
   bm registry list [--json]                      List all registry entries
@@ -948,19 +955,19 @@ bm skill info new-feature   # confirm: Status: ✅ symlinked
 cd bm
 
 # Install dev dependencies
-uv sync --all-extras
+uv sync --extra dev
 
-# Run all checks (format + lint + type check + tests)
-make check-all
-
-# Individual steps
-uv run ruff format bm/ tests/       # format
-uv run ruff check bm/ tests/        # lint
-uv run mypy bm/                     # strict type check (0 errors)
-uv run pytest tests/ -v             # tests with coverage
+# Release gate
+uv run ruff format --check bm/ tests/
+uv run ruff check bm/ tests/
+uv run mypy bm/
+uv run --extra dev basedpyright
+uv run pytest tests/ -q
+cargo test --manifest-path native/Cargo.toml
 ```
 
-`make check-all` runs ruff format, ruff lint, mypy, and pytest in sequence and exits non-zero on any failure. Designed to complete in under 30 seconds.
+The optional native helper has a pure Python fallback, but Rust tests must pass
+before publishing wheels.
 
 ### Manual end-to-end
 
@@ -1016,7 +1023,7 @@ bm install
 | Category | Skills |
 |----------|--------|
 | Production | `django-production`, `frontend-productionize`, `productionize-app`, `fastapi-templates`, `vercel-cli` |
-| Security | `dependency-security-audit`, `audit-trail`, `gdpr-compliance`, `multi-tenant-guard` |
+| Security & Compliance | `dependency-security-audit`, `audit-trail`, `gdpr-compliance`, `multi-tenant-guard`, `multi-tenant-scan`, `hipaa-compliance-guard`, `security-compliance-audit`, `healthcare-audit-logger`, `django-react-2fa`, `otp-verification`, `role-based-authentication`, `universal-auth`, `service-invariant-guard` |
 | SEO | `ai-seo`, `seo-audit`, `programmatic-seo` |
 | Documents | `pdf`, `xlsx`, `presentation-maker`, `release-notes` |
 | Dev Tools | `mcp-builder`, `modern-terminal-setup`, `skill-creator`, `find-skills` |

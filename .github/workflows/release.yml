@@ -1,300 +1,198 @@
-# .github/workflows/release.yml
-#
-# Automated release workflow for the bm CLI and skills.
-#
-# Triggers on push to main when bm/ or skills/ change.
-# Determines bump type from commit messages, writes new version to
-# pyproject.toml + __init__.py, updates CHANGELOG.md, commits, tags,
-# pushes, and creates a GitHub Release.
-#
-# [skip ci] in any commit message prevents the workflow from running,
-# which stops the auto-bump commit from triggering itself.
-
-name: Release
+name: bm CI and Release
 
 on:
+  pull_request:
+    paths:
+      - "bm/**"
+      - "benmore_client/**"
+      - "skills/**"
+      - ".github/workflows/release.yml"
+      - "AGENTS.md"
+      - "AUTHORS.md"
+      - "CODE_OF_CONDUCT.md"
+      - "LICENSE"
+      - "NOTICE"
+      - "README.md"
+      - "SECURITY.md"
+      - "skills.sh.json"
   push:
     branches:
       - main
+    tags:
+      - "v*"
     paths:
       - "bm/**"
+      - "benmore_client/**"
       - "skills/**"
+      - ".github/workflows/release.yml"
+      - "AGENTS.md"
+      - "AUTHORS.md"
+      - "CODE_OF_CONDUCT.md"
+      - "LICENSE"
+      - "NOTICE"
+      - "README.md"
+      - "SECURITY.md"
+      - "skills.sh.json"
 
 jobs:
-  release:
-    name: Bump version & publish release
-    runs-on: ubuntu-latest
-
-    # Required to push commits, tags, and create releases
-    permissions:
-      contents: write
+  ci:
+    name: Quality Gates
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
 
     steps:
-      # ------------------------------------------------------------------ #
-      # 1. Guard — skip if the commit message contains [skip ci]            #
-      # ------------------------------------------------------------------ #
-      - name: Check for [skip ci]
-        id: skip_check
-        run: |
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
-          if echo "$COMMIT_MSG" | grep -qF '[skip ci]'; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+      - uses: actions/checkout@v4
 
-      # ------------------------------------------------------------------ #
-      # 2. Checkout (full history needed for git log / tags)                #
-      # ------------------------------------------------------------------ #
-      - name: Checkout repository
-        if: steps.skip_check.outputs.skip == 'false'
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          # Use a PAT or the default token; default is fine for same-repo pushes
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      # ------------------------------------------------------------------ #
-      # 3. Set up Python                                                     #
-      # ------------------------------------------------------------------ #
-      - name: Set up Python 3.11
-        if: steps.skip_check.outputs.skip == 'false'
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
-      # ------------------------------------------------------------------ #
-      # 4. Determine last tag, current version, bump type, new version      #
-      # ------------------------------------------------------------------ #
-      - name: Compute new version
-        if: steps.skip_check.outputs.skip == 'false'
-        id: versioning
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Ruff format
+        working-directory: bm
+        run: uv run ruff format --check bm/ tests/
+
+      - name: Ruff lint
+        working-directory: bm
+        run: uv run ruff check bm/ tests/
+
+      - name: mypy
+        working-directory: bm
+        run: uv run mypy bm/
+
+      - name: basedpyright
+        working-directory: bm
+        run: uv run --extra dev basedpyright
+
+      - name: pytest
+        working-directory: bm
+        run: uv run pytest tests/ -q
+
+      - name: Rust tests
+        working-directory: bm
+        run: cargo test --manifest-path native/Cargo.toml
+
+      - name: Build sdist
+        working-directory: bm
+        run: uv build --sdist
+
+      - name: Build native wheel
+        working-directory: bm
+        run: uv run --extra dev maturin build --release --out dist
+
+      - name: CLI schema smoke
+        working-directory: bm
         run: |
-          python << 'PYEOF'
-          import subprocess
-          import re
-          import os
+          uv run bm schema json status
+          uv run bm schema openapi
 
-          # --- last git tag ---------------------------------------------------
-          result = subprocess.run(
-              ["git", "tag", "--sort=-version:refname"],
-              capture_output=True, text=True
-          )
-          tags = [t.strip() for t in result.stdout.splitlines() if t.strip()]
-          last_tag = tags[0] if tags else "v0.0.0"
-          print(f"Last tag: {last_tag}")
+  build-sdist:
+    name: Build release sdist
+    runs-on: ubuntu-latest
+    needs: ci
+    if: startsWith(github.ref, 'refs/tags/v')
 
-          # --- current version from pyproject.toml ---------------------------
-          with open("bm/pyproject.toml") as f:
-              content = f.read()
-          m = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
-          if not m:
-              raise RuntimeError("Could not find version in bm/pyproject.toml")
-          current_ver = m.group(1)
-          print(f"Current version in pyproject.toml: {current_ver}")
+    steps:
+      - uses: actions/checkout@v4
 
-          # --- commits since last tag ----------------------------------------
-          log_range = f"{last_tag}..HEAD" if last_tag != "v0.0.0" else "HEAD"
-          log_result = subprocess.run(
-              ["git", "log", log_range, "--pretty=format:%s"],
-              capture_output=True, text=True
-          )
-          commit_msgs = [l.strip() for l in log_result.stdout.splitlines() if l.strip()]
-          print(f"Commits since {last_tag}: {commit_msgs}")
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-          # --- determine bump type -------------------------------------------
-          bump = "patch"
-          for msg in commit_msgs:
-              if msg.startswith("BREAKING:"):
-                  bump = "major"
-                  break
-              if msg.startswith("feat:") and bump != "major":
-                  bump = "minor"
-          print(f"Bump type: {bump}")
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-          # --- compute new version -------------------------------------------
-          major, minor, patch = map(int, current_ver.split("."))
-          if bump == "major":
-              major += 1
-              minor = 0
-              patch = 0
-          elif bump == "minor":
-              minor += 1
-              patch = 0
-          else:
-              patch += 1
-          new_ver = f"{major}.{minor}.{patch}"
-          print(f"New version: {new_ver}")
+      - name: Build sdist
+        working-directory: bm
+        run: uv build --sdist
 
-          # --- collect changelog lines ---------------------------------------
-          changelog_lines = "\n".join(f"- {msg}" for msg in commit_msgs) if commit_msgs else "- No notable changes"
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: bm-sdist
+          path: bm/dist/*.tar.gz
+          if-no-files-found: error
 
-          # --- write outputs to GITHUB_OUTPUT --------------------------------
-          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
-              fh.write(f"last_tag={last_tag}\n")
-              fh.write(f"current_ver={current_ver}\n")
-              fh.write(f"new_ver={new_ver}\n")
-              # changelog_lines may be multiline — use heredoc syntax
-              fh.write("changelog_lines<<CHANGELOG_DELIM\n")
-              fh.write(changelog_lines + "\n")
-              fh.write("CHANGELOG_DELIM\n")
-          PYEOF
+  build-wheels:
+    name: Build release wheels
+    runs-on: ${{ matrix.os }}
+    needs: ci
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
 
-      # ------------------------------------------------------------------ #
-      # 5. Write new version to bm/pyproject.toml                           #
-      # ------------------------------------------------------------------ #
-      - name: Update bm/pyproject.toml
-        if: steps.skip_check.outputs.skip == 'false'
-        run: |
-          python << 'PYEOF'
-          import re
+    steps:
+      - uses: actions/checkout@v4
 
-          new_ver = "${{ steps.versioning.outputs.new_ver }}"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-          with open("bm/pyproject.toml") as f:
-              content = f.read()
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-          updated = re.sub(
-              r'^(version\s*=\s*)"[^"]+"',
-              rf'\g<1>"{new_ver}"',
-              content,
-              flags=re.MULTILINE,
-          )
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
-          with open("bm/pyproject.toml", "w") as f:
-              f.write(updated)
+      - name: Build native wheel
+        working-directory: bm
+        run: uv run --extra dev maturin build --release --out dist
 
-          print(f"bm/pyproject.toml → version = \"{new_ver}\"")
-          PYEOF
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: bm-wheel-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: bm/dist/*.whl
+          if-no-files-found: error
 
-      # ------------------------------------------------------------------ #
-      # 6. Write new version to bm/bm/__init__.py                           #
-      # ------------------------------------------------------------------ #
-      - name: Update bm/bm/__init__.py
-        if: steps.skip_check.outputs.skip == 'false'
-        run: |
-          python << 'PYEOF'
-          import re
+  release:
+    name: Publish PyPI and GitHub Release
+    runs-on: ubuntu-latest
+    needs: [ci, build-sdist, build-wheels]
+    if: startsWith(github.ref, 'refs/tags/v')
 
-          new_ver = "${{ steps.versioning.outputs.new_ver }}"
+    permissions:
+      contents: write
+      id-token: write
 
-          with open("bm/bm/__init__.py") as f:
-              content = f.read()
+    steps:
+      - uses: actions/checkout@v4
 
-          updated = re.sub(
-              r'^(__version__\s*=\s*)"[^"]+"',
-              rf'\g<1>"{new_ver}"',
-              content,
-              flags=re.MULTILINE,
-          )
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-          with open("bm/bm/__init__.py", "w") as f:
-              f.write(updated)
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          path: bm/dist
+          pattern: bm-*
+          merge-multiple: true
 
-          print(f"bm/bm/__init__.py → __version__ = \"{new_ver}\"")
-          PYEOF
+      - name: Publish to PyPI
+        working-directory: bm
+        run: uv publish dist/*
 
-      # ------------------------------------------------------------------ #
-      # 7. Prepend new section to CHANGELOG.md                              #
-      # ------------------------------------------------------------------ #
-      - name: Update CHANGELOG.md
-        if: steps.skip_check.outputs.skip == 'false'
-        run: |
-          python << 'PYEOF'
-          import datetime
-
-          new_ver   = "${{ steps.versioning.outputs.new_ver }}"
-          today     = datetime.date.today().strftime("%Y-%m-%d")
-
-          changelog_lines = """${{ steps.versioning.outputs.changelog_lines }}"""
-
-          new_section = (
-              f"## v{new_ver} — {today}\n"
-              f"\n"
-              f"### Changes\n"
-              f"{changelog_lines.strip()}\n"
-              f"\n"
-              f"---\n"
-              f"\n"
-          )
-
-          with open("CHANGELOG.md") as f:
-              existing = f.read()
-
-          # Insert after the first line that starts with "# " (the H1 title),
-          # or prepend if no H1 is found.
-          lines = existing.split("\n")
-          insert_at = 0
-          for i, line in enumerate(lines):
-              if line.startswith("# "):
-                  insert_at = i + 1
-                  # Skip any blank lines immediately after the H1
-                  while insert_at < len(lines) and lines[insert_at].strip() == "":
-                      insert_at += 1
-                  break
-
-          updated = "\n".join(lines[:insert_at]) + "\n\n" + new_section + "\n".join(lines[insert_at:])
-
-          with open("CHANGELOG.md", "w") as f:
-              f.write(updated)
-
-          print(f"CHANGELOG.md updated with v{new_ver} section")
-          PYEOF
-
-      # ------------------------------------------------------------------ #
-      # 8. Commit version bumps + changelog                                 #
-      # ------------------------------------------------------------------ #
-      - name: Commit version bump
-        if: steps.skip_check.outputs.skip == 'false'
-        run: |
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git config user.name  "${{ github.actor }}"
-
-          git add bm/pyproject.toml bm/bm/__init__.py CHANGELOG.md
-          git commit -m "chore: bump v${{ steps.versioning.outputs.new_ver }} [skip ci]"
-
-      # ------------------------------------------------------------------ #
-      # 9. Create annotated tag                                              #
-      # ------------------------------------------------------------------ #
-      - name: Create git tag
-        if: steps.skip_check.outputs.skip == 'false'
-        run: |
-          git tag -a "v${{ steps.versioning.outputs.new_ver }}" \
-                  -m "Release v${{ steps.versioning.outputs.new_ver }}"
-
-      # ------------------------------------------------------------------ #
-      # 10. Push commit + tag                                                #
-      # ------------------------------------------------------------------ #
-      - name: Push to main with tags
-        if: steps.skip_check.outputs.skip == 'false'
-        run: |
-          git push origin main --tags
-
-      # ------------------------------------------------------------------ #
-      # 11. Create GitHub Release                                            #
-      # ------------------------------------------------------------------ #
       - name: Create GitHub Release
-        if: steps.skip_check.outputs.skip == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          NEW_VER="${{ steps.versioning.outputs.new_ver }}"
-          TODAY=$(date +%Y-%m-%d)
-
-          # changelog_lines is a multiline GitHub Actions output; it is
-          # expanded by Actions before the shell sees this script, so
-          # assigning it to a variable here captures the full text safely.
-          CHANGELOG_LINES="${{ steps.versioning.outputs.changelog_lines }}"
-
-          RELEASE_NOTES="## v${NEW_VER} — ${TODAY}
-
-### Changes
-${CHANGELOG_LINES}
-
----
-*Auto-generated by the release workflow.*"
-
-          gh release create "v${NEW_VER}" \
-            --title "v${NEW_VER}" \
-            --notes "${RELEASE_NOTES}" \
-            --verify-tag
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --verify-tag \
+            bm/dist/*
