@@ -60,15 +60,15 @@ jobs:
 
       - name: Ruff format
         working-directory: bm
-        run: uv run ruff format --check bm/ tests/
+        run: uv run --extra dev ruff format --check bm/ tests/
 
       - name: Ruff lint
         working-directory: bm
-        run: uv run ruff check bm/ tests/
+        run: uv run --extra dev ruff check bm/ tests/
 
       - name: mypy
         working-directory: bm
-        run: uv run mypy bm/
+        run: uv run --extra dev mypy bm/
 
       - name: basedpyright
         working-directory: bm
@@ -76,7 +76,7 @@ jobs:
 
       - name: pytest
         working-directory: bm
-        run: uv run pytest tests/ -q
+        run: uv run --extra dev pytest tests/ -q
 
       - name: Rust tests
         working-directory: bm
