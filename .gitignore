@@ -22,6 +22,20 @@ __pycache__/
 dist/
 build/
 
+# Test / coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+*.cover
+
+# Rust / native build artifacts (PyO3 extension)
+target/
+*.so
+*.pyd
+Cargo.lock
+
 # Logs
 *.log
 logs/
