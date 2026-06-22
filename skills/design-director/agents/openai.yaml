@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design Director"
+  short_description: "Routes vocabulary into frontend design execution"
+  default_prompt: "Use $design-director to diagnose this UI, choose the right design vocabulary and impeccable commands, then implement and browser-verify the improvement."
