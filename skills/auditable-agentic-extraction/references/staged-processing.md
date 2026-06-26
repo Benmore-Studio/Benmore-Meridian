@@ -7,8 +7,12 @@ looping page-by-page in one opaque step. Each stage:
 - is **idempotent** (safe to re-run after a retry),
 - can be **resumed** from the last completed stage.
 
-This is the spine that runs the agent loop (patterns 1/3) over the document and
-applies gating/degradation (5/6) at each step.
+This is the spine that runs the agent loop
+([`agent-and-tools.md`](agent-and-tools.md)) over the document and applies
+gating/degradation ([`degradation-and-gating.md`](degradation-and-gating.md)) at
+each step. Code is **language-neutral with Go as the lead example**; the spine is
+just "run named functions in order, persisting between them" — no framework
+required.
 
 ## Contents
 
@@ -42,45 +46,69 @@ classify ─► detect ─► measure ─► understand ─► reconcile ─► 
 
 ## The stage spine
 
-Framework-light orchestrator. Each stage is a function
-`(doc_state) -> doc_state` that reads the accumulated state and writes its
-output back. The orchestrator persists state and emits events between stages.
+Lightweight orchestrator. Each stage is a function `(DocState) -> DocState` that
+reads the accumulated state and writes its output back. The orchestrator persists
+state and emits events between stages. Go (lead example):
 
-```python
-from dataclasses import dataclass, field
-from typing import Callable, Any
+```go
+type DocState struct {
+    DocID           string
+    CompletedStages []string
+    Artifacts       map[string]any // per-stage output, keyed by stage name
+}
 
-@dataclass
-class DocState:
-    doc_id: str
-    completed_stages: list[str] = field(default_factory=list)
-    artifacts: dict[str, Any] = field(default_factory=dict)   # per-stage output
+type Stage struct {
+    Name string
+    Fn   func(DocState) (DocState, error)
+}
 
-Stage = tuple[str, Callable[[DocState], DocState]]
+type Event struct {
+    Stage  string `json:"stage"`
+    Status string `json:"status"` // "started" | "finished" | "failed"
+    Index  int    `json:"index"`
+    Total  int    `json:"total"`
+    Err    string `json:"error,omitempty"`
+}
 
-def run_pipeline(state: DocState, stages: list[Stage], emit, save):
-    """Run stages in order, resuming after the last completed one.
-    `emit(doc_id, event)` publishes progress (WebSocket/queue/etc.).
-    `save(state)` persists state so a retry can resume."""
-    total = len(stages)
-    for i, (name, fn) in enumerate(stages):
-        if name in state.completed_stages:
-            continue                           # resume: skip already-done work
-        emit(state.doc_id, {"stage": name, "status": "started",
-                            "index": i, "total": total})
-        try:
-            state = fn(state)                  # stage does its work, writes artifacts
-        except Exception as e:
-            emit(state.doc_id, {"stage": name, "status": "failed", "error": str(e)})
-            raise                              # let the queue retry; resume picks up here
-        state.completed_stages.append(name)
-        save(state)                            # checkpoint AFTER the stage succeeds
-        emit(state.doc_id, {"stage": name, "status": "finished",
-                            "index": i, "total": total})
-    emit(state.doc_id, {"stage": "done", "status": "finished",
-                        "index": total, "total": total})
-    return state
+// runPipeline runs stages in order, resuming after the last completed one.
+//   emit(docID, ev) publishes progress (WebSocket / event bus / etc.)
+//   save(state)     persists state so a retry can resume.
+func runPipeline(state DocState, stages []Stage,
+    emit func(string, Event), save func(DocState) error) (DocState, error) {
+
+    total := len(stages)
+    done := map[string]bool{}
+    for _, s := range state.CompletedStages {
+        done[s] = true
+    }
+
+    for i, st := range stages {
+        if done[st.Name] {
+            continue // resume: skip already-done work
+        }
+        emit(state.DocID, Event{Stage: st.Name, Status: "started", Index: i, Total: total})
+
+        next, err := st.Fn(state) // stage does its work, writes artifacts
+        if err != nil {
+            emit(state.DocID, Event{Stage: st.Name, Status: "failed", Index: i, Total: total, Err: err.Error()})
+            return state, err // let the queue retry; resume picks up here
+        }
+        state = next
+        state.CompletedStages = append(state.CompletedStages, st.Name)
+        if err := save(state); err != nil { // checkpoint AFTER the stage succeeds
+            return state, err
+        }
+        emit(state.DocID, Event{Stage: st.Name, Status: "finished", Index: i, Total: total})
+    }
+    emit(state.DocID, Event{Stage: "done", Status: "finished", Index: total, Total: total})
+    return state, nil
+}
 ```
+
+> Secondary-language note: the same shape in Python is a list of
+> `(name, fn)` tuples and a `for` loop; the orchestrator is deliberately tiny so
+> it ports cleanly. What matters is the *contract* (named stages, checkpoint after
+> success, emit on boundaries), not the language.
 
 ## Progress events
 
@@ -95,8 +123,9 @@ in the connection URL — query-string credentials leak into logs and proxies.
 
 ## Idempotency & resumability
 
-Stages run on an at-least-once queue (Celery and friends redeliver on retry), so
-every stage must be safe to run twice:
+Stages typically run on an **at-least-once background queue** — any such system
+(message queue, task runner, durable-execution engine) can redeliver a job on
+retry — so every stage must be safe to run twice:
 
 - **Checkpoint after success.** Append to `completed_stages` and `save` only
   once the stage finished; on resume, completed stages are skipped.
@@ -104,15 +133,18 @@ every stage must be safe to run twice:
   prior output for the document, not add a second copy. Key artifacts by
   `(doc_id, stage)` (and region id where relevant).
 - **Guard external side effects** (charges, emails, notifications) with an
-  idempotency key so a redelivered task doesn't double-fire.
+  idempotency key so a redelivered job doesn't double-fire.
 
-```python
-def detect_stage(state: DocState) -> DocState:
-    regions = locate_regions(state.artifacts["pages"])
-    # upsert: overwrite this doc's detect output rather than appending
-    state.artifacts["regions"] = regions          # replace, idempotent
-    persist_regions(state.doc_id, regions, replace=True)
-    return state
+```go
+func detectStage(state DocState) (DocState, error) {
+    regions := locateRegions(state.Artifacts["pages"])
+    // upsert: overwrite THIS doc's detect output rather than appending a 2nd copy
+    state.Artifacts["regions"] = regions
+    if err := persistRegions(state.DocID, regions /* replace= */, true); err != nil {
+        return state, err
+    }
+    return state, nil
+}
 ```
 
 ## Activity-based reaping (no wall-clock timeouts)
@@ -128,10 +160,11 @@ reap on **lack of progress**:
 - This distinguishes "still working, just big" (heartbeats advancing) from
   "genuinely hung" (heartbeats frozen).
 
-```python
-def is_stuck(doc, inactivity_limit_s) -> bool:
-    return (now() - doc.last_activity_at).total_seconds() > inactivity_limit_s
-    # NOTE: deliberately not (now() - doc.started_at) — runtime is not the signal.
+```go
+func isStuck(doc Doc, inactivityLimit time.Duration) bool {
+    return time.Since(doc.LastActivityAt) > inactivityLimit
+    // NOTE: deliberately NOT time.Since(doc.StartedAt) — total runtime is not the signal.
+}
 ```
 
 Each emitted stage event should bump `last_activity_at`; long stages that do

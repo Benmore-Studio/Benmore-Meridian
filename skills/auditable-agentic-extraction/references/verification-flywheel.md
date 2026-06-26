@@ -10,6 +10,11 @@ The insight: a correction is not just a patch to one record — it is a free,
 high-quality, in-distribution training label that you already paid a human to
 produce. Throwing it away is the most expensive mistake in the whole design.
 
+Code is **language-neutral with Go as the lead example**; "a persisted record"
+and "a training label" are just rows in whatever store you use. This loop is
+powered by `source_ref` ([`provenance.md`](provenance.md)) — it is what makes a
+correction a *localized* label.
+
 ## Contents
 
 - The verification surface
@@ -21,10 +26,12 @@ produce. Throwing it away is the most expensive mistake in the whole design.
 
 ## The verification surface
 
-Provenance (pattern 2) is what makes verification fast. The UI should let a
-reviewer, per value:
+Provenance (pattern 2) is what makes verification fast, and `source_ref` is the
+field that makes it *possible* — without it the reviewer has no way to find the
+value in the document. The UI should let a reviewer, per value:
 - see the value, its `confidence`, and its `method`;
-- jump to the `source_ref` (highlight the region / scroll to the row);
+- jump to the `source_ref` — highlight the region (bbox), scroll to the row
+  (table+row), or focus the token (anchor);
 - **confirm** (value is right), **correct** (supply the right value), or
   **flag** (can't tell — needs escalation, must leave a note).
 
@@ -33,41 +40,66 @@ fallback-method values first — those are the least grounded.
 
 ## The verify/correct loop
 
-```python
-from enum import Enum
+Go (lead example). A record is just a persisted row; `Save` writes it back.
 
-class Verdict(str, Enum):
-    CONFIRM = "confirm"     # automation was right
-    CORRECT = "correct"     # human supplied a different value
-    FLAG    = "flag"        # cannot determine; needs escalation + note
+```go
+type Verdict string
 
-def apply_verification(record, verdict: Verdict, corrected_value=None, note=None):
-    if verdict is Verdict.CONFIRM:
-        record.status = "verified"
-        emit_label(record, label_value=record.value, kind="confirmation")
-    elif verdict is Verdict.CORRECT:
-        if corrected_value is None:
-            raise ValueError("correction requires a value")
-        record.original_value = record.value      # keep what the model said
-        record.value = corrected_value             # human value wins
-        record.status = "verified"
-        # the disagreement is the most valuable training signal:
-        emit_label(record, label_value=corrected_value, kind="correction")
-    elif verdict is Verdict.FLAG:
-        if not note:
-            raise ValueError("flag requires a note")  # no silent flags
-        record.status = "flagged"
-        record.review_note = note
-    record.verified_by = current_user()
-    record.verified_at = now()
-    record.save()
+const (
+    Confirm Verdict = "confirm" // automation was right
+    Correct Verdict = "correct" // human supplied a different value
+    Flag    Verdict = "flag"    // cannot determine; needs escalation + note
+)
 
-def project_is_verified(records) -> bool:
-    """Completeness gate: a document is 'verified' only when every value is
-    either confirmed/corrected or flagged-with-a-note. No silent gaps."""
-    return all(r.status in ("verified", "flagged") and
-               (r.status != "flagged" or r.review_note) for r in records)
+func applyVerification(rec *Record, v Verdict, correctedValue, note string, user User) error {
+    switch v {
+    case Confirm:
+        rec.Status = "verified"
+        emitLabel(rec, rec.Value, "confirmation")
+
+    case Correct:
+        if correctedValue == "" {
+            return errors.New("correction requires a value")
+        }
+        rec.OriginalValue = rec.Value  // keep what the model said
+        rec.Value = correctedValue     // human value wins
+        rec.Status = "verified"
+        emitLabel(rec, correctedValue, "correction") // the disagreement is the gold
+
+    case Flag:
+        if note == "" {
+            return errors.New("flag requires a note") // no silent flags
+        }
+        rec.Status = "flagged"
+        rec.ReviewNote = note
+    }
+    rec.VerifiedBy = user.ID
+    rec.VerifiedAt = time.Now()
+    return rec.Save()
+}
+
+// documentIsVerified is the completeness gate: a document is "verified" only
+// when EVERY value is confirmed/corrected, or flagged-with-a-note. No silent gaps.
+func documentIsVerified(records []Record) bool {
+    for _, r := range records {
+        switch r.Status {
+        case "verified":
+            // ok
+        case "flagged":
+            if r.ReviewNote == "" {
+                return false // a flag with no note is a black hole
+            }
+        default:
+            return false // an un-reviewed value blocks "verified"
+        }
+    }
+    return true
+}
 ```
+
+> Secondary-language note: in Python this is an `Enum` + a function that mutates a
+> model and calls `.save()`; the rules (keep `original_value`, no silent flags,
+> completeness gate) are language-independent.
 
 Key rules:
 - **Keep `original_value`** alongside the corrected value. You need the
@@ -78,28 +110,35 @@ Key rules:
 
 ## Turning a correction into a label
 
-`emit_label` is where the flywheel turns. The label couples the *source region*
-(from provenance) with the *human-confirmed value*. That is exactly a training
-example for the detector/model that originally produced (or should have
-produced) the value.
+`emitLabel` is where the flywheel turns. The label couples the **`source_ref`
+region** (from provenance) with the *human-confirmed value*. That is exactly a
+training example for the detector/model that originally produced (or should have
+produced) the value — and it is `source_ref` that makes it a *localized* example
+the model can learn from (a crop of the right region), not just a loose value.
 
-```python
-def emit_label(record, label_value, kind: str):
-    """Persist a training label from a human verdict.
-
-    The label = (source region) + (correct value) + (which model to teach).
-    Provenance.source_ref is what makes this a usable, localized label.
-    """
-    p = record.provenance
-    TrainingLabel.create(
-        source_ref   = p.source_ref,            # WHERE in the source (the crop/region)
-        label_value  = label_value,             # the human-confirmed correct value
-        label_kind   = kind,                    # "confirmation" | "correction"
-        target_model = p.model_version,          # which model this teaches
-        prior_value  = record.original_value,    # what the model had said (None if confirmed)
-        prior_conf   = p.confidence,
-    )
+```go
+// emitLabel persists a training label from a human verdict.
+//
+// label = (source_ref region) + (correct value) + (which model to teach).
+// SourceRef is what makes this a usable, LOCALIZED label — a crop of the
+// exact region, not a floating value with no context.
+func emitLabel(rec *Record, labelValue, kind string) error {
+    p := rec.Provenance
+    return TrainingLabel{
+        SourceRef:   p.SourceRef,        // WHERE in the source — the crop/region/row
+        LabelValue:  labelValue,         // the human-confirmed correct value
+        LabelKind:   kind,               // "confirmation" | "correction"
+        TargetModel: p.Origin.ModelVersion, // which model this teaches
+        PriorValue:  rec.OriginalValue,  // what the model had said ("" if confirmed)
+        PriorConf:   p.Confidence,
+    }.Create()
+}
 ```
+
+If `source_ref` is vague (e.g. "page 4" with no bbox/anchor), the label is
+near-useless — you cannot crop the right region to train on. This is one more
+reason `source_ref` must be specific enough to navigate to (see
+[`provenance.md`](provenance.md)).
 
 Both `confirmation` and `correction` labels are useful: corrections teach the
 model where it was wrong; confirmations are positive examples (and confirmations
@@ -134,8 +173,17 @@ human verifies/corrects ─► TrainingLabel rows accumulate
 ## Review checklist
 
 - [ ] Does every correction produce a training label (not just patch a record)?
-- [ ] Does the label carry the `source_ref` so it's a localized example?
-- [ ] Is `original_value` preserved on correction?
+- [ ] Does the label carry the `source_ref`, and is that `source_ref` specific
+      enough to crop/localize the region (not just a page number)?
+- [ ] Are *confirmations* (especially of low-confidence predictions) also captured
+      as labels, not just corrections?
+- [ ] Is `original_value` preserved on correction (so you have the wrong→right pair)?
 - [ ] Are flags required to carry a note (no silent flags)?
-- [ ] Is "document verified" gated on full coverage (every value handled)?
-- [ ] Is accuracy measured on *reviewed* values and broken down per model version?
+- [ ] Is "document verified" gated on full coverage (every value confirmed,
+      corrected, or flagged-with-note — no silent gaps)?
+- [ ] Does the verification UI let the reviewer jump straight to `source_ref`
+      (highlight bbox / scroll to row / focus anchor)?
+- [ ] Is accuracy measured on *reviewed* values only, and broken down per
+      `method` and per `model_version`?
+- [ ] Does deploying a retrained model bump `model_version`, so future provenance
+      records say which model produced them?

@@ -4,6 +4,10 @@ These two patterns govern *which tools run and what happens when one is
 missing*. They share a principle: **decide based on capability, not on
 crashes or empty results.**
 
+Code below is **language-neutral with Go as the lead example**. See
+[`agent-and-tools.md`](agent-and-tools.md) for the `ToolResult` envelope these
+return and [`provenance.md`](provenance.md) for the `Origin`/`SourceRef` shapes.
+
 ## Contents
 
 - Pattern 5: graceful degradation when a model/tool is missing
@@ -18,49 +22,63 @@ A missing or unconfigured model must **narrow the system's capability**, not
 crash it. The pipeline should still produce values from a lower-confidence
 source and *say so in provenance*.
 
-Concretely: if the ML symbol/object detector has no weights configured, do not
-abort the document. Fall back to a less-precise source (e.g. counting from a
-structured table/schedule that lists the same items, or an LLM estimate), and
-stamp the provenance with the weaker `method` and a lower `confidence` so the
-reviewer knows to scrutinize it.
+Concretely (illustrative construction-takeoff aside): if an ML symbol/object
+detector has no weights configured, do not abort the document. Fall back to a
+less-precise source (e.g. counting from a structured table/schedule that lists
+the same items, or an LLM estimate), and stamp the provenance with the weaker
+`method` and a lower `confidence` so the reviewer knows to scrutinize it.
 
-```python
-def get_detector():
-    """Return a detector or None — never raise on a missing model."""
-    key = config.get("DETECTOR_MODEL")        # e.g. an object-storage key
-    if not key:
-        return None                            # detector simply off
-    try:
-        return load_detector(key)
-    except ModelLoadError as e:
-        log.warning("detector unavailable, degrading: %s", e)
-        return None
+Go (lead example) — a *nil detector* is a valid, supported state, not a crash:
 
-def count_items(region, schedule_table) -> ToolResult:
-    detector = get_detector()
-    if detector is not None:
-        hits = detector.detect(region)
-        return ToolResult(ok=True, value=len(hits), provenance={
-            "method": "detector", "confidence": detector.confidence(hits),
-            "model_version": detector.version, "source_ref": region.ref,
-        })
-    # DEGRADED PATH — capability narrowed, not broken:
-    if schedule_table is not None:
-        n = schedule_table.count_rows_for(region.item_type)
-        return ToolResult(ok=True, value=n, provenance={
-            "method": "schedule_lookup", "confidence": 0.6,   # honestly lower
-            "source_ref": schedule_table.ref,
-        })
-    return ToolResult(ok=False, error="no detector and no schedule to count from")
+```go
+// getDetector returns a detector or nil — it never errors on a missing model.
+func getDetector(cfg Config) Detector {
+    key := cfg.Get("DETECTOR_MODEL") // e.g. an object-storage key
+    if key == "" {
+        return nil // detector simply off — a supported state
+    }
+    d, err := loadDetector(key)
+    if err != nil {
+        log.Warn("detector unavailable, degrading", "err", err)
+        return nil
+    }
+    return d
+}
+
+func countItems(cfg Config, region Region, schedule *ScheduleTable) ToolResult {
+    if d := getDetector(cfg); d != nil {
+        hits := d.Detect(region)
+        return ToolResult{
+            OK: true, Value: strconv.Itoa(len(hits)), Confidence: d.Confidence(hits),
+            Origin:    Origin{Method: "detector", ModelVersion: ptr(d.Version())},
+            SourceRef: region.Ref,
+        }
+    }
+    // DEGRADED PATH — capability narrowed, not broken:
+    if schedule != nil {
+        n := schedule.CountRowsFor(region.ItemType)
+        return ToolResult{
+            OK: true, Value: strconv.Itoa(n), Confidence: 0.6, // honestly lower
+            Origin:    Origin{Method: "schedule_lookup"},
+            SourceRef: schedule.Ref,
+            Kind:      KindFallback,
+        }
+    }
+    return ToolResult{OK: false, Err: "no detector and no schedule to count from"}
+}
 ```
 
 Principles:
-- **`None` over exception** for an absent optional model. Loading is the only
-  place that knows it's missing; turn that into a capability flag, not a crash.
-- **The fallback is honest.** Lower `confidence`, different `method` — the
-  reviewer and the flywheel both see it was a degraded path.
-- **Document-level config gate.** `DETECTOR_MODEL=""` is a valid, supported
-  state ("detector off"), not an error.
+- **A nil/None capability over a crash** for an absent optional model. Loading is
+  the only place that knows it's missing; turn that into a capability flag, not an
+  error that aborts the document.
+- **The fallback is honest.** Lower `confidence`, different `method`, `Kind =
+  fallback` — the reviewer and the flywheel both see it was a degraded path.
+- **Config-level gate.** `DETECTOR_MODEL=""` is a valid, supported, *tested* state
+  ("detector off"), not an error.
+
+> Secondary-language note: Python returns `None` and checks `is not None`;
+> TypeScript returns `null`. Same principle — absence is a value, not an exception.
 
 ## Pattern 6: capability-based gating
 
@@ -72,22 +90,32 @@ yield.** The canonical case is OCR:
 - A **scanned** document (image-only, no text layer) needs OCR.
 
 The correct gate is **"does this page have a usable text layer?"** — a property
-of the input — *before* you try extraction:
+of the input — *before* you try extraction. Go (lead example):
 
-```python
-def needs_ocr(page) -> bool:
-    """Capability check: gate OCR on the ABSENCE of a usable text layer,
-    decided up front — NOT on whether extraction came back empty."""
-    text = page.extract_text_layer()
-    # a real text layer yields a meaningful amount of selectable text;
-    # a scan yields nothing (or a few stray characters from artifacts).
-    return len(text.strip()) < MIN_TEXT_CHARS
+```go
+const minTextChars = 16
 
-def read_page(page) -> ToolResult:
-    if needs_ocr(page):
-        return ocr_read(page)            # scanned → OCR is the right tool
-    return text_layer_read(page)         # vector → exact, cheap, no OCR
+// needsOCR is a CAPABILITY check: gate OCR on the ABSENCE of a usable text
+// layer, decided up front — NOT on whether extraction came back empty.
+func needsOCR(page Page) bool {
+    text := strings.TrimSpace(page.ExtractTextLayer())
+    // a real text layer yields a meaningful amount of selectable text;
+    // a scan yields nothing (or a few stray chars from compression artifacts).
+    return len(text) < minTextChars
+}
+
+func readPage(page Page) ToolResult {
+    if needsOCR(page) {
+        return ocrRead(page)       // scanned → OCR is the right tool
+    }
+    return textLayerRead(page)     // vector / born-digital → exact, cheap, no OCR
+}
 ```
+
+> Secondary-language note: identical logic in Python (`needs_ocr(page) -> bool`)
+> or TypeScript — the point is the *order*: check the capability, then choose the
+> tool. (This mirrors a hard-won rule from a takeoff pipeline: gate OCR on
+> scanned-vs-vector detection, never on an empty extraction result.)
 
 ## Why result-based gating is a trap
 
@@ -129,12 +157,37 @@ input ──► capability gate ──► eligible tool present? ──yes──
                                    honest method)
 ```
 
+### A second worked gate: structured vs. free-text fields
+
+The OCR case generalizes. Suppose a form yields some fields as structured
+key/value pairs (from a digital form layer) and others only as free text:
+
+```
+field ──► has structured layer? ──yes──► read_kv(field)      (method "parse:kv",   conf high)
+            (capability gate)      │
+                                   │no
+                                   ▼
+                          free_text_extract(field)            (method "llm_estimate", conf lower)
+```
+
+The gate is the *presence of the structured layer for that field*, checked up
+front — not "did the structured read return empty". A genuinely-empty structured
+field (the user left it blank) must NOT silently fall through to an LLM that then
+invents a plausible value.
+
 ## Review checklist
 
 - [ ] Is OCR (and any fallback path) gated on an input capability checked up
       front — not on an empty/failed primary result?
-- [ ] Does a missing optional model return `None` and degrade, rather than raise?
-- [ ] Is "model not configured" a supported, tested state?
-- [ ] Does every degraded path stamp a weaker `method` + lower `confidence`?
-- [ ] Are tool preconditions (page type, table presence, field type) checked
-      before invoking the tool, not discovered by its failure?
+- [ ] Does a missing optional model return nil/None and degrade, rather than
+      crash/raise/abort the document?
+- [ ] Is "model not configured" a supported, **tested** state (a test that runs
+      the pipeline with the model off and asserts the honest fallback)?
+- [ ] Does every degraded path stamp a weaker `method` + lower `confidence`
+      (and, where you have it, `Kind = fallback`) so the reviewer sees it?
+- [ ] Are tool preconditions (page type, table presence, field type, text layer)
+      checked **before** invoking the tool, not discovered by its failure?
+- [ ] Does an empty primary result get distinguished from an unreadable input —
+      i.e. you never treat "the input had nothing" the same as "we couldn't read it"?
+- [ ] When the eligible tool is absent, does the fallback still attach a real
+      `source_ref` (so the degraded value is still auditable)?
