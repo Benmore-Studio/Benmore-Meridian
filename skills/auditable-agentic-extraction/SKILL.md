@@ -24,21 +24,30 @@ never authors a value out of thin air.
 
 ## The core thesis
 
-> **The agent is the brain; deterministic tools are the hands. The LLM
-> decides _where to look_ and _what to do_ — a deterministic tool computes
-> the _value_.**
+> **The agent is the brain; tools are the hands. The LLM decides _where to
+> look_ and _what to do_ — a tool produces the _value_ and records how it got
+> it. The model never writes a value straight into the output.**
 
 When an LLM both reads a document and produces a final number, you get plausible
-but unverifiable output: it will confidently emit `1,240 sq ft` with no way to
-check whether it measured, estimated, or guessed. The fix is a division of labor:
+but unverifiable output: it will confidently emit `1,240 sq ft` (or `$1,240.00`
+on an invoice, or `12.5 mg/dL` on a lab report) with no way to check whether it
+measured, read, estimated, or guessed. The fix is a division of labor:
 
 - The model **perceives, locates, classifies, and orchestrates**.
-- Deterministic code (Python, a calculator, a parser, a detector) **produces
-  every value that ends up in the output**, and records *how* it was produced.
+- A **tool produces every value that ends up in the output**, and stamps *how*
+  it was produced (`method`), *where* from (`source_ref`), and *how sure*
+  (`confidence`).
 
-This single rule is what makes the rest of the methodology possible. If a value
-can only enter the output through a tool call, then every value automatically
-has an origin you can attach provenance to, replay, and verify.
+**The real invariant is _attributability_, not determinism.** Determinism is the
+*best* way to produce a value (a calculator, an exact parser — replayable), but
+not the only legitimate one: a detector, an OCR read, even an LLM transcription
+or estimate are allowed — *as long as each enters through a tool call that stamps
+its method, source_ref, and an honest confidence.* These methods form a ranked
+ladder (see [`references/agent-and-tools.md`](references/agent-and-tools.md)):
+deterministic at the top, `llm_estimate` at the bottom. The bottom rung is not a
+loophole — it is the explicitly-labeled, review-first tier, and the LLM still
+never *silently* authors a number. Every value, however produced, has an origin
+you can trace, triage by confidence, and (for the deterministic tiers) replay.
 
 A second rule makes the output *checkable*: **type the boundary — never emit an
 untyped blob** (`map[string]any` / `dict` / `any`). The extraction output is a
@@ -204,6 +213,8 @@ is usable on its own and de-risks the next:
 - [`references/typed-contract.md`](references/typed-contract.md) — pattern 8:
   output as an OpenAPI/JSON-Schema contract, the invariant provenance envelope vs.
   the per-project domain payload, codegen to Go/TS/Python, and "type the boundary".
+  Ships [`references/envelope.openapi.yaml`](references/envelope.openapi.yaml) — the
+  invariant envelope as a copy-paste schema.
 - [`references/verification-flywheel.md`](references/verification-flywheel.md) —
   pattern 4: the verify loop and turning `source_ref`-localized corrections into
   training labels.

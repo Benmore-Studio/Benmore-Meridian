@@ -29,26 +29,53 @@ are exactly the envelope fields the contract codegens.
 
 Minimum viable origin record for a derived value:
 
-| Field | Meaning | Example |
+> The `method` values below name a *rung on the value-source ladder* (`calc:`,
+> `parse:`, `lookup:`, `detector:`, `ocr:`, `llm_estimate`) plus a domain detail.
+> The rungs are fixed by the methodology; the detail is yours. Examples are shown
+> across domains so nothing here is construction-specific. See the ladder in
+> [`agent-and-tools.md`](agent-and-tools.md).
+
+| Field | Meaning | Example (varies by domain) |
 |---|---|---|
-| `method` | how the value was produced | `"detector:doorwin"`, `"parse:dimension"`, `"calc:area"`, `"schedule_lookup"`, `"llm_estimate"` |
+| `method` | which rung produced the value (`<rung>:<detail>`) | `"parse:line_item_qty"` (invoice), `"calc:area"` (takeoff), `"detector:abnormal_range"` (lab), `"lookup:sku"`, `"llm_estimate"` |
 | `source_ref` | *where* in the source — the traceability link, specific enough to navigate to | `{"page": 4, "bbox": [x1,y1,x2,y2]}` or `{"page": 9, "table": "schedule_A", "row": 12}` |
 | `inputs` | the upstream values/operands this was derived from | `["12.0", "8.5"]` or `[<id of another record>]` |
-| `confidence` | 0–1, from the producing tool/model | `0.92` |
-| `model_version` | which detector/model/ruleset produced it (for the flywheel + reproducibility) | `"doorwin-v3"` |
+| `confidence` | 0–1, sourced per rung (see below) | `0.92` |
+| `model_version` | which detector/model/ruleset produced it (for the flywheel + reproducibility) | `"detector-v3"` |
 
 `method` is the single most useful field for triage: it lets you filter "show me
-every value that came from an `llm_estimate`" — i.e. exactly the values that are
-*not* fully grounded and deserve scrutiny.
+every value at rung ≥4 (`detector`/`ocr`/`llm_estimate`)" — i.e. exactly the
+values that are *not* fully grounded and deserve scrutiny.
 
 Keep provenance **composable**: a calculated total's `inputs` point at the
 records of its operands, each of which has its own provenance (and its own
 `source_ref`). Tracing a wrong total walks the chain down to the wrong leaf,
-which bottoms out at a real source region.
+which bottoms out at a real source region. Keep chains shallow and acyclic —
+`inputs` reference *prior* records only, so the graph is a DAG you can walk
+without looping; if a leaf is later corrected, recompute its dependents rather
+than leaving them stale.
 
-> The illustrative `method` values above (`detector:doorwin`, etc.) come from a
-> construction takeoff pipeline — they are examples only; your domain supplies
-> its own method names.
+## Where `confidence` comes from (and how to combine it)
+
+`confidence` is only meaningful if it is sourced consistently — otherwise sorting
+by it is theatre. Set it **per rung**, and combine it **conservatively** when a
+value derives from others:
+
+- **Leaf values** take the producing rung's confidence: a detector's own score
+  (rung 4), an OCR engine's score (rung 5), a fixed-high constant for an exact
+  parse (rung 2), or the *measured* accuracy of a lookup path (rung 3) — never a
+  number plucked from the air. An `llm_estimate` (rung 6) is low by construction.
+- **Derived values** (rung 1, `calc:`) inherit `min(operand confidences)`: exact
+  math adds no error, so a result is only as sure as its shakiest input. (Use
+  `min` for a conservative floor; a product of confidences is defensible if your
+  inputs are independent — pick one rule and apply it everywhere.)
+- **The tool's score and the record's confidence are distinct.** A detector
+  returns an internal score in its `ToolResult`; the harness maps that into the
+  record's `confidence`. Document the mapping; don't conflate them.
+- **Human verification does not set `confidence = 1.0`.** A confirmed value keeps
+  its automation confidence and gains a separate `status = verified` (see
+  [`verification-flywheel.md`](verification-flywheel.md)) — so you can still
+  measure how good the automation *was*.
 
 ## `source_ref`: the traceability link (first-class)
 

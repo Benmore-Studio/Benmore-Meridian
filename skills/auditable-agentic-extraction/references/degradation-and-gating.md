@@ -50,7 +50,7 @@ func countItems(cfg Config, region Region, schedule *ScheduleTable) ToolResult {
         hits := d.Detect(region)
         return ToolResult{
             OK: true, Value: strconv.Itoa(len(hits)), Confidence: d.Confidence(hits),
-            Origin:    Origin{Method: "detector", ModelVersion: ptr(d.Version())},
+            Origin:    Origin{Method: "detector:items", ModelVersion: ptr(d.Version())},
             SourceRef: region.Ref,
         }
     }
@@ -58,10 +58,14 @@ func countItems(cfg Config, region Region, schedule *ScheduleTable) ToolResult {
     if schedule != nil {
         n := schedule.CountRowsFor(region.ItemType)
         return ToolResult{
-            OK: true, Value: strconv.Itoa(n), Confidence: 0.6, // honestly lower
-            Origin:    Origin{Method: "schedule_lookup"},
-            SourceRef: schedule.Ref,
-            Kind:      KindFallback,
+            OK: true, Value: strconv.Itoa(n),
+            // Not a guessed constant: use the MEASURED accuracy of this lookup
+            // path (how often it matched the verified value, from the flywheel),
+            // so triage-by-confidence is meaningful. See provenance.md.
+            Confidence: lookupPathAccuracy(),
+            Origin:     Origin{Method: "lookup:schedule"},
+            SourceRef:  schedule.Ref,
+            Kind:       KindFallback,
         }
     }
     return ToolResult{OK: false, Err: "no detector and no schedule to count from"}

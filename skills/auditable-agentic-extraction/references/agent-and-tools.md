@@ -3,8 +3,9 @@
 The agent is an LLM that **orchestrates**: it classifies the input, decides
 where to look, picks which tool to call with which arguments, and decides when
 it is done. It never writes a final value into the output. Every value that
-reaches the structured record is produced by a deterministic tool that also
-returns where/how it got it.
+reaches the structured record is produced by a **tool** that also returns
+where/how it got it — deterministic where possible, but always *attributable*
+(see the methods ladder below).
 
 Code below is **language-neutral with Go as the lead example**; a brief
 secondary-language note follows each concept where it helps. The concepts —
@@ -14,6 +15,7 @@ framework.
 ## Contents
 
 - The division of labor
+- Methods of providing a value (the ladder)
 - The perception/computation split (pattern 3)
 - The tool-result contract (typed, never a blob)
 - A language-neutral agent loop (Go)
@@ -28,17 +30,50 @@ framework.
 | What kind of document/region is this? | LLM | Judgment, fuzzy, contextual |
 | Where is the relevant content? | LLM (vision) | Spatial/semantic perception |
 | Which tool to call, with what args? | LLM | Planning |
-| The actual value (count, measure, sum, parse) | **deterministic tool** | Must be exact, replayable, auditable |
+| The actual value (count, measure, sum, parse) | **a tool, never the LLM** | Must be attributable — exact and replayable where the rung allows |
 | Is the result good enough / am I done? | LLM | Judgment over tool outputs |
 
 Rule of thumb: **if a number in the final output cannot be traced to a specific
 tool call, the design is wrong.**
 
+## Methods of providing a value (the ladder)
+
+"A tool produces the value" raises the obvious question: *which* tool, and how
+much do you trust it? There is more than one legitimate way a value enters the
+output. Rank them — prefer the highest rung the input supports, and always stamp
+which rung you used in `origin.method` so reviewers can triage by it.
+
+| Rung | `method` (convention) | Produces the value by | Replayable? | Where `confidence` comes from |
+|---|---|---|---|---|
+| 1. Exact computation | `calc:<op>` | exact decimal math over operands | **yes** (same op+operands → same answer) | inherited: `min` of operand confidences (the math adds no error) |
+| 2. Exact parse | `parse:<kind>` | deterministic parse of a read token (`"12'-6\""` → `12.5`) | **yes** (re-parse the cited region) | high, fixed (e.g. `0.99`); parse is exact, the *read* is the risk |
+| 3. Reference lookup | `lookup:<table>` | reading a structured table/standard the source points at | yes (re-read the row) | measured accuracy of that lookup path, not a guess (see degradation-and-gating.md) |
+| 4. Model inference | `detector:<name>` | an ML detector/classifier over a region | *reproducible*, not deterministic (stochastic; pin seeds/temp to approximate) | the detector's own score, mapped into `[0,1]` |
+| 5. OCR / transcription | `ocr:<engine>` | reading characters off a pixel region | weakly reproducible (engines vary run-to-run) | engine score; **re-read to verify high-stakes values** |
+| 6. LLM estimate | `llm_estimate` | the model's best guess when nothing above applies | **no** — and that is the point | low by construction; always routed to human review |
+
+Reading the ladder:
+- **Higher is more trustworthy and more auditable.** Reach for the lowest rung
+  only when the input genuinely cannot support a higher one (no text layer, no
+  detector, no schedule). A field that *could* be parsed but is `llm_estimate`d
+  is a design smell, not a fallback.
+- **Rungs 4–6 are not "deterministic" — they are still attributable.** The
+  invariant is that the value entered through a tool call carrying `method` +
+  `source_ref` + `confidence`, never that the same input always yields the same
+  bits. Use the word *attributable*, not *deterministic*, when a rung is
+  probabilistic.
+- **Transcription (rung 5) needs a verify step for high-stakes values.** An LLM
+  or OCR reading `12,408.55` off a crop *is* the model authoring a value unless
+  something checks it — re-read the cited `source_ref` region with a second
+  method (or a human) and compare before trusting it.
+- `method` is the single most useful triage field: "show every value at rung ≥4"
+  is exactly the set a reviewer should look at first.
+
 ## The perception/computation split (pattern 3)
 
-Vision models are good at *localization* ("the dimension label is in this
-box", "there are door symbols clustered here") and bad at *exact reading and
-arithmetic*. So split it:
+Vision models are good at *localization* ("the total is in this box", "the
+table of line items starts here", "these repeated symbols cluster in this
+region") and bad at *exact reading and arithmetic*. So split it:
 
 ```
 VLM:  "the total appears in the box at (x1,y1,x2,y2)"   ← WHERE  (becomes source_ref)
@@ -105,7 +140,7 @@ provenance from the tool that ran.
 ```go
 const maxTurns = 8 // bound the loop; an agent that never stops is a bug
 
-// Tool is a deterministic function the agent may call.
+// Tool is a function the agent may call (deterministic or attributable; see ladder).
 type Tool func(args map[string]any) ToolResult
 
 // Decision is what one LLM step returns: either a tool call or "done".
@@ -231,7 +266,11 @@ func calculator(op string, operands []string, unit *string) ToolResult {
             Method: "calc:" + op,
             Inputs: operands, // EXACT operands → fully replayable
         },
-        Confidence: 1.0, // math is exact; the uncertainty lives in the operands
+        // The math is exact, so it adds NO uncertainty — but the result is only
+        // as confident as its least-confident operand. The harness assembling
+        // the record sets Confidence = min(operand confidences); 1.0 here means
+        // "the operation introduced no error", not "the answer is certain".
+        Confidence: 1.0,
         Kind:       KindValue,
     }
 }
@@ -240,7 +279,10 @@ func calculator(op string, operands []string, unit *string) ToolResult {
 The provenance records the *operation and the exact operands*, so anyone can
 re-run the math and get the same answer. A wrong total is then always traceable
 to a wrong operand (which itself has its own provenance and `source_ref`), never
-to "the model was bad at arithmetic."
+to "the model was bad at arithmetic." Confidence flows the same way: a sum is no
+more trustworthy than its shakiest input, so combine conservatively
+(`min` of the operands' confidences) rather than asserting `1.0` on the total —
+see [`provenance.md`](provenance.md).
 
 > Secondary-language note: Python uses `decimal.Decimal` (set `getcontext().prec`),
 > TypeScript a decimal library (e.g. `big.js`/`decimal.js`) — the contract is the

@@ -57,8 +57,11 @@ project supplies the payload schema; the envelope schema is copied unchanged.
 
 ## The invariant provenance envelope (generic OpenAPI snippet)
 
-This is the part the skill supplies. Copy it into your contract and fill in the
-payload `$ref`. It is deliberately domain-free.
+This is the part the skill supplies. **Ships as a copy-paste asset:**
+[`envelope.openapi.yaml`](envelope.openapi.yaml) — copy it verbatim into your
+contract and fill in the payload `$ref` rather than re-typing from the snippet
+below. The snippet here is the same schema, inlined for reading. It is
+deliberately domain-free.
 
 ```yaml
 # openapi.yaml — components/schemas (the INVARIANT envelope)
@@ -89,8 +92,9 @@ components:
         method:
           type: string
           description: >-
-            Producing method. Convention: "<kind>:<detail>", e.g. "detector:doorwin",
-            "parse:dimension", "calc:area", "schedule_lookup", "llm_estimate".
+            Producing method = a rung on the value-source ladder + a domain detail.
+            Convention "<rung>:<detail>", e.g. "parse:line_item_qty", "calc:area",
+            "detector:abnormal_range", "lookup:sku", "ocr:tesseract", "llm_estimate".
         inputs:
           type: array
           description: Upstream operand values or ids of upstream records this derives from.
@@ -198,37 +202,23 @@ func parseDimension(region Region, raw string) (ExtractedValue, error) {
 ## `source_ref`: the traceability link, as a first-class typed shape
 
 `source_ref` is the link from a value **back to where in the document it came
-from**. It is the single field that makes the output auditable, the verification
-UI navigable, and training labels localizable. Treat it as first-class — a typed
-sub-object in the contract (above), never a stringly-typed afterthought.
+from** — the single field that makes the output auditable. In the *contract* it
+is a first-class typed sub-object (above), never a stringly-typed afterthought:
+the schema makes it `required`, so a conforming value cannot exist without a link
+to its source.
 
-The link shape is a small set of locator families; pick the one the source
-supports and keep it specific enough to *navigate to*:
+The locator families it carries (page+bbox / anchor / table+row / derived), the
+rules for a good link (specific enough to highlight, in source coordinates,
+stable anchors over fragile offsets, composable for derived values), and how it
+powers verification and training labels are defined once in
+[`provenance.md`](provenance.md) — the canonical home for the `source_ref`
+concept. This file only fixes its *typed shape*; that file governs its *content*.
 
-| Source kind | `source_ref` link shape | Navigates to |
-|---|---|---|
-| Rendered page region | `{ "page": 4, "bbox": [120, 880, 410, 930] }` | a highlighted box on page 4 |
-| Text/OCR anchor | `{ "page": 4, "anchor": "ocr_tok_8821" }` | the exact token/word |
-| Table cell | `{ "page": 9, "table": "schedule_A", "row": 12 }` | a row in a parsed table |
-| Multi-region (derived) | inputs reference the *records* whose own `source_ref`s point at each region | the chain of contributing regions |
-
-Rules for a good link:
-- **Specific enough to highlight.** "page 4" alone is weak; "page 4, bbox […]"
-  or "page 4, anchor tok_8821" lets the UI draw a box or scroll to the word.
-- **In source coordinates.** A `bbox` is in the coordinate space of the rendered
-  page the user sees, so the highlight lands on the right spot.
-- **Stable anchors over fragile offsets.** Prefer an OCR token id or table+row
-  (stable across re-renders) to a raw character offset (shifts if the document
-  is re-paginated).
-- **Composable for derived values.** A computed total's `source_ref` can point at
-  the calc, while its `origin.inputs` reference the operand *records*, each
-  carrying its own `source_ref` — so the chain bottoms out at real source
-  regions. See "composable provenance" in [`provenance.md`](provenance.md).
-
-This is the same `source_ref` that powers the verification surface and the
-training-label localization — see [`provenance.md`](provenance.md) (flow to UI &
-exports) and [`verification-flywheel.md`](verification-flywheel.md) (a correction
-is `source_ref` + corrected value).
+One contract-level note: `required: [page]` on `SourceRef` assumes a paginated
+source. If your inputs are not paginated (a stream, a single image, a transcript
+with timestamps), relax that constraint and add the locator your source supports
+(e.g. an offset or timestamp) — the *envelope* is invariant, but which locator
+family is mandatory is yours to set.
 
 ## Why "type the boundary" matters in practice
 
