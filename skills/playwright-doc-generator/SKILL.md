@@ -41,6 +41,7 @@ The whole job is four phases. Don't skip phases — each one feeds the next.
 Phase 1: Orient        → understand what's being built and what already exists
 Phase 2: Research      → dispatch parallel subagents to map every surface
 Phase 3: Capture       → playwright-cli walk through pages, save screenshots
+Phase 3.5: Verify      → read every screenshot back, name defects with design vocabulary, recapture
 Phase 4: Write         → produce the markdown using the template in references/doc-template.md
 ```
 
@@ -79,7 +80,7 @@ Then follow this capture protocol:
    - Create it before starting: `mkdir -p docs/screenshots/client-guide/`.
    - Use **absolute paths** in `--filename` arguments. Relative paths break the moment your shell `cd`s, and `cd` will silently invalidate the playwright-cli session because session state lives in `.playwright-cli/` of the cwd.
 
-2. **Set a consistent viewport.** `playwright-cli resize 1440 900` once, at the start. This is desktop-standard and renders well in markdown.
+2. **Set a consistent viewport — and plan for two.** `playwright-cli resize 1440 900` once, at the start, for the desktop pass. This is desktop-standard and renders well in markdown. After the desktop walk, do a **second pass at `resize 390 844`** (iPhone-class) over the top ~10 surfaces and save them with a `-mobile` suffix. A client guide that never shows mobile is half a guide, and mobile is where overflow and layout shift hide (see Phase 3.5).
 
 3. **Use a numbered prefix on every screenshot.** Format: `NN-area-detail.png` where `NN` zero-pads to 2 digits and increments in document order. Examples:
    ```
@@ -103,6 +104,33 @@ Then follow this capture protocol:
 7. **Capture meaningful states, not just happy paths.** Verification gates, empty states, error banners, and "coming soon" placeholders are part of what a client will encounter. Screenshot them and document them honestly — they reduce sales surprise.
 
 8. **If the playwright-cli session breaks, just reopen.** A `cd` in the same shell, a tab close, or a long idle can lose the session. Reopen with `playwright-cli open <url>`, re-resize, re-inject auth, and continue. Don't waste cycles debugging the broken session.
+
+### Phase 3.5 — Verify the captures (do not skip — this is the visual test)
+
+Capturing a screenshot is not the same as verifying it. A file named
+`07-dashboard.png` can be a login page, a frozen skeleton, a clipped table, or a
+modal that never closed — and the filename won't tell you. **Read
+`references/visual-verification.md` and run the gate before writing.**
+
+The short version:
+
+1. **Re-open every screenshot with the Read tool and actually look at it.** Do
+   not infer quality from the fact that a file exists. You are QA-ing pixels.
+2. **Ask the eight failure questions** (expired-session fallback, frozen
+   transient state, overflow/clipping, dead-or-cramped space, weak hierarchy,
+   unreadable contrast/line-length, ragged data alignment, stray overlay). Name
+   each defect with the design vocabulary term — that makes the recapture
+   precise and turns "looks off" into "expired-session capture, re-inject JWT."
+3. **Drive every defect to a clean recapture**, not a caption that excuses it.
+   The most common silent failure is an **expired-session** shot where the JWT
+   died mid-walk and you captured the login page — re-inject `access_token` +
+   `refresh_token` and recapture. Never present a login/blank capture as proof.
+4. **Verify the mobile pass too.** The 390×844 captures are where overflow and
+   layout shift surface; they pass the desktop walk and fail here.
+
+Keep a one-line verification log per screenshot (`OK` / `RECAP — reason`) in your
+build notes and drive every `RECAP` to `OK` before Phase 4. This is the actual
+visual test — the old file-count check never looked at a single pixel.
 
 ### Phase 4 — Write the deliverable
 
@@ -146,6 +174,8 @@ grep -c '!\[' docs/CLIENT_PLATFORM_GUIDE.md      # how many image refs
 ```
 
 If the third number is much smaller than the first, you have orphan screenshots. If the third is larger than the first, you have broken image refs. Fix before handing off.
+
+But these three numbers only count files — they never look at a pixel. They will happily pass a doc whose 40 screenshots are all login pages. The real visual test is Phase 3.5: do not rely on the file-count check as a substitute for reading the screenshots back.
 
 ---
 
@@ -197,7 +227,12 @@ If after Phase 3 you have only 8 screenshots, you missed something. Go back to t
 ## Reference files
 
 - `references/doc-template.md` — the canonical 17-section markdown skeleton with prose patterns to copy.
-- `references/screenshot-checklist.md` — a per-page coverage checklist organized by typical SaaS personas (B2B buyer, end-user, advisor, admin). Use this to verify you didn't miss surfaces.
+- `references/screenshot-checklist.md` — a per-page **coverage** checklist organized by typical SaaS personas (B2B buyer, end-user, advisor, admin). Answers "did I get every surface?" Use after Phase 3.
+- `references/visual-verification.md` — the per-screenshot **quality** gate. Answers "is each captured surface actually good?" The eight failure questions, the design-vocabulary terms to name each defect, and the mobile pass. Read and run in Phase 3.5, before writing.
 - `references/playwright-recipes.md` — common playwright-cli sequences for auth injection, modal dismissal, and form-fill iteration. Read this if you find yourself fighting the browser instead of capturing pages.
+
+If the `vocabulary` skill is installed and resolves, use it in Phase 3.5 to name
+defects with canonical terms. On a machine where that skill is a broken symlink,
+`references/visual-verification.md` carries the terms you need inline.
 
 Read these only when you reach the relevant phase — keep SKILL.md as the index.
