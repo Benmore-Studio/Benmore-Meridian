@@ -1,0 +1,205 @@
+# The INVARIANT provenance/result envelope for auditable agentic extraction.
+#
+# Copy these schemas verbatim into your project's OpenAPI contract, then code-gen
+# typed clients (Go: oapi-codegen · TS: openapi-typescript · Python:
+# datamodel-code-generator). The envelope NEVER changes between projects; only
+# the domain `payload` does — replace the open `payload` object below with a
+# `$ref` to your project's payload schema.
+#
+# The unit of output is an ATTRIBUTED CLAIM, of which there are four kinds, all
+# sharing the same Origin + SourceRef provenance:
+#   • ExtractedValue — a scalar value read/measured/computed (the core).
+#   • Annotation     — a durable highlight/span over a region of meaning
+#                      (a clause, a defined term, an entity). See annotations-and-highlights.md.
+#   • Relation       — a typed link between two claims (cross-reference,
+#                      defined-term → definition, obligation → party).
+#   • Change         — a diff between two document versions (the "git for
+#                      documents" unit). See comparison-and-versioning.md.
+# The LLM never authors a value, a span boundary, or a change directly; each
+# enters through a tool call that stamps method + source_ref + confidence.
+#
+# `value` is a STRING (decimal-as-string) to avoid float drift across languages.
+# `source_ref` and `origin` are REQUIRED: a conforming claim cannot omit its
+# traceability. `source_ref.doc_id` is REQUIRED so every claim names WHICH
+# document (and, for versioned corpora, which version) it came from.
+#
+# See typed-contract.md (shape), provenance.md (content rules + the value-source
+# ladder that `origin.method` names), and document-model.md (the canonical
+# substrate that `anchor`/`span` ids are stable against).
+openapi: 3.1.0
+info:
+  title: Auditable extraction envelope
+  version: 2.0.0
+paths: {}
+components:
+  schemas:
+    SourceRef:
+      type: object
+      description: >-
+        Where in the source this claim came from — specific enough that a UI can
+        navigate the user straight to it, and stable enough to survive re-OCR and
+        re-pagination. Always names the document (`doc_id`) and, for versioned
+        corpora, the `version`. Then set ONE point locator (page+bbox / anchor /
+        table+row) OR a `span` (start_anchor..end_anchor) for a region that
+        covers a range of text — e.g. a clause. Anchors are ids into the
+        canonical document model (see document-model.md), NOT raw character
+        offsets, which shift on re-pagination.
+      properties:
+        doc_id:  { type: string, description: "stable id of the source document (content-addressed; see comparison-and-versioning.md)" }
+        version: { type: string, nullable: true, description: "document version/revision this ref resolves against (omit for single-version corpora)" }
+        page:    { type: integer, minimum: 1, description: "1-based page/sheet (for point locators on paginated sources)" }
+        bbox:
+          type: array
+          description: "[x1,y1,x2,y2] region on the page, in canonical page coords (see document-model.md)"
+          items: { type: number }
+          minItems: 4
+          maxItems: 4
+        anchor: { type: string, description: "stable id of a single text/table token/anchor in the canonical model (e.g. a normalized OCR token id)" }
+        table:  { type: string, description: "table/section identifier" }
+        row:    { type: integer, description: "row index within table" }
+        span:
+          $ref: '#/components/schemas/Span'
+      required: [doc_id]
+
+    Span:
+      type: object
+      description: >-
+        A contiguous range of the canonical document, for claims that cover a
+        REGION rather than a point — a clause, a paragraph, a highlighted phrase.
+        Delimited by stable start/end anchors; may cross pages. `regions` carries
+        the per-page bounding boxes the span visually occupies (one box per page
+        it touches) so a UI can draw the highlight. Prefer anchors over `chars`:
+        character offsets into the normalized text are convenient but FRAGILE
+        across re-OCR/version edits — carry them only as a hint, re-anchor on read.
+      properties:
+        start_anchor: { type: string, description: "stable id of the first token in the span" }
+        end_anchor:   { type: string, description: "stable id of the last token in the span (inclusive)" }
+        chars:
+          type: array
+          description: "[start,end) offsets into the canonical normalized text — a HINT only; re-anchor if it drifts"
+          items: { type: integer }
+          minItems: 2
+          maxItems: 2
+        regions:
+          type: array
+          description: "per-page visual boxes the span occupies, for highlighting; one entry per page touched"
+          items:
+            type: object
+            properties:
+              page: { type: integer, minimum: 1 }
+              bbox: { type: array, items: { type: number }, minItems: 4, maxItems: 4 }
+            required: [page, bbox]
+      required: [start_anchor, end_anchor]
+
+    Origin:
+      type: object
+      description: How the claim was produced — the audit trail of method + inputs.
+      properties:
+        method:
+          type: string
+          description: >-
+            Which rung on the value-source ladder produced this claim, plus a
+            domain detail. Convention "<rung>:<detail>" with rung in
+            {calc, parse, lookup, detector, ocr, segment, align, diff} or the
+            bare token "llm_estimate". Examples: "calc:area", "parse:line_item_qty",
+            "detector:abnormal_range", "lookup:sku", "ocr:tesseract",
+            "segment:clause", "align:clause", "diff:semantic", "llm_estimate".
+        inputs:
+          type: array
+          description: Upstream operand values, or ids of upstream records this derives from.
+          items: { type: string }
+        model_version:
+          type: string
+          nullable: true
+          description: Detector/model/ruleset/prompt version — for the flywheel, reproducibility, and admissibility.
+      required: [method]
+
+    ExtractedValue:
+      type: object
+      description: >-
+        The invariant envelope for a SCALAR value. Every value in the output is
+        one of these. The domain payload is carried under `payload` and is defined
+        per project. (Annotation / Relation / Change are sibling claim kinds below,
+        sharing Origin + SourceRef.)
+      properties:
+        key:        { type: string, description: "what this value is, e.g. wall_area" }
+        value:      { type: string, description: "exact value as a string (decimal-as-string / parsed token) to avoid float drift" }
+        unit:       { type: string, nullable: true }
+        origin:     { $ref: '#/components/schemas/Origin' }
+        source_ref: { $ref: '#/components/schemas/SourceRef' }
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: >-
+            Sourced per rung; for derived values, min(operand confidences).
+            Human verification sets a separate status, not confidence = 1.
+        payload:
+          type: object
+          additionalProperties: true
+          description: >-
+            DOMAIN-SPECIFIC fields for this project. Replace with a $ref to your
+            project's payload schema. The envelope above never changes.
+      required: [key, value, origin, source_ref, confidence]
+
+    Annotation:
+      type: object
+      description: >-
+        A durable highlight/span over a region of meaning — a clause, a defined
+        term, a risk flag, a reviewer note. Anchored to a `span` so it survives
+        re-OCR and re-pagination; `anchor_confidence` records how sure the
+        re-anchoring is (an annotation whose anchors no longer resolve is
+        "orphaned", not silently dropped). See annotations-and-highlights.md.
+      properties:
+        id:         { type: string }
+        category:   { type: string, description: "e.g. defined_term, obligation, risk, cross_reference, user_note" }
+        label:      { type: string, nullable: true, description: "short human label shown on the highlight" }
+        note:       { type: string, nullable: true, description: "reviewer/author note" }
+        author:     { type: string, nullable: true, description: "who created it (human id or model_version)" }
+        origin:     { $ref: '#/components/schemas/Origin' }
+        source_ref: { $ref: '#/components/schemas/SourceRef' }
+        anchor_confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: "how confidently the span re-anchored against the current document version; low → flag as orphaned for re-review"
+        status:     { type: string, description: "active | orphaned | resolved", default: active }
+      required: [id, category, origin, source_ref, anchor_confidence]
+
+    Relation:
+      type: object
+      description: >-
+        A typed link between two claims — a cross-reference ("as defined in
+        Section 2.1"), a defined-term use → its definition, an obligation → the
+        bound party. Produced by a tool (method "align:" / "detector:relation"),
+        never asserted by the LLM without a source_ref for the linking text.
+      properties:
+        id:         { type: string }
+        rel_type:   { type: string, description: "e.g. cross_reference, term_use, obligation_of, amends" }
+        from_id:    { type: string, description: "id of the source claim/record" }
+        to_id:      { type: string, nullable: true, description: "id of the target claim/record; null if unresolved (dangling cross-ref)" }
+        origin:     { $ref: '#/components/schemas/Origin' }
+        source_ref: { $ref: '#/components/schemas/SourceRef' }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+      required: [id, rel_type, from_id, origin, source_ref, confidence]
+
+    Change:
+      type: object
+      description: >-
+        A single diff between two document versions — the unit of the "git for
+        documents" comparison. Carries a source_ref into BOTH sides (`before` and
+        `after`), the type of change, and a materiality classification so a
+        reviewer can triage substantive edits over cosmetic ones. A reworded
+        clause that means the same thing is `format_only`; a moved clause is
+        `move`, not delete+insert. See comparison-and-versioning.md.
+      properties:
+        id:          { type: string }
+        logical_id:  { type: string, nullable: true, description: "stable id of the underlying clause/element tracked ACROSS versions (the 'blame' key)" }
+        change_type: { type: string, description: "insert | delete | modify | move | format_only" }
+        before:      { $ref: '#/components/schemas/SourceRef' }
+        after:       { $ref: '#/components/schemas/SourceRef' }
+        materiality: { type: string, description: "substantive | minor | cosmetic — how much this change matters; substantive = changes meaning/obligations" }
+        summary:     { type: string, nullable: true, description: "human-readable description of the change; itself provenanced if model-produced" }
+        origin:      { $ref: '#/components/schemas/Origin' }
+        confidence:  { type: number, minimum: 0, maximum: 1 }
+      required: [id, change_type, origin, confidence]
