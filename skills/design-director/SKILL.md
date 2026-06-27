@@ -6,8 +6,12 @@ description: >-
   vocabulary-driven diagnosis before using impeccable, needs an agent to choose
   the right impeccable subcommands instead of running all of them, or keeps
   nitpicking ("colors look off", "font's ugly", "spacing's weird") build after
-  build because the project has no written design system. Establishes and
-  enforces a DESIGN.md design contract so style stops drifting between builds.
+  build because the project has no written design system. Also the default for
+  "audit the whole site / find everything wrong / surface all the issues / just
+  make it better" — runs an exhaustive site-wide design survey that proactively
+  surfaces hundreds of issues AND additions (modals, charts, consistent color,
+  hierarchy, data flows) without being pointed at them, then autonomously fixes
+  them. Establishes and enforces a DESIGN.md contract so style stops drifting.
 ---
 
 # Design Director
@@ -34,16 +38,51 @@ output should have honored, you skipped Stage 0.
 ## Core Principle
 
 Act as the design director and router. The user should not need design
-vocabulary or know which `impeccable` command to run. Diagnose the screen in
-precise terms, choose the smallest useful `impeccable` command chain, set a
-concrete ambition level, implement, then verify visually.
+vocabulary, know which `impeccable` command to run, or point at what is wrong.
+Diagnose in precise terms, then implement and verify.
 
-**Do not run all `impeccable` commands.** Running everything averages
-conflicting workflows into generic output.
+**Discovery is exhaustive; execution is focused.** These are two different
+phases and the rules are opposite:
+
+- **Discovery (the survey)** must be *exhaustive*. Walk every surface against
+  every category of `reference/audit-checklist.md` and log every true finding —
+  the user wants hundreds of issues *and* additions surfaced without being asked.
+  Do not prune to a tidy top-10 here.
+- **Execution (fixing one finding)** must be *focused*. For each fix, choose the
+  *smallest useful* `impeccable` command chain. **Do not run all `impeccable`
+  commands on a single surface** — running everything averages conflicting
+  workflows into generic output. "Smallest useful chain" governs the fix, never
+  the survey.
 
 **Default stance for vague "make it better" UI work:** aim for a visibly
 stronger composition, not a safer polish pass. If the screen can still be
 described as "cards with nicer spacing," the pass is not done.
+
+## Two Modes
+
+Pick the mode from how the skill was invoked. When in doubt, default to Survey.
+
+### Survey + Fix — DEFAULT, maximum power
+
+Triggered by a **bare invocation** (`/design-director` with no target) or any
+vague, whole-product ask: "make it better," "audit my site," "find everything
+wrong," "surface all the issues," "fix the design." This is the mode the user
+reaches for most: **run it once and it does everything.**
+
+It runs the full pipeline autonomously: Stage 0 (contract) → Stage 1
+(exhaustive survey writing `DESIGN-AUDIT.md`) → **Stage 2 (drive the whole
+backlog down, fixing + verifying in severity order until diminishing returns).**
+It does **not** stop after surfacing and does **not** cap at P0/P1 — it keeps
+working: P0 → P1 → P2, plus the high-value additions it surfaced. It pauses only
+for a direction call it genuinely cannot default (and where a reasonable default
+exists, it takes it, records the assumption, and keeps moving).
+
+### Direct — focused, when the user names a target
+
+Triggered when the user points at a **specific screen, component, or problem**
+("the pricing page colors," "this modal feels dead"). Skip the site-wide survey
+and backlog; run the focused router `## Workflow` (steps 1–11) with a 3–5
+command chain on that one surface.
 
 ## Stage 0 — The Design Contract (before any UI edit)
 
@@ -86,11 +125,87 @@ Only one system may own direction at a time. Never run two direction-owning
 sources (e.g. an existing brand kit *and* a fresh `design-taste` proposal)
 against the same surface in one pass.
 
+## Survey Workflow (Survey + Fix mode — the default)
+
+This is what runs on a bare/vague invocation. It is the answer to "I just want
+to run it and have it surface everything and fix it." Do not ask the user to
+point at problems — find them.
+
+### Stage 1 — Exhaustive survey (discovery, must be exhaustive)
+
+1. **Enumerate the surfaces.** Build a surface map of every route/page and every
+   key component — from the router config, the `app/`/`pages/` tree, the nav, or
+   the dev server. List them in the backlog so coverage is auditable. Missing a
+   surface is a coverage failure.
+2. **Capture evidence.** Start the dev server and, when Playwright/Playwright CLI
+   is available, screenshot each surface at desktop and phone widths. A survey
+   from code alone misses cramped composition, overlap, and dead states.
+3. **Run the diagnostic engine across every surface.** Use `impeccable critique`
+   (UX, scored /40) and `impeccable audit` (technical, scored /20), plus
+   `scripts/detect.mjs` for anti-patterns. These are the scoring/scan backbone —
+   do not reinvent them.
+4. **Walk `reference/audit-checklist.md` — every surface × every category.**
+   This is the volume engine and it is **mandatory reading**. Log every true
+   finding as a row (`surface · category · vocabulary term · symptom · severity ·
+   fix command`), including small ones, and capture cross-surface drift by
+   comparing screens. Surface additions (modals, charts, richer components) into
+   the Opportunity Inventory unprompted. Hit the checklist's coverage self-check
+   before moving on — a short list means you judged by taste instead of walking
+   it; go back.
+5. **Write `DESIGN-AUDIT.md`** at the repo root from
+   `reference/audit-backlog.template.md` (scorecard, surface map, issue register,
+   opportunity inventory, patterns, contract delta). Give the user a short inline
+   summary: the two scores, severity counts, top findings, and the count of
+   additions proposed. This file is the live worklist.
+
+### Stage 2 — Autonomous fix loop (default; do not stop after surfacing)
+
+Maximum-power default: drive the backlog down without waiting to be told which
+items to fix.
+
+6. **Work in severity order:** P0 → P1 → P2, then the high-value additions.
+   Group findings by surface and fix command so related issues are fixed
+   together.
+7. **Fix each group with the smallest useful chain.** Per group, route to a 3–5
+   command `impeccable` chain (the Routing Table and Command Selection Rules
+   below apply here — this is where "focused, not exhaustive" kicks in). Fix
+   drift by extending the contract token, then reusing it — never invent a new
+   off-contract value.
+8. **Verify each batch** (Visual Proof + States + A11y gates): screenshot
+   desktop + phone, confirm the fix landed and broke nothing, then **tick the
+   item off in `DESIGN-AUDIT.md`** and record any contract delta.
+9. **Keep going to diminishing returns.** Report progress in batches (e.g. "P0s
+   done — 8 fixed; starting P1s"). Stop only when the backlog is drained to P3
+   polish or further work needs a product decision. Pause for the user **only**
+   when a direction call cannot be reasonably defaulted; otherwise take the
+   sensible default, note the assumption in the backlog, and continue.
+
+For a **Direct** (named-target) invocation, skip Stages 1–2 and use the focused
+`## Workflow` below on that one surface.
+
 ## Required Sub-Skills
 
+- **REQUIRED READING IN SURVEY MODE:** Read `reference/audit-checklist.md` and
+  walk it against every surface — it is the forcing function that makes the
+  survey exhaustive. The backlog is written from
+  `reference/audit-backlog.template.md`.
 - **REQUIRED SUB-SKILL:** Use `vocabulary` first for design terminology and
-  diagnosis.
+  diagnosis. **Invoke it for real** — call the `vocabulary` skill (via the Skill
+  tool) to pull canonical definitions from its `vocabulary.md`; do not paraphrase
+  the term list inlined in this file. The inline list is an index, not the source.
 - **REQUIRED SUB-SKILL:** Use `impeccable` second for frontend design execution.
+  **This is a hard hand-off, not a mention.** Every fix in Stage 2 / step 9 must
+  be executed by actually invoking the `impeccable` skill (via the Skill tool)
+  with a concrete command — e.g. `impeccable critique <target>`, then
+  `impeccable layout` / `colorize` / `polish`. Routing to an impeccable chain in
+  prose but then hand-editing CSS yourself instead of calling the skill is the
+  failure mode this line exists to stop. If you named a chain, run it.
+  - **Precondition check:** before relying on either, confirm both skills are
+    actually loaded (they appear in the available-skills list). If `impeccable`
+    or `vocabulary` is missing — e.g. a broken symlink in `~/.agents/skills` —
+    say so explicitly and tell the user to repair it, rather than silently
+    degrading to a surface-level hand pass. Silent degradation here is exactly
+    what makes design-director feel like it "isn't doing anything."
 - **REQUIRED SUB-SKILL WHEN AVAILABLE:** Use `playwright` or `playwright-cli`
   for browser verification after UI changes.
 - **OPTIONAL DETAIL-POLISH REFERENCE:** If `make-interfaces-feel-better` is
@@ -351,11 +466,14 @@ but feel dead.
 | "Build a new UI/feature" | mental model, hierarchy, affordance, empty/error states | `shape -> craft -> adapt -> polish` |
 | "Get every interaction/state right" | empty, loading, error, hover/focus/disabled, feedback | `shape -> craft -> harden -> polish` (run the States gate) |
 | "Make this form usable" | validation, inline error, defaults, keyboard, multi-step | `shape -> craft -> harden -> polish` (run the States gate) |
+| "First-run/empty/activation feels dead" | empty state, onboarding, progressive disclosure, aha moment | `onboard -> craft -> polish` |
+| "It's slow / janky / laggy" | performance, layout shift, bundle, render | `optimize -> audit -> polish` |
+| "No design system written, but code exists" | tokens, source of truth, visual language | `document` (generate DESIGN.md from code), then proceed |
 | "Build a landing page that converts" | value prop, hierarchy, social proof, single CTA | `shape -> brand register -> craft -> typeset -> polish` |
 | "The copy/labels feel unclear" | microcopy, CTA, front-loading, tone, error message | `clarify -> typeset -> polish` |
 | "Make it production-ready" | accessibility, contrast, focus state, reduced motion, error state | `audit -> harden -> adapt -> polish` |
 | "I want richer components/charts/modals/navigation" | information density, wayfinding, data visualization, progressive disclosure | `critique -> bolder -> choose 1-2 of layout, colorize, animate -> polish` |
-| "Pull scattered UI into a design system" | tokens, component library, semantic naming, reuse | establish `DESIGN.md`, then `distill -> harden -> polish` across components |
+| "Pull scattered UI into a design system" | tokens, component library, semantic naming, reuse | establish `DESIGN.md` (or `document`/`init` it), then `extract -> distill -> harden -> polish` across components |
 
 ## Command Selection Rules
 
@@ -381,6 +499,12 @@ but feel dead.
   responsive behavior, and contrast.
 - Use `distill` / `harden` when the job is consolidating scattered UI into
   reusable, accessible, state-complete components.
+- Use `onboard` for first-run flows, empty states, and activation moments.
+- Use `optimize` for measurable performance: load, render, animation jank,
+  bundle size.
+- Use `document` to generate a `DESIGN.md` from existing code when none exists;
+  use `extract` to pull repeated patterns/tokens back into the system when drift
+  has spread; use `init` to set up project context on a fresh project.
 
 ## Red Flags
 
@@ -407,6 +531,14 @@ Stop and reroute if you catch yourself doing any of these:
 - Choosing `polish` when the screen needs a new composition or richer component
   model.
 - Defaulting to `surgical` for a vague improvement request.
+- In Survey mode, stopping at a handful of issues instead of exhaustively
+  walking every surface × every category of `reference/audit-checklist.md`.
+- Surfacing issues but never writing `DESIGN-AUDIT.md`, or judging screens by
+  taste instead of walking the checklist (a short issue list is the tell).
+- In the default Survey + Fix mode, stopping after the report or capping at
+  P0/P1 instead of autonomously driving the backlog down to diminishing returns.
+- Treating "smallest useful chain" as a reason to under-survey — it governs each
+  fix, never discovery.
 - Skipping charts or structured visualizations when the product has obvious
   data, or adding charts that do not answer a user question.
 - Shipping modals/drawers with dense information but no hierarchy, sticky
@@ -465,21 +597,27 @@ one-off values. To change the system, edit this file, then use the new token.
 
 ## Prompt Pattern To Follow
 
-When the user is vague, internally translate their request into this operating
-brief:
+When the user is vague or invokes the skill bare, internally translate the
+request into this operating brief (Survey + Fix, the default):
 
 ```text
-First settle the design contract: read the repo's DESIGN.md / brand kit / tokens
-if one exists and obey it, or establish a DESIGN.md once when the work recurs.
-Use vocabulary first and impeccable second; the user does not know design terms.
-Diagnose the current UI in precise terms, set ambition to strong or showpiece,
-choose a 3-5 command impeccable chain, inventory rich components like charts,
-dense modals, navigation, and purposeful motion, pick one concrete art direction
-from the contract's tokens, run a micro-polish pass for radius, alignment,
-typography, hit targets, and transitions, confirm every interactive surface
-ships all its states (empty/loading/error/hover/focus/disabled/success), confirm
-keyboard / low-vision / desktop-tablet-phone users can complete the core action,
-implement against the tokens, verify with desktop and mobile screenshots,
-critique the result, and revise once. Do not run all impeccable commands, and do
-not invent off-contract values.
+Settle the design contract first: read the repo's DESIGN.md / brand kit / tokens
+and obey it, or establish/document a DESIGN.md when the work recurs. Then run the
+exhaustive survey, not a single-screen pass: enumerate every route and key
+component, screenshot each at desktop and phone, run impeccable critique + audit
++ detect, and walk reference/audit-checklist.md against every surface × every
+category — logging every true finding (small ones too, plus cross-surface drift)
+and surfacing additions (modals, charts, data tables, command menu, richer
+components) unprompted. Write it all to DESIGN-AUDIT.md with scores and severity
+counts, and give a short inline summary. Then DON'T STOP: drive the backlog down
+autonomously in severity order (P0 → P1 → P2 + high-value additions), fixing each
+group with the smallest useful 3-5 command impeccable chain, extending contract
+tokens rather than inventing values, verifying each batch with desktop + phone
+screenshots and the States and Accessibility gates, ticking items off in
+DESIGN-AUDIT.md, and reporting progress in batches until diminishing returns.
+The user does not know design terms and should not have to point at anything —
+find everything and fix it. Discovery is exhaustive; each fix is focused.
 ```
+
+When the user names a specific screen or problem, use the Direct mode instead:
+skip the survey and run the focused 3-5 command chain on that one surface.
