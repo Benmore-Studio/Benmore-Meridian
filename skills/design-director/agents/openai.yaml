@@ -1,4 +1,4 @@
 interface:
   display_name: "Design Director"
-  short_description: "Routes vocabulary into frontend design execution"
-  default_prompt: "Use $design-director to diagnose this UI, choose the right design vocabulary and impeccable commands, then implement and browser-verify the improvement."
+  short_description: "Exhaustively audits the whole UI, surfaces every issue + addition, then fixes them"
+  default_prompt: "Use $design-director in its default Survey + Fix mode: don't wait to be pointed at problems. Settle the DESIGN.md contract, then run an exhaustive site-wide survey — enumerate every route and key component, screenshot each, run impeccable critique + audit + detect, and walk reference/audit-checklist.md against every surface × every category. Surface hundreds of issues AND additions (modals, charts, consistent color, hierarchy, data flows) into DESIGN-AUDIT.md with scores and severity counts. Then autonomously drive the backlog down in severity order (P0 → P1 → P2 + high-value additions), fixing each with the smallest useful impeccable chain, extending contract tokens not inventing values, verifying with desktop + phone screenshots, and ticking items off — until diminishing returns. Discovery is exhaustive; each fix is focused."
