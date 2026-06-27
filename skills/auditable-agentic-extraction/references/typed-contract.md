@@ -70,20 +70,26 @@ components:
     SourceRef:
       type: object
       description: >-
-        Where in the source this value came from. Specific enough that a UI can
-        navigate the user straight to it. Exactly one locator family is set.
+        Where in the source this claim came from. Names the document (doc_id) and,
+        for versioned corpora, the version; then sets one point locator
+        (page+bbox / anchor / table+row) OR a span (start..end anchors) for a
+        region. Anchors are stable token ids in the canonical document model
+        (document-model.md), not raw character offsets.
       properties:
+        doc_id:  { type: string, description: "stable (content-addressed) id of the source document" }
+        version: { type: string, nullable: true, description: "document revision this ref resolves against" }
         page:    { type: integer, minimum: 1, description: 1-based page/sheet }
         bbox:
           type: array
-          description: "[x1,y1,x2,y2] region on the page, source pixel coords"
+          description: "[x1,y1,x2,y2] region on the page, canonical page coords"
           items: { type: number }
           minItems: 4
           maxItems: 4
-        anchor:  { type: string, description: "stable id of a text/table anchor, e.g. OCR token id" }
+        anchor:  { type: string, description: "stable id of a single text/table token in the canonical model" }
         table:   { type: string, description: "table/section identifier" }
         row:     { type: integer, description: "row index within table" }
-      required: [page]
+        span:    { $ref: '#/components/schemas/Span' }  # start_anchor..end_anchor, may cross pages
+      required: [doc_id]
 
     Origin:
       type: object
@@ -126,10 +132,21 @@ components:
       required: [key, value, origin, source_ref, confidence]
 ```
 
+> The snippet above shows `SourceRef`, `Origin`, and the scalar `ExtractedValue`.
+> The full [`envelope.openapi.yaml`](envelope.openapi.yaml) also defines the
+> `Span` sub-object and three sibling **claim kinds** that reuse `Origin` +
+> `SourceRef` verbatim: `Annotation` (a durable highlight —
+> [`annotations-and-highlights.md`](annotations-and-highlights.md)), `Relation`
+> (a typed link between claims), and `Change` (a version diff —
+> [`comparison-and-versioning.md`](comparison-and-versioning.md)). The envelope is
+> invariant across all of them; only the per-project `payload` differs.
+
 Notes baked into the schema on purpose:
 - `value` is a **string**, not a number — exact decimal-as-string avoids
   float-drift across languages and JSON parsers. The typed value is reconstructed
   on read (e.g. `decimal`/`big.Rat`).
+- `source_ref.doc_id` is **required** — every claim names which document (and,
+  versioned, which version) it came from, so traceability holds across a corpus.
 - `source_ref` and `origin` are **required**. The contract makes it structurally
   impossible to emit a conforming value with no traceability.
 - `confidence` is bounded `[0,1]` at the schema level — invalid confidence fails

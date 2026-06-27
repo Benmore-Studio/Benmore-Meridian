@@ -9,6 +9,16 @@ first. Retrofitting provenance after the extraction code exists means revisiting
 every value-producing path. Stamping it from day one (even on a pure-LLM v1)
 means the audit surface always exists.
 
+The unit that carries provenance is not only a scalar value. The same
+`origin` + `source_ref` envelope attaches to every **claim kind**: an
+`ExtractedValue` (a number), an `Annotation` (a highlighted span/clause — see
+[`annotations-and-highlights.md`](annotations-and-highlights.md)), a `Relation`
+(a cross-reference or defined-term link), and a `Change` (a diff between two
+versions — see [`comparison-and-versioning.md`](comparison-and-versioning.md)).
+Everything below is written for a "value", but read "claim": a clause boundary
+and a redline are produced by tools and stamped with provenance exactly as a
+number is, and the LLM authors none of them directly.
+
 Provenance is the *value-level* discipline; the typed contract
 ([`typed-contract.md`](typed-contract.md)) is the *shape-level* discipline that
 makes the provenance envelope a shared, generated type. Read them together — the
@@ -38,7 +48,7 @@ Minimum viable origin record for a derived value:
 | Field | Meaning | Example (varies by domain) |
 |---|---|---|
 | `method` | which rung produced the value (`<rung>:<detail>`) | `"parse:line_item_qty"` (invoice), `"calc:area"` (takeoff), `"detector:abnormal_range"` (lab), `"lookup:sku"`, `"llm_estimate"` |
-| `source_ref` | *where* in the source — the traceability link, specific enough to navigate to | `{"page": 4, "bbox": [x1,y1,x2,y2]}` or `{"page": 9, "table": "schedule_A", "row": 12}` |
+| `source_ref` | *where* in the source — names the `doc_id` (+ `version`) and a locator specific enough to navigate to | `{"doc_id":"d9…","page": 4, "bbox": [x1,y1,x2,y2]}` or `{"doc_id":"d9…","span":{"start_anchor":"tok_8821","end_anchor":"tok_8907"}}` |
 | `inputs` | the upstream values/operands this was derived from | `["12.0", "8.5"]` or `[<id of another record>]` |
 | `confidence` | 0–1, sourced per rung (see below) | `0.92` |
 | `model_version` | which detector/model/ruleset produced it (for the flywheel + reproducibility) | `"detector-v3"` |
@@ -85,21 +95,33 @@ the verification UI, or a training-label) can go look. Everything else in
 provenance describes *how*; `source_ref` answers *where* — and "where" is what a
 human checks first.
 
-Make it specific enough to **navigate to**. The link is a small set of locator
-families; pick the one the source supports:
+A `source_ref` always names **which document** (`doc_id`) and, in a versioned
+corpus, **which version** (`version`) — so a value is traceable even when many
+documents and revisions coexist (see
+[`comparison-and-versioning.md`](comparison-and-versioning.md)). Then it sets a
+locator. Make it specific enough to **navigate to**. The link is a small set of
+locator families; pick the one the source supports:
 
 | Source kind | `source_ref` link shape | Navigates to |
 |---|---|---|
-| Rendered page region | `{ "page": 4, "bbox": [120, 880, 410, 930] }` | a highlighted box on page 4 |
-| Text / OCR anchor | `{ "page": 4, "anchor": "ocr_tok_8821" }` | the exact token/word |
-| Table cell | `{ "page": 9, "table": "schedule_A", "row": 12 }` | a row in a parsed table |
+| Rendered page region | `{ "doc_id": "d9…", "page": 4, "bbox": [120, 880, 410, 930] }` | a highlighted box on page 4 |
+| Text / token anchor | `{ "doc_id": "d9…", "page": 4, "anchor": "tok_8821" }` | the exact token/word |
+| Table cell | `{ "doc_id": "d9…", "page": 9, "table": "schedule_A", "row": 12 }` | a row in a parsed table |
+| **Span** (a region of text) | `{ "doc_id": "d9…", "span": { "start_anchor": "tok_8821", "end_anchor": "tok_8907" } }` | a whole clause/phrase, possibly multi-page |
 | Derived / multi-region | `inputs` reference the *records* whose own `source_ref`s point at each contributing region | the chain of source regions |
 
+`anchor`/`span` ids are stable token ids in the **canonical document model**
+([`document-model.md`](document-model.md)) — *not* raw character offsets, which
+shift on re-pagination and re-OCR. The canonical model is what makes a
+`source_ref` survive a re-render or a new version; build it before you stamp
+anchors.
+
 Rules for a good link:
-- **Specific enough to highlight.** "page 4" alone is weak; add a `bbox` or
-  `anchor` so the UI can draw a box or scroll to the word.
-- **In source coordinates.** A `bbox` is in the coordinate space of the rendered
-  page the user actually sees, so the highlight lands correctly.
+- **Specific enough to highlight.** "page 4" alone is weak; add a `bbox`,
+  `anchor`, or `span` so the UI can draw a box or scroll to the word.
+- **In canonical coordinates.** A `bbox` is in the canonical page coordinate
+  space ([`document-model.md`](document-model.md)), not raw render pixels at an
+  arbitrary DPI, so the highlight lands correctly after any re-render.
 - **Stable anchors over fragile offsets.** Prefer an OCR token id or `table`+`row`
   (stable across re-renders) to a raw character offset (shifts on re-pagination).
 - **It is emitted by the producing tool**, at the moment it knows the region —
@@ -121,11 +143,22 @@ the generated envelope types from the contract
 ```go
 // SourceRef — the traceability link. Specific enough that a UI can navigate to it.
 type SourceRef struct {
-    Page   int       `json:"page"`             // 1-based page/sheet
-    Bbox   []float64 `json:"bbox,omitempty"`   // [x1,y1,x2,y2] in source pixel coords
-    Anchor *string   `json:"anchor,omitempty"` // stable token/anchor id
-    Table  *string   `json:"table,omitempty"`
-    Row    *int      `json:"row,omitempty"`
+    DocID   string    `json:"doc_id"`            // REQUIRED — which document
+    Version *string   `json:"version,omitempty"` // which revision, in a versioned corpus
+    Page    int       `json:"page,omitempty"`    // 1-based page/sheet (point locators)
+    Bbox    []float64 `json:"bbox,omitempty"`    // [x1,y1,x2,y2] in CANONICAL page coords
+    Anchor  *string   `json:"anchor,omitempty"`  // stable token id (canonical model)
+    Table   *string   `json:"table,omitempty"`
+    Row     *int      `json:"row,omitempty"`
+    Span    *Span     `json:"span,omitempty"`    // a region of text (clause/phrase), may cross pages
+}
+
+// Span — a contiguous range delimited by stable anchors (see document-model.md).
+type Span struct {
+    StartAnchor string `json:"start_anchor"`
+    EndAnchor   string `json:"end_anchor"`
+    // chars[] and per-page regions[] are carried in the wire envelope
+    // (envelope.openapi.yaml); chars are a fragile HINT, re-anchor on read.
 }
 
 // Origin — how the value was produced.

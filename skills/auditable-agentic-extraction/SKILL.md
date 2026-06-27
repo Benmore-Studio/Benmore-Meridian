@@ -2,31 +2,50 @@
 name: auditable-agentic-extraction
 description: >-
   Methodology for building auditable, agent-orchestrated systems that turn
-  documents (PDFs, scans, forms, images, contracts, statements) into verifiable
-  structured data — where every derived value is traceable to its source and
-  no value is invented by the LLM. Use when designing or reviewing a pipeline
-  that extracts quantities, totals, line items, measurements, or other
-  structured fields from documents and needs to be trustworthy: when the
-  requirement involves "auditable", "verifiable", "provenance", "traceability",
-  "no hallucinated numbers", human review/correction loops, ML-assisted
-  extraction with fallbacks, OCR gating, typed extraction-output contracts
-  (OpenAPI/JSON-Schema with codegen, "type the boundary"), or staged document
-  processing with progress reporting. Domain-agnostic; language-neutral
-  (Go-first examples); distilled from a production document-to-structured-data
-  takeoff pipeline.
+  documents (PDFs, scans, forms, images, contracts, statements, blueprints) into
+  verifiable structured data, comparisons, and annotations — where every derived
+  claim is traceable to its source and no value, clause boundary, or change is
+  invented by the LLM. Use when designing or reviewing a pipeline that extracts
+  quantities/totals/line items/measurements/fields, OR compares and version-tracks
+  documents (legal redlines, contract negotiation across rounds, "git for
+  documents"), OR maintains durable highlights/annotations — and needs to be
+  trustworthy. Triggers: "auditable", "verifiable", "provenance", "traceability",
+  "no hallucinated numbers", "document comparison/diff/redline", "version
+  tracking", "highlights/annotations", "blueprint/takeoff extraction", human
+  review/correction loops, ML-assisted extraction with fallbacks, OCR gating,
+  typed extraction-output contracts (OpenAPI/JSON-Schema with codegen, "type the
+  boundary"), staged document processing with progress reporting, admissibility /
+  chain-of-custody / privileged documents. Domain-agnostic (legal, construction,
+  finance, medical); language-neutral (Go-first examples); distilled from a
+  production document-to-structured-data takeoff pipeline.
 ---
 
 # Auditable Agentic Extraction
 
-A methodology for turning documents into structured data you can **defend**:
-every number traces back to a place in the source, and the language model
-never authors a value out of thin air.
+A methodology for turning documents into structured outputs you can **defend**:
+every claim traces back to a place in the source, and the language model never
+authors one out of thin air. The output may be a **value** (a number you bill
+against), a **comparison** (what changed between two contract versions), or an
+**annotation** (a durable highlight on a clause) — the discipline is the same for
+all three.
 
 ## The core thesis
 
 > **The agent is the brain; tools are the hands. The LLM decides _where to
-> look_ and _what to do_ — a tool produces the _value_ and records how it got
-> it. The model never writes a value straight into the output.**
+> look_ and _what to do_ — a tool produces the _claim_ and records how it got
+> it. The model never writes a value, a clause boundary, or a change straight
+> into the output.**
+
+The unit of output is an **attributed claim**, and it comes in four kinds, all
+carrying the same provenance envelope (`origin` + `source_ref`):
+
+- **value** — a scalar read/measured/computed from the document (the core).
+- **annotation** — a durable highlight/span over a region of meaning (a clause,
+  a defined term, a risk flag). → [`references/annotations-and-highlights.md`](references/annotations-and-highlights.md)
+- **relation** — a typed link between claims (a cross-reference, a defined-term
+  use → its definition).
+- **change** — a diff between two document versions, the unit of the "git for
+  documents" comparison. → [`references/comparison-and-versioning.md`](references/comparison-and-versioning.md)
 
 When an LLM both reads a document and produces a final number, you get plausible
 but unverifiable output: it will confidently emit `1,240 sq ft` (or `$1,240.00`
@@ -66,18 +85,33 @@ generically.
 
 Apply when **all** of these hold:
 - The input is a document (or set of documents) — not already-structured data.
-- The output is structured values someone will **act on or be billed against**
-  (quantities, prices, totals, measurements, dates, identifiers).
+- The output is something someone will **act on, be billed against, or rely on
+  in a dispute**: extracted values (quantities, prices, totals, measurements,
+  dates, identifiers), a **comparison** of versions (what changed, and does it
+  matter), or **annotations** a reviewer trusts to persist.
 - Being wrong is expensive, so the output must be **auditable and correctable**.
 
-If you just need a rough summary and nobody audits the numbers, this is
+Representative fits: construction takeoff/blueprints (quantities billed to a
+client), invoice/statement extraction (finance), lab/medical forms, and
+**legal/contract work** — redlining dense agreements across many negotiation
+rounds, tracking which clause changed and whether it's substantive, and keeping
+durable highlights on risk language. The methodology is one spine; the domain
+payload differs.
+
+If you just need a rough summary and nobody audits the result, this is
 overkill — let the LLM summarize directly.
 
-## The eight patterns
+## The patterns
 
 This methodology is a set of patterns that reinforce each other. Read the
 reference for whichever ones you're implementing — each file is self-contained
-with code templates.
+with code templates. Patterns 1–8 are the **core** (any auditable extraction
+pipeline needs them); 9–12 **extend** the spine to a canonical substrate,
+comparison/versioning, durable annotations, and admissibility — reach for them
+when the work involves messy real-world inputs, legal/redline comparison,
+highlights, or third-party-defensible output.
+
+### Core (1–8)
 
 1. **Agent-brain / deterministic-hands** — the LLM orchestrates; tools compute.
    The LLM never writes a final value. → [`references/agent-and-tools.md`](references/agent-and-tools.md)
@@ -114,6 +148,36 @@ with code templates.
    project. *Type the boundary — never emit an untyped blob.*
    → [`references/typed-contract.md`](references/typed-contract.md)
 
+### Extended (9–12)
+
+9. **Canonical document model & robust ingestion** — build one normalized
+   representation (pages → blocks → lines → tokens, with stable anchor ids and a
+   canonical coordinate space) that every `source_ref`, bbox, highlight, and diff
+   resolves against, and handle the messy real world (encrypted/corrupt/rotated
+   PDFs, scanned-vs-vector, garbage text layers, redactions, strikethrough,
+   watermarks, locale-sensitive numbers/dates, DoS limits). This is what makes
+   anchors survive re-OCR and re-pagination.
+   → [`references/document-model.md`](references/document-model.md)
+
+10. **Comparison & versioning ("git for documents")** — content-address each
+    document, treat versions as immutable snapshots in a DAG, then
+    `segment → align → diff → classify materiality` to produce `Change` claims
+    that point into **both** versions. Handles renumbering, moved/split/merged
+    clauses, "what changed since the version I approved", and amendments that
+    modify a base. → [`references/comparison-and-versioning.md`](references/comparison-and-versioning.md)
+
+11. **Durable annotations & highlights** — highlights anchored to canonical text
+    spans (not pixels or character offsets) so they survive re-OCR and new
+    versions; overlapping/nested annotations; re-anchoring with a confidence, and
+    explicit *orphaning* (never silent loss) when the marked text is gone.
+    → [`references/annotations-and-highlights.md`](references/annotations-and-highlights.md)
+
+12. **Admissibility, tamper-evidence & sensitive content** — make the trail
+    defensible to an outside party: hash the original bytes, an append-only
+    hash-chained audit log / chain of custody, pinned model+prompt versions for
+    reproducibility, signed exports, and redaction-aware / privilege-aware
+    handling of sensitive documents. → [`references/admissibility-and-security.md`](references/admissibility-and-security.md)
+
 ## How the patterns fit together
 
 ```
@@ -145,17 +209,26 @@ with code templates.
                                                         └──────────────────┘
 ```
 
-Staged processing (pattern 7) is the spine that runs the agent loop over the
-whole document; degradation + gating (5, 6) decide which tools are available and
-when to fall back at each stage. The typed contract (pattern 8) is the shape
-every record, tool result, and API/event payload conforms to — the envelope
-that carries provenance (pattern 2) across every boundary.
+The **canonical document model** (pattern 9) is the substrate underneath this
+diagram: every `source_ref` the tools emit is an anchor into it, which is what
+lets a highlight (pattern 11) or a diff (pattern 10) stay attached after re-OCR
+or a new version. Staged processing (pattern 7) is the spine that runs the agent
+loop over the whole document; degradation + gating (5, 6) decide which tools are
+available and when to fall back at each stage. The typed contract (pattern 8) is
+the shape every record, tool result, and API/event payload conforms to — the
+envelope that carries provenance (pattern 2) across every boundary. Admissibility
+(pattern 12) wraps the whole trail so an outside party can trust it.
 
 ## Recommended build order
 
 When building a new pipeline from scratch, implement in this order — each step
 is usable on its own and de-risks the next:
 
+0. **Canonical document model** (pattern 9) if your inputs are messy or you'll do
+   comparison/annotation. Stable anchors are the foundation every `source_ref`
+   stands on; pixel/offset refs you retrofit later will not survive re-OCR or a
+   new version. For a single-source, born-digital, extract-only v1 you can defer
+   this — but decide deliberately.
 1. **Typed contract + provenance envelope first** (patterns 8 & 2). Define the
    output as an OpenAPI / JSON-Schema contract and codegen the typed envelope
    (`value`, `unit`, `origin`/`method`, `source_ref`, `confidence`,
@@ -201,6 +274,28 @@ is usable on its own and de-risks the next:
   Capture every correction as a labeled example for the flywheel.
 - **Wall-clock processing timeouts.** Killing a long document by elapsed time.
   → Track *activity/progress*; only kill when a stage stops making progress.
+- **Pixel- or offset-anchored highlights.** A bbox or character offset as the
+  source of truth for a highlight/source_ref → it breaks on re-render or a text
+  edit. Anchor to canonical token-id spans; treat bboxes as a derived, recomputed
+  rendering. See pattern 9 & 11.
+- **Text/character diff sold as semantic diff.** A renumber shown as 50 changes,
+  a moved clause shown as delete+insert, a reworded-but-changed-meaning clause
+  labelled "cosmetic". → Segment + align first, classify materiality
+  conservatively (when unsure, *up* to substantive). See pattern 10.
+- **Trusting a text layer's presence, not its quality.** A broken-ToUnicode PDF
+  yields selectable garbage that passes a length check. → Gate on text *quality*,
+  and OCR + stamp degradation when it fails. See pattern 9.
+- **Seeing through a redaction.** Reading text still present under a black-box
+  redaction, or hallucinating past it. → Redactions are first-class facts; strip
+  hidden text, never invent covered content. See patterns 9 & 12.
+- **Silently dropping an un-anchorable annotation.** A reviewer's risk flag
+  vanishes when the clause moves. → Re-anchor; if it can't, *orphan* it visibly
+  for re-review. See pattern 11.
+- **Mutating a document version in place.** A correction overwrites the snapshot.
+  → Versions are immutable; a change creates a new version. See pattern 10.
+- **Un-pinned model/prompt versions.** Output that can't be reproduced for an
+  auditor. → Record `model_version` + prompt/template version on every claim. See
+  pattern 12.
 
 ## Reference files
 
@@ -224,6 +319,20 @@ is usable on its own and de-risks the next:
 - [`references/staged-processing.md`](references/staged-processing.md) — pattern 7:
   the document-wide staged spine, progress events, idempotency, and activity-based
   reaping.
+- [`references/document-model.md`](references/document-model.md) — pattern 9: the
+  canonical document model (stable anchors, canonical coordinates, reading order,
+  text normalization) and robust ingestion of messy/adversarial inputs.
+- [`references/comparison-and-versioning.md`](references/comparison-and-versioning.md) —
+  pattern 10: content-addressed identity, the version DAG, segment/align/diff,
+  move detection, materiality, base/three-way diff, and amendments — "git for
+  documents".
+- [`references/annotations-and-highlights.md`](references/annotations-and-highlights.md) —
+  pattern 11: durable span-anchored highlights, re-anchoring with confidence,
+  orphaning, overlapping annotations, and round-trip export.
+- [`references/admissibility-and-security.md`](references/admissibility-and-security.md) —
+  pattern 12: source-byte hashing, tamper-evident audit log / chain of custody,
+  reproducibility (pinned model+prompt versions), signed exports, and
+  redaction-/privilege-aware handling.
 
 External specifications referenced by this skill:
 [OpenAPI Specification](https://spec.openapis.org/oas/latest.html) ·

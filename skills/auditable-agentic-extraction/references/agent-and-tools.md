@@ -69,6 +69,25 @@ Reading the ladder:
 - `method` is the single most useful triage field: "show every value at rung ≥4"
   is exactly the set a reviewer should look at first.
 
+### Structural claims use the same ladder
+
+The output is not always a scalar. A clause boundary, a cross-reference link, and
+a redline between two versions are **claims** too, and they obey the same rule:
+a tool produces them and stamps `method` + `source_ref` + `confidence`; the LLM
+never just asserts them. Three more `method` rungs cover structural work:
+
+| `method` | Produces | Replayable? | `confidence` from |
+|---|---|---|---|
+| `segment:<unit>` | splits a document into comparable units (clauses, sentences, rows) using the canonical model + structure | yes (deterministic over a fixed canonical model) | high if rule-based; detector score if learned |
+| `align:<unit>` | matches a unit in version A to its counterpart in version B (across renumbering/moves) | reproducible | similarity/match score; low matches → human review |
+| `diff:<granularity>` | computes the change between two aligned units (text or semantic) | yes for textual; reproducible for semantic | textual = high; semantic/materiality often `llm_estimate`-grade → review-first |
+
+These power [`comparison-and-versioning.md`](comparison-and-versioning.md) and
+[`annotations-and-highlights.md`](annotations-and-highlights.md). The same
+discipline holds: the LLM may *propose* an alignment for an ambiguous clause, but
+the match is recorded as a tool result with a `source_ref` into **both** versions
+— not as a free-text claim the model wrote.
+
 ## The perception/computation split (pattern 3)
 
 Vision models are good at *localization* ("the total is in this box", "the
