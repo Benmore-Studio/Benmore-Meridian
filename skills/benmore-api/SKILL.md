@@ -5,9 +5,9 @@ description: Query the Benmore project management API from Claude Code sessions 
 
 # benmore-api
 
-The Benmore API is the source of truth for client **project metadata**: phase, team, the Slack channel *linkage*, meetings, and **documents we produced** (deliverables like user flows). This skill is the fastest way to pull that data into a Claude Code session.
+The Benmore API is the source of truth for client **project data**: phase, team, Slack channel *linkage*, meetings + transcripts, GitHub board, blockers, financials, and **documents we produced** (deliverables like user flows). This skill is the fastest way to pull that data into a Claude Code session.
 
-> ⚠️ **Slack comms boundary — read this first.** Do **NOT** use the Benmore API to read client-channel Slack *messages*. For any "summarize / pull / read the Slack channel for [project]" request, go through the **Slack CLI or Slack MCP** (`slack_read_channel`, the `slack:*` skills) using the channel ID. The Benmore API is reserved for: (a) **documents we made** (deliverables — user flows, scope docs), and (b) **project context + meeting transcripts**. The `comms_messages` / `bm benmore summary` message-content paths below are **deprecated for message retrieval** — use them only to discover the channel ID / linkage, then read the messages via Slack CLI/MCP.
+> ⚠️ **Slack comms boundary — read this first.** To read or summarize a client channel's **messages**, use your **Slack integration** — a Slack MCP/CLI tool (e.g. `slack_read_channel`) or a `slack:*` skill — **not** the Benmore API. The API's only job here is to resolve a project → its **channel ID**: use `bm benmore channels` / `context` (or `comms_channel_info`) for that — **not** `summary`. The `bm benmore summary` / `comms_messages` paths read the API's *stored copy* of messages and are **deprecated for message content**; fall back to them only when no Slack tooling is available in the session (see [Slack tooling availability](#slack-tooling-availability)). The API stays the source of truth for everything else — project context, **meeting transcripts**, deliverables we produced, team, blockers, GitHub, financials.
 
 There are two entry points:
 
@@ -24,7 +24,7 @@ Trigger on any of these user intents:
 | "What's the status of [project]" | `bm benmore status <id>` |
 | "Give me context on [project]" | `bm benmore context <id>` |
 | "Who's on the team for [project]" | `bm benmore team <id>` |
-| "Summarize the Slack channel for [project] this week" | **Slack CLI/MCP, not this API.** Use `bm benmore channels` (or `context`) only to find the channel ID, then `slack_read_channel(channel_id=<id>, oldest=…)` / a `slack:*` skill to read + summarize the messages. |
+| "Summarize the Slack channel for [project] this week" | **Your Slack integration, not this API.** Use `bm benmore channels` (or `context`) to get the channel ID, then read via a connected Slack tool (e.g. `slack_read_channel`) — else fall back to `bm benmore summary <id>`. See the boundary callout. |
 | "What's everyone working on" / "show me all projects" | `bm benmore list` or `bm benmore overview` |
 | "What blockers does [project] have" | `bm benmore status <id>` (blockers live on status) |
 | "Which projects are in implementation" | `bm benmore list --phase implementation` |
@@ -32,7 +32,7 @@ Trigger on any of these user intents:
 | "List all Slack channels" | `bm benmore channels` |
 | "What workflow prompts are available" | `bm benmore workflows` |
 
-When in doubt, start with `bm benmore lookup <query>` to resolve to a project ID, then pipe that ID into `context`, `status`, `team`, or `summary`.
+When in doubt, start with `bm benmore lookup <query>` to resolve to a project ID, then pipe that ID into `context`, `status`, or `team`. (For channel messages, resolve the channel ID and read via your Slack integration — see the boundary callout above.)
 
 ## Authentication setup
 
@@ -99,9 +99,9 @@ bm benmore status <project-id>
 bm benmore team <project-id>
 
 # Slack channel summary over a time window
-# ⚠️ DEPRECATED for message content — this reads messages via the Benmore API.
-# Use it only if you explicitly want the API's stored summary; for real comms,
-# get the channel ID (below) and read via Slack CLI/MCP instead.
+# ⚠️ DEPRECATED for message content — reads the API's *stored copy* of messages.
+# Prefer the channel ID (below) + your Slack integration; use this only as a
+# fallback when no Slack tooling is connected in the session.
 bm benmore summary <project-id> --days 7       # default is 7
 bm benmore summary <project-id> --days 14
 bm benmore summary <project-id> --json
@@ -109,7 +109,7 @@ bm benmore summary <project-id> --json
 
 ### Communications — Slack
 
-**Read Slack messages via the Slack CLI / MCP, not the Benmore API.** Use the API only to discover the channel ID / linkage:
+**The API discovers the channel ID; your Slack integration reads the messages.**
 
 ```bash
 # List all Slack channels across all assigned projects (gives you channel IDs)
@@ -117,10 +117,20 @@ bm benmore channels
 bm benmore channels --projects proj1,proj2     # filter by project IDs
 bm benmore channels --json | jq
 
-# Then read the actual messages via Slack CLI/MCP, e.g.:
+# Then read the messages via your Slack integration (Slack MCP/CLI), e.g.:
 #   slack_read_channel(channel_id="C0123ABC", oldest=<unix_ts>, limit=100)
-# or one of the slack:* skills (slack:summarize-channel, slack:find-discussions).
+# or a slack:* skill, if one is installed. Tool and parameter names depend on
+# your setup — check the session's available tools rather than assuming these.
 ```
+
+### Slack tooling availability
+
+`slack_read_channel` and the `slack:*` skills are **not part of this repo** — they come from a separate Slack MCP server / Slack CLI that has to be connected in the session, and exact tool/parameter names depend on that integration. Before steering a Slack read, confirm such a tool is actually available. If none is connected:
+
+- Tell the user no Slack tooling is connected, and offer `bm benmore summary <id>` (the API's stored copy) as a **fallback** rough summary, **or**
+- Point them to connect the Slack MCP/CLI for real message access.
+
+Never invent a Slack tool call you can't see in the session.
 
 ### Workflow prompts
 
@@ -136,8 +146,11 @@ bm benmore workflows
 These are the real power moves. Copy-paste friendly.
 
 ```bash
-# Look up a BEN number, then immediately summarize its channel for the last 2 weeks
-bm benmore summary $(bm benmore lookup BEN-128 --id) --days 14
+# Resolve a BEN number → its Slack channel ID, then read messages via your Slack integration:
+#   cid=$(bm benmore channels --json | jq -r '.[] | select(...) | .channel_id')   # find the channel ID
+#   slack_read_channel(channel_id="$cid", oldest=<unix_ts>, limit=100)            # read via Slack MCP/CLI
+# (bm benmore summary $(bm benmore lookup BEN-128 --id) --days 14 reads the API's
+#  stored copy — deprecated for message content, use only as a fallback)
 
 # Get full context for a project by BEN number in one line
 bm benmore context $(bm benmore lookup 185 --id) --full --days 30
@@ -241,7 +254,7 @@ For genuine HTTP errors (4xx/5xx), the client raises `httpx.HTTPStatusError` aft
 
 ## ASCII flow: resolving a BEN number to a Slack summary
 
-**The API resolves the project → channel ID; Slack CLI/MCP reads the messages.**
+**The API resolves the project → channel ID; your Slack integration reads the messages (or fall back to the API's stored copy).**
 
 ```
 User: "Summarize the Slack channel for BEN-128 this week"
@@ -258,12 +271,18 @@ User: "Summarize the Slack channel for BEN-128 this week"
                        ▼
               <slack_channel_id>
                        │
-                       ▼  ⟵ HAND OFF TO SLACK CLI / MCP HERE
-       slack_read_channel(channel_id, oldest=cutoff, limit=100)
-        (or slack:summarize-channel / slack:find-discussions)
-                       │
-                       ▼
-       Summary built from real Slack messages — NOT the Benmore API
+                       ▼  ⟵ HAND OFF TO YOUR SLACK INTEGRATION HERE
+              Slack tool connected in this session?
+            ┌──────────────┴───────────────┐
+          yes                              no
+            │                               │
+            ▼                               ▼
+ slack_read_channel(channel_id,    Tell the user no Slack tooling is
+   oldest=cutoff, limit=100)        connected; offer the fallback:
+ (or a slack:* skill)               bm benmore summary <uuid> --days 7
+            │                       (API's stored copy — rough summary)
+            ▼
+ Summary from real Slack messages
 ```
 
 ## Key gotchas
