@@ -360,6 +360,8 @@ GET lists current members. POST adds the authenticated user (or specific users i
 
 ## Slack Integration
 
+> ⚠️ **Do not use these endpoints to read client-channel Slack *messages*.** Read message content through the **Slack CLI / Slack MCP** (`slack_read_channel`, the `slack:*` skills) instead. Use the endpoints below only to discover/connect the channel (channel ID + linkage). Message-retrieval params (`recent_messages`, `/messages/`, `limit`) are deprecated for this workflow — the Benmore API is reserved for our own deliverables and meeting transcripts.
+
 ### Channel Summary & Update
 
 ```
