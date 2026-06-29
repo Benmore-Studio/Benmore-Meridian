@@ -36,7 +36,7 @@ description: Use the bm CLI (Benmore skill manager) to install, update, and mana
 | Full project context (team, channel, blockers) | `bm benmore context <id>` |
 | Project health / blockers | `bm benmore status <id>` |
 | Team members for a project | `bm benmore team <id>` |
-| Channel summary over time | `bm benmore summary <id> --days 7` |
+| Channel summary over time | Read messages via **Slack CLI/MCP** (`slack_read_channel`), not the API. Use `bm benmore context <id>` only to find the channel ID. (`bm benmore summary` reads via the Benmore API and is deprecated for message content.) |
 | Inline update project metadata | `bm benmore list --set-working-on "BEN-185:..."` |
 
 ## Core principles
@@ -44,7 +44,8 @@ description: Use the bm CLI (Benmore skill manager) to install, update, and mana
 - **Symlink-first.** `bm install` symlinks `skills/<name>` → `~/.claude/skills/<name>`. Editing the source file reflects everywhere instantly — no reinstall needed.
 - **Always prefer `bm` commands** over manual `cp`/`ln`/`mkdir` into `~/.claude/`. The registry tracks every install; manual operations bypass tracking and break `bm doctor`.
 - **`--json` everywhere.** Every list/status command supports `--json` for piping to `jq` or feeding agents.
-- **Pipe-friendly.** Use `bm benmore lookup BEN-185 --id` to get just the UUID, then pipe into `bm benmore summary $(...) --days 7`.
+- **Pipe-friendly.** Use `bm benmore lookup BEN-185 --id` to get just the UUID, then pipe into `bm benmore context $(...)`.
+- **Slack messages come from Slack CLI/MCP, never the Benmore API.** Use `bm benmore` only to resolve a project → its channel ID; read/summarize the actual messages with `slack_read_channel` or the `slack:*` skills. The Benmore API is for our own deliverables + project context/meeting transcripts only.
 
 ## Common workflows
 
@@ -106,8 +107,11 @@ bm benmore lookup "Jason Steele"
 # Get its full context
 bm benmore context $(bm benmore lookup 185 --id)
 
-# Channel activity over the last week
-bm benmore summary $(bm benmore lookup 185 --id) --days 7
+# Channel activity over the last week:
+# get the channel ID from context, then read messages via Slack CLI/MCP
+#   slack_read_channel(channel_id="<id>", oldest=<unix_ts>, limit=100)
+# (bm benmore summary reads via the Benmore API — deprecated for message content)
+bm benmore context $(bm benmore lookup 185 --id)
 
 # Full numbered list grouped by phase (like the team Slack format)
 bm benmore list
@@ -155,7 +159,7 @@ If `bm benmore` says "No API key found", suggest one of the above. If it says "4
 | User wants to avoid skill clutter after the task | `bm uninstall --all --yes` |
 | User reuses the same prompt many times | `bm prompt add <name>` then `bm prompt export <name>` |
 | User wants machine-readable output | Add `--json` to `status`, `skill list`, `prompt list`, `benmore *` |
-| User mentions a BEN number / Benmore project | `bm benmore lookup` then `context`/`status`/`summary` |
+| User mentions a BEN number / Benmore project | `bm benmore lookup` then `context`/`status` (for Slack messages, get the channel ID then read via Slack CLI/MCP) |
 
 ## Key gotchas
 
