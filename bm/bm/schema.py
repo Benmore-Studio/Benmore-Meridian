@@ -292,10 +292,18 @@ def build_benmore_openapi() -> dict[str, Any]:
             "/projects/{project_id}/comms/": {
                 "get": {
                     "operationId": "comms_raw",
+                    "summary": "Slack channel metadata + linkage",
+                    "description": (
+                        "Returns Slack channel metadata/linkage for a project. "
+                        "Use it to resolve a project to its channel ID. Client-channel "
+                        "message *content* should be read via a Slack MCP/CLI integration, "
+                        "not this endpoint; the API's stored copy (recent_messages) is a "
+                        "fallback only and is deprecated for message retrieval."
+                    ),
                     "parameters": [_path_param("project_id")],
                     "responses": {
                         "200": {
-                            "description": "Slack communication payload",
+                            "description": "Slack communication payload (channel metadata)",
                             "content": {"application/json": {"schema": {"type": "object"}}},
                         }
                     },

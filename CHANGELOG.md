@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## v1.11.0 — 2026-06-29
+
+### New Skills
+
+- **`auditable-agentic-extraction`** — Domain-agnostic methodology for building auditable, agent-orchestrated extraction pipelines: turn documents (PDFs, scans, forms, contracts, statements) into structured data you can *defend*, where every derived value traces back to a place in the source and the model never authors a value out of thin air. Ships reference docs for the document model, typed contract, provenance, staged processing, verification flywheel, degradation/gating, comparison/versioning, admissibility/security, and an `envelope.openapi.yaml` contract (#52).
+
+### Changed
+
+- **`benmore-api` / `using-bm` — Slack comms boundary.** Client-channel Slack *message* reads now default to your **Slack integration** (a Slack MCP/CLI tool such as `slack_read_channel`, or a `slack:*` skill) instead of the Benmore API. The API is reserved for project context, meeting transcripts, deliverables we produced, team, blockers, GitHub, and financials — and for resolving a project → its channel ID. `bm benmore summary` / `comms_messages` are now deprecated for message content and kept only as a fallback for when no Slack tooling is connected. The REST API reference and the generated `benmore.openapi.json` comms endpoint are annotated to match (#53).
+- **`design-director`** — Updated the skill and its OpenAI agent config, and wired its hand-off so design output flows into the writing/voice skills (#51).
+- **Restored the `impeccable` and `vocabulary` skills** and added a **visual-verification gate** to the `client-platform-walkthrough` skill.
+
 ## v1.10.3 — 2026-06-19
 
 ### Release Pipeline Hardening
