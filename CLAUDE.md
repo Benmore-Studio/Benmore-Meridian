@@ -6,16 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository contains a comprehensive collection of **developer onboarding guides and checklists** organized by topic. It's a knowledge base for teams to standardize development practices, from initial environment setup through production deployment.
+This repository is the **monorepo for the Benmore skill ecosystem** — the tooling and knowledge base that power Claude Code / Codex sessions across Benmore projects. It contains both **application code** and **documentation**.
 
-**Key Focus Areas:**
-- Django production readiness and best practices
-- Development workflows, CI/CD automation, and AI-powered tools
-- PR review workflows and project management
-- Development toolkit setup and verification
-- Team-specific onboarding materials
+**Key components:**
+- **`bm` CLI** (`bm/`) — the Benmore skill manager: a Python package with a Rust (`pyo3`) native extension. Installs/updates/manages skills, prompts, dev tools, and git hooks, and wraps the Benmore project-management API via `bm benmore`.
+- **`benmore_client`** (`benmore_client/`) — async Python client for the Benmore Reporting API.
+- **Skills** (`skills/`) — 80+ Claude Code skills, including `benmore-api`, `using-bm`, `django-production`, and many more.
+- **Prompts** (`prompts/`) — saved prompt templates exportable as Claude `/commands`.
+- **Guides** (`onboarding/`, `toolkit/`, `review/`, `references/`, `docs/`) — developer onboarding, Django production, CI/CD, and toolkit checklists.
 
-**Repository Type:** Documentation and guides (no application code)
+**Repository Type:** Mixed — Python/Rust application code (`bm`, `benmore_client`, `tests/`) + Claude Code skills + documentation.
+
+---
+
+## Benmore API — Slack comms boundary
+
+When a session needs **client-channel Slack message content** ("summarize / pull / read the Slack channel for [project]"), read it via the session's **Slack integration** (a Slack MCP/CLI tool such as `slack_read_channel`, or a `slack:*` skill) — **not** the Benmore API. Use `bm benmore` only to resolve a project → its **channel ID** (`bm benmore channels` / `context`). `bm benmore summary` / `comms_messages` read the API's stored copy and are **deprecated for message content**, kept only as a fallback when no Slack tooling is connected. The Benmore API stays the source of truth for project context, meeting transcripts, deliverables, team, blockers, GitHub, and financials. See [`skills/benmore-api/SKILL.md`](skills/benmore-api/SKILL.md) for the full boundary.
 
 ---
 
@@ -23,54 +29,28 @@ This repository contains a comprehensive collection of **developer onboarding gu
 
 ### Core Organization
 
-The guides are organized by topic with a consistent structure:
+The repository is organized as follows (top-level):
 
 ```
-guides/
-├── README.md                          # Main index & quick start
-├── CLAUDE.md                          # This file
-├── deployment/
-│   ├── README.md                     # Deployment overview & platform comparison
-│   ├── heroku/
-│   │   └── django-deployment.md      # Deploy Django to Heroku with uv
-│   ├── digitalocean/
-│   │   ├── 01-overview.md            # Quick reference with links
-│   │   ├── 02-getting-started.md     # Connection & new developer setup
-│   │   ├── 03-deployment.md          # Deploy new projects, add Celery
-│   │   ├── 04-daily-operations.md    # Pull code, run migrations, commands
-│   │   ├── 05-commands-reference.md  # PM2, Django, Git, Database commands
-│   │   └── 06-troubleshooting.md     # Fix common errors, check logs
-│   ├── cicd/
-│   │   └── django-setup.md           # CI/CD setup with Claude Code
-│   └── mobile/
-│       └── react-native-setup.md     # React Native mobile development
-├── django/
-│   ├── README.md                     # Guide selector with comparisons
-│   ├── 01-simple-checklist.md        # Pure checkbox format (95 items)
-│   ├── 02-detailed-checklist.md      # Step-by-step implementation (45-60 min)
-│   └── 03-comprehensive-guide.md     # Deep reference with full explanations
-├── development/
-│   ├── README.md                     # Development workflow overview
-│   ├── 00-developer-workflow.md      # End-to-end developer workflow
-│   ├── 01-pr-review-workflow.md      # PR review & project management
-│   ├── 02-ci-cd-bots-setup.md        # CI/CD bots & automated checks
-│   ├── 03-claude-code-ecosystem.md   # Claude Code tools & ecosystem
-│   └── assets/                       # 20 supporting images
-├── review/
-│   └── 01-pr-review-workflow.md      # Complete PR review & GitHub setup
-├── toolkit/
-│   ├── README.md                     # Toolkit overview
-│   └── 01-toolkit-checklist.md       # Development environment setup
-├── team/
-│   └── .gitkeep                      # Team guides (currently empty/placeholder)
-└── prompts/                           # Saved prompt templates (v1.6.0+)
-    ├── productionize-django/PROMPT.md
-    ├── quick-pr-review/PROMPT.md
-    ├── client-kickoff/PROMPT.md
-    ├── full-pr-review-audit/PROMPT.md
-    ├── create-project-tickets/PROMPT.md
-    └── skill-chain-loop/PROMPT.md
+Benmore-Meridian/
+├── bm/                  # `bm` CLI — Python package + Rust (pyo3) native ext, tests, schemas, RELEASING.md
+├── benmore_client/      # async Python client for the Benmore Reporting API
+├── skills/              # 80+ Claude Code skills (benmore-api, using-bm, django-production, …)
+├── prompts/             # saved prompt templates (exportable as Claude /commands)
+├── onboarding/          # developer onboarding guides
+├── toolkit/             # dev environment setup checklist
+├── review/              # PR review workflow guide
+├── references/          # reference material
+├── docs/                # release audit + hardening notes
+├── scripts/             # repo automation scripts
+├── assets/              # images / supporting assets
+├── tests/               # pytest suite
+├── CHANGELOG.md         # release history (Keep a Changelog)
+├── README.md            # project overview & quick start
+└── CLAUDE.md            # this file
 ```
+
+> **⚠️ Legacy note:** The detailed "Repository Structure", "File Naming Convention", and "Guide Purposes and Use Cases" subsections below are **legacy** from when this repo was a pure `guides/` collection. There is no `guides/` directory today — the onboarding/Django/deployment content now lives under `onboarding/`, `toolkit/`, and `review/`. Trust the tree above, `README.md`, and the `bm`/skills sections lower in this file over the legacy guide descriptions.
 
 ### File Naming Convention
 
@@ -407,9 +387,9 @@ This multi-category approach allows:
 - Easy expansion as new team needs arise without restructuring
 - Clear separation of concerns while allowing cross-references between related guides
 
-### No Application Code
+### Application Code Lives Here
 
-This repository contains documentation only - no Python, JavaScript, or executable code. All tools and technologies are described, but implementation happens in separate project repositories.
+This repo began as a pure guides collection but now ships real application code: the **`bm` CLI** (`bm/` — Python + a Rust `pyo3` native extension) and the **`benmore_client`** library (`benmore_client/`), with a `tests/` suite. When changing CLI behavior, follow [`bm/RELEASING.md`](bm/RELEASING.md) and keep `bm/pyproject.toml`, `bm/bm/__init__.py`, and the checked-in schemas (`bm/bm/schemas/`) in sync.
 
 ---
 
