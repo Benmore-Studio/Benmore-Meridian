@@ -181,9 +181,15 @@ export function Ticker() {
 }
 // MUST STAY SILENT: verify-ignore is window-scoped -- it silences only this
 // marked occurrence, not the whole file, so the unmarked sink above still fires.
-export function StaticCss() {
-  // verify-ignore: unsanitized-html -- literal string, no external input
-  return <style dangerouslySetInnerHTML={{ __html: '.x{color:red}' }} />
+export function ServerEscaped({ html }: { html: string }) {
+  // verify-ignore: unsanitized-html -- escaped in api/render.go before it ships
+  return <div dangerouslySetInnerHTML={{ __html: html }} />
+}
+// MUST STAY SILENT, and with NO marker: a <style> tag takes CSS text, not markup.
+// This is shadcn/ui's chart.tsx shape verbatim, so it ships in a large share of
+// real repos; flagging it was a false P0 in 2 of 2 measured.
+export function ChartStyle({ css }: { css: string }) {
+  return <style dangerouslySetInnerHTML={{ __html: css }} />
 }
 TSX
 
@@ -238,16 +244,33 @@ export function usePutTaxDocLimit() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['limit', 'board'] }) } })
 }
 TS
+# The ambient-by-SHARE plant. Its resource is deliberately NOT one of the
+# ambient-by-NAME spellings, so the two demotions stay separately provable: if
+# this used `session`, the name rule would carry it and the share rule could rot
+# undetected.
 cat > "$TMP/src/hooks/use-session.ts" <<'TS'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/src/api/client'
 export function useSession() {
-  return useQuery({ queryKey: ['session'], queryFn: async () => {
-    const { data } = await apiClient.GET('/v1/session/me'); return data } })
+  return useQuery({ queryKey: ['workspace'], queryFn: async () => {
+    const { data } = await apiClient.GET('/v1/workspace/me'); return data } })
 }
 export function useRefreshSession() {
-  return useMutation({ mutationKey: ['session'], mutationFn: async () => {
-    const { data } = await apiClient.POST('/v1/session/refresh'); return data } })
+  return useMutation({ mutationKey: ['workspace'], mutationFn: async () => {
+    const { data } = await apiClient.POST('/v1/workspace/refresh'); return data } })
+}
+// PLANTED: ambient by NAME on TWO readers, far under the share threshold. A sign-in
+// does not leave a view stale, it replaces the principal and the tree remounts.
+// Measured: 4 of 7 P1 sync risks on a real repo were exactly this shape.
+export function useSignIn() {
+  return useMutation({ mutationFn: async () => {
+    const { data } = await apiClient.POST('/v1/auth/login'); return data } })
+}
+// PLANTED, MUST BE WAIVED: a genuine-looking risk the repo has already triaged.
+export function usePushSegment() {
+  // verify-ignore: sync-risk -- pushes to Mailchimp; no segment list exists here
+  return useMutation({ mutationFn: async () => {
+    const { data } = await apiClient.POST('/v1/segments/push'); return data } })
 }
 TS
 # One route that renders the taxdocs entity (a real, narrow blast radius) ...
@@ -270,10 +293,11 @@ for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
   mkdir -p "$TMP/app/amb$n"
   cat > "$TMP/app/amb$n/page.tsx" <<'TSX'
 'use client'
-import { useSession, useRefreshSession } from '@/src/hooks/use-session'
+import { useSession, useRefreshSession, useSignIn, usePushSegment } from '@/src/hooks/use-session'
 export default function AmbientPage() {
   const { data, isError, isLoading } = useSession()
-  const refresh = useRefreshSession()
+  const refresh = useRefreshSession(); const login = useSignIn(); const push = usePushSegment()
+  void login; void push;
   if (isLoading) return <p>Loading</p>
   if (isError) return <p>failed</p>
   if (!data) return <p>No session</p>
@@ -295,6 +319,17 @@ mkdir -p "$TMP/src/_proto"
 cat > "$TMP/src/_proto/lab.jsx" <<'JSX'
 export function Lab({ rows }) {
   return <ul>{rows.map((r, index) => <li key={index}>{r.name}</li>)}</ul>
+}
+JSX
+
+# PLANTED, MUST BE WAIVED (not merely absent): the same defect the triage of a
+# real repo proved harmless, marked at the line. Proves the waiver reaches a rule
+# it was not written for, and that a waived finding is still counted and reported.
+mkdir -p "$TMP/src/components"
+cat > "$TMP/src/components/legend.jsx" <<'JSX'
+export function Legend({ swatches }) {
+  // verify-ignore: index-as-list-key -- fixed-length constant, never reordered
+  return <ul>{swatches.map((s, index) => <li key={index}>{s}</li>)}</ul>
 }
 JSX
 
@@ -337,9 +372,19 @@ check("GET wrapped in useMutation NOT a sync risk", !risk("useOpenTaxDocPdf"),
 check("nested write that invalidates its INNER segment NOT flagged",
       !risk("usePutTaxDocLimit"),
       risk("usePutTaxDocLimit") ? risk("usePutTaxDocLimit").detail.slice(0, 90) : "absent");
-check("ambient resource NOT filed as P1",
+check("ambient by SHARE not filed as P1",
       !!risk("useRefreshSession") && risk("useRefreshSession").severity !== "P1" && risk("useRefreshSession").unresolved === true,
       risk("useRefreshSession") ? risk("useRefreshSession").severity + " stale=" + JSON.stringify(risk("useRefreshSession").staleRoutes) : "none");
+// A session write on TWO readers clears neither share threshold. The share rule
+// alone let 4 of the 7 P1s on a real repo through as auth false positives.
+check("ambient by NAME not filed as P1, even on few readers",
+      !!risk("useSignIn") && risk("useSignIn").severity !== "P1" && risk("useSignIn").unresolved === true,
+      risk("useSignIn") ? risk("useSignIn").severity + " stale=" + JSON.stringify(risk("useSignIn").staleRoutes) : "none");
+check("verify-ignore waives a sync risk, and says it did",
+      !risk("usePushSegment")
+        && (j.syncRisksWaived || []).some((r) => r.hook === "usePushSegment")
+        && j.counts.syncRisksWaived === 1,
+      "waived=" + JSON.stringify((j.syncRisksWaived || []).map((r) => r.hook)));
 process.exit(bad);
 ' "$INV" || fail=1
 
@@ -379,12 +424,45 @@ else echo "  FAIL  stale-closure fired on a correct []-deps effect (string liter
 if node -e '
   const f = require("'"$TMP"'/classify.json").findings || [];
   const hits = f.filter((x) => x.rule === "unsanitized-html");
-  // Exactly ONE: the unmarked window.comment sink. The marked StaticCss sink
-  // (verify-ignore: unsanitized-html) must not add a second -- proves the
-  // escape hatch is window-scoped, not a whole-file "sanitize" bypass.
+  // Exactly ONE: the unmarked window.comment sink. Neither the marked
+  // ServerEscaped sink (verify-ignore, window-scoped -- not a whole-file bypass)
+  // nor the unmarked ChartStyle <style> tag may add a second.
   process.exit(hits.length === 1 ? 0 : 1);
-'; then echo "  ok    verify-ignore suppresses only the marked sink, not the unmarked one"
-else echo "  FAIL  verify-ignore either did not suppress the marked sink or also swallowed the unmarked one"; fail=1; fi
+'; then echo "  ok    verify-ignore is window-scoped, and <style> CSS is not an HTML sink"
+else echo "  FAIL  unsanitized-html: waiver leaked to the whole file, or <style> CSS was flagged as markup"; fail=1; fi
+
+# The waiver has to work for EVERY rule, not just the one it was born in: a
+# finding proved false in a written triage that comes back at P1 on the next run
+# is how a marathon spends its budget re-litigating instead of fixing.
+if node -e '
+  const r = require("'"$TMP"'/classify.json");
+  const w = r.waived || [];
+  process.exit(w.length === 2
+    && w.some((x) => x.rule === "unsanitized-html")
+    && w.some((x) => x.rule === "index-as-list-key")
+    && (r.findings || []).every((x) => !x.waived) ? 0 : 1);
+'; then echo "  ok    verify-ignore waives any rule, and waived findings are reported, not vanished"
+else echo "  FAIL  the generic verify-ignore waiver did not cover both planted rules"; fail=1; fi
+
+# Every finding's file:line must point at the line the defect is ON. Blanking a
+# multi-line /* */ down to spaces once collapsed its newlines and reported every
+# finding below a JSDoc header N lines early. Checked against the file on disk, so
+# it cannot be satisfied by a matching-but-wrong index. Waived findings included:
+# the waiver reads a window around `line`, so a drifting line silently un-waives.
+if node -e '
+  const fs = require("fs"), path = require("path");
+  const r = require("'"$TMP"'/classify.json");
+  const NEEDLE = { "unsanitized-html": /dangerouslySetInnerHTML|\.innerHTML\s*=/,
+                   "index-as-list-key": /key=\{\s*(index|i)\b/ };
+  let bad = [];
+  for (const f of [...(r.findings || []), ...(r.waived || [])]) {
+    const re = NEEDLE[f.rule]; if (!re) continue;
+    const L = fs.readFileSync(path.join(r.root, f.file), "utf8").split("\n");
+    if (!re.test(L[f.line - 1] ?? "")) bad.push(f.file + ":" + f.line + " (" + f.rule + ")");
+  }
+  if (bad.length) { console.error("      " + bad.join("  ")); process.exit(1); }
+'; then echo "  ok    reported file:line lands on the defect, under block comments"
+else echo "  FAIL  file:line drifted -- decomment is eating newlines again"; fail=1; fi
 
 # Design-lab trees are committed, so .gitignore does not cover them, and they are
 # shaped exactly like the app, so every rule fires in them. Reachable from no

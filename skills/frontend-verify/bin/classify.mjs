@@ -72,8 +72,15 @@ const rel = (f) => path.relative(ROOT, f);
 const lineAt = (src, i) => src.slice(0, i).split('\n').length;
 
 // Comments and string bodies produce most false positives in a regex classifier.
-const decomment = (s) => s.replace(/\/\*[\s\S]*?\*\//g, (m) => ' '.repeat(m.length))
-  .replace(/(^|[^:])\/\/[^\n]*/g, (m) => ' '.repeat(m.length));
+// Blank the text but keep BOTH the length and the newlines: `' '.repeat(len)` on a
+// multi-line /* */ turned its newlines into spaces, so every finding below a block
+// comment was reported N lines too early -- N being the height of every JSDoc
+// header above it. Measured on the selftest fixture: sinks on lines 35/43 reported
+// as 31/37. A file:line that points at the wrong line is the failure this whole
+// tool exists to avoid: the reader opens it, finds nothing, and stops opening it.
+const blank = (m) => m.replace(/[^\n]/g, ' ');
+const decomment = (s) => s.replace(/\/\*[\s\S]*?\*\//g, blank)
+  .replace(/(^|[^:])\/\/[^\n]*/g, blank);
 
 // Brace/paren-matched argument text from an opening delimiter.
 function block(src, open, cap = 8000) {
@@ -245,20 +252,19 @@ for (const file of FILES) {
     // reader to ignore the rule that catches the real sink.
     const around = src.slice(Math.max(0, m.index - 200), m.index + 200);
     if (/application\/ld\+json|JSON\.stringify/.test(around)) continue;
+    // `<style dangerouslySetInnerHTML>` injects CSS text, not markup: there is no
+    // parser to smuggle a <script> past, so the rule's own claim ("raw HTML
+    // injection — XSS sink") is false there. This is not a rare shape — it is how
+    // shadcn/ui's chart.tsx emits per-chart custom properties, so it ships in
+    // every repo that ran `npx shadcn add chart`. Measured: a false P0 in 2 of 2
+    // real repos, same file, same line, and a P0 nobody can fix is how a report
+    // stops being opened.
+    const openTag = [...src.slice(Math.max(0, m.index - 300), m.index).matchAll(/<([a-zA-Z][\w.-]*)/g)].pop()?.[1];
+    if (openTag === 'style') continue;
     // A sink can be sanitized upstream of this file entirely (e.g. the server
-    // escapes before the value ever reaches the client) -- undecidable from
-    // this file alone. `verify-ignore: unsanitized-html` is a deliberate,
-    // window-scoped escape hatch: it silences only the matched occurrence, not
-    // the whole file, so it can't accidentally mask a second, real sink placed
-    // elsewhere in the same file. The comment must say WHERE the sanitization
-    // happens, so the claim stays checkable. `decomment` blanks comment text out
-    // of `src` (same length, so indices still line up) -- the marker lives in a
-    // comment, so it has to be read from `raw`, not the decommented window. Wider
-    // than the 200-char default window: this marker routinely stacks above an
-    // existing biome-ignore, which biome requires to sit immediately adjacent to
-    // the sink -- pushing the marker itself further back than a single comment.
-    const rawAround = raw.slice(Math.max(0, m.index - 400), m.index + 200);
-    if (/verify-ignore:\s*unsanitized-html/.test(rawAround)) continue;
+    // escapes before the value ever reaches the client) -- undecidable from this
+    // file alone. That escape hatch is no longer special-cased here: `verify-ignore:
+    // <rule>` now waives ANY rule at the line it sits above (see "waivers" below).
     add('unsanitized-html', 'P0', file, lineAt(src, m.index),
       'raw HTML injection with no sanitizer in the file — XSS sink', 'L7.74');
   }
@@ -299,6 +305,42 @@ for (const p of appRoutes) {
   if (!upTo('loading')) add('no-loading-boundary', 'P2', p, 1, 'data route with no loading.tsx — the empty shell paints before data arrives', 'L4.34');
 }
 
+/* ------------------------------------------------------------- waivers */
+
+// Every rule here is a heuristic over one file, and some findings are undecidable
+// from that file alone -- the value was escaped server-side, the key is cleared
+// through a helper the walk cannot follow. Without a way to record "triaged, not
+// a defect", every run re-litigates the same findings: measured, a marathon spent
+// roughly a quarter of its budget re-triaging and hand-tuning the classifier
+// mid-run, and a finding proved false in a written triage came back at full
+// severity on the next run.
+//
+// So: `verify-ignore: <rule-id>` in a comment on, or within 6 lines above, the
+// flagged line drops that ONE rule at that ONE line. Not the file, not the rule
+// globally, and not silently -- `waived` is reported alongside the count, because
+// a suppression nobody can see is how a gate rots. The same comment must say
+// WHERE the guarantee comes from, so the waiver stays checkable at review time.
+//
+// It lives in the source, not in a central ignore file, for the same reason the
+// design-lab exclusion does not: a waiver that sits next to the code moves with
+// it, and dies with it. A path in a list outlives the line it was written for.
+const WAIVE_WINDOW = 6;
+const waived = [];
+{
+  const lines = new Map();
+  for (const f of findings) {
+    const abs = path.join(ROOT, f.file);
+    if (!lines.has(abs)) {
+      try { lines.set(abs, fs.readFileSync(abs, 'utf8').split('\n')); } catch { lines.set(abs, null); }
+    }
+    const L = lines.get(abs);
+    if (!L) continue;
+    const window = L.slice(Math.max(0, f.line - 1 - WAIVE_WINDOW), f.line).join('\n');
+    if (new RegExp(`verify-ignore:\\s*${f.rule}\\b`).test(window)) f.waived = true;
+  }
+  for (let i = findings.length - 1; i >= 0; i--) if (findings[i].waived) waived.push(...findings.splice(i, 1));
+}
+
 /* ---------------------------------------------------------------- report */
 
 const order = { P0: 0, P1: 1, P2: 2, P3: 3 };
@@ -306,7 +348,7 @@ findings.sort((a, b) => order[a.severity] - order[b.severity] || a.rule.localeCo
 const byRule = findings.reduce((a, f) => ((a[f.rule] = (a[f.rule] ?? 0) + 1), a), {});
 const bySev = findings.reduce((a, f) => ((a[f.severity] = (a[f.severity] ?? 0) + 1), a), {});
 
-const payload = JSON.stringify({ root: ROOT, files: FILES.length, counts: { total: findings.length, ...bySev }, byRule, findings }, null, 2) + '\n';
+const payload = JSON.stringify({ root: ROOT, files: FILES.length, counts: { total: findings.length, waived: waived.length, ...bySev }, byRule, findings, waived }, null, 2) + '\n';
 
 if (JSON_OUT) {
   process.stdout.write(payload);
@@ -315,7 +357,8 @@ if (JSON_OUT) {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'classify.json'), payload);
   console.log(`\n  ${FILES.length} source files scanned in ${ROOT}`);
-  console.log(`  ${findings.length} findings  ${Object.entries(bySev).map(([k, v]) => `${k}:${v}`).join('  ')}\n`);
+  console.log(`  ${findings.length} findings  ${Object.entries(bySev).map(([k, v]) => `${k}:${v}`).join('  ')}`
+    + (waived.length ? `  (${waived.length} waived by verify-ignore comments)` : '') + '\n');
   for (const [rule, n] of Object.entries(byRule).sort((a, b) => b[1] - a[1])) {
     const first = findings.find((f) => f.rule === rule);
     console.log(`  ${String(n).padStart(4)}  ${first.severity}  ${rule}  [${first.atlas}]`);

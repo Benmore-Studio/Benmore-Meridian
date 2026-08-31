@@ -34,6 +34,14 @@ const flag = (n) => argv.includes('--' + n);
 
 const BASE = (arg('base') ?? 'http://localhost:3000').replace(/\/$/, '');
 const WIDTH = Number(arg('width', '1280'));
+// The unit of work is a CELL -- (role, route, width) -- not a route. Half the
+// invariants here are width-dependent (horizontal scroll, tap targets, covered
+// elements), so a one-width run grades an app nobody uses at one width. Measured
+// on a real repo: the only genuine finding in a 48-finding sweep was a 183x16px
+// link that only matters at 390px. Default stays single-width so nothing gets
+// slower by surprise; `--widths 390,1440` is the honest matrix.
+const WIDTHS = [...new Set(String(arg('widths', String(WIDTH))).split(',')
+  .map((w) => Number(w.trim())).filter((w) => w > 0))];
 const HEIGHT = Number(arg('height', '900'));
 const SETTLE_MS = Number(arg('settle', '1200'));
 const REPO = path.resolve(arg('repo', '.'));
@@ -551,14 +559,16 @@ const settleAndLand = async (page, route) => {
   return landedPath;
 };
 
-async function sweepRoute(route) {
+async function sweepRoute(route, width = WIDTHS[0]) {
   const page = await context.newPage();
+  if (width !== WIDTH) await page.setViewportSize({ width, height: HEIGHT }).catch(() => {});
   const L = attachListeners(page);
   const { push } = L;
 
   let probe = { findings: [], metrics: {} };
   let redirectedTo = null;
   let unreachable = false;
+  let surface = null;
   try {
     const resp = await page.goto(BASE + route, { waitUntil: 'domcontentloaded', timeout: NAV_MS });
     if (resp && resp.status() >= 400) push('route.status-' + resp.status(), 'P0', 'route returned HTTP ' + resp.status());
@@ -574,7 +584,7 @@ async function sweepRoute(route) {
     // pretend the route is broken.
     if (landedPath !== wanted) {
       redirectedTo = landedPath;
-      report.unreached.push({ route: wanted, landedOn: landedPath, role: currentRole,
+      report.unreached.push({ route: wanted, width, landedOn: landedPath, role: currentRole,
         reason: /\b(login|signin|sign-in|auth)\b/.test(landedPath)
           ? 'redirected to auth -- no role in verify.roles.json reached this route'
           : 'redirected' });
@@ -594,13 +604,25 @@ async function sweepRoute(route) {
       }
     }
 
-    // Probe a destination once. Everything found on /login belongs to /login.
-    if (!measured.has(landedPath)) {
-      measured.add(landedPath);
+    // Probe a destination once PER WIDTH. Everything found on /login belongs to
+    // /login -- but a surface measured at 1440 has not been measured at 390.
+    if (!measured.has(landedPath + '@' + width)) {
+      measured.add(landedPath + '@' + width);
       probe = graded(await probeFn(page));
     } else {
-      probe = { findings: [], metrics: {}, skipped: 'destination already measured: ' + landedPath };
+      probe = { findings: [], metrics: {}, skipped: 'destination already measured at this width: ' + landedPath };
     }
+    // The surface's own fingerprint, for the integrity gate below. A run in which
+    // most cells render the SAME text measured one page under many names -- the
+    // shape that filed 45 tap-target findings from two selectors on a login wall,
+    // and the shape that produced six byte-identical forced-state columns. No
+    // individual finding shows it; only the distribution does.
+    surface = await page.evaluate(() => {
+      const t = ((document.body && document.body.innerText) || '').replace(/\s+/g, ' ').trim();
+      let h = 5381; const head = t.slice(0, 400);
+      for (let i = 0; i < head.length; i++) h = ((h * 33) ^ head.charCodeAt(i)) >>> 0;
+      return { textLen: t.length, fingerprint: h.toString(36) };
+    }).catch(() => null);
   } catch (e) {
     push('route.unreachable', 'P0', String(e).split('\n')[0].slice(0, 200));
     unreachable = true;
@@ -654,8 +676,13 @@ async function sweepRoute(route) {
   await page.close();
   return {
     record: {
-      route, redirectedTo, findings: [...L.findings, ...(probe.findings ?? [])], metrics: probe.metrics ?? {},
-      apiRequests: api.length, ...(probe.skipped ? { skipped: probe.skipped } : {}),
+      route, width, redirectedTo, findings: [...L.findings, ...(probe.findings ?? [])], metrics: probe.metrics ?? {},
+      apiRequests: api.length,
+      // The exact data URLs this route fetched. The forced-state pass replays
+      // ONLY these: guessing at "what looks like an API call" breaks RSC payloads
+      // and asset loads and then reports the wreckage as app defects.
+      apiPaths: [...new Set(api.map((r) => { try { return new URL(r.url, BASE).pathname; } catch { return null; } }).filter(Boolean))],
+      ...(surface ?? {}), ...(probe.skipped ? { skipped: probe.skipped } : {}),
     },
     unreachable,
   };
@@ -738,7 +765,7 @@ function resumeRecords() {
     for (const r of prev.routes ?? []) {
       if (r.route.startsWith('(')) continue;
       if (r.findings?.some((f) => f.kind === 'route.unreachable')) continue;
-      keep.set((r.role ?? 'default') + ' ' + r.route, r);
+      keep.set((r.role ?? 'default') + ' ' + r.route + ' @' + (r.width ?? WIDTHS[0]), r);
     }
     return keep;
   } catch { return new Map(); }
@@ -759,22 +786,22 @@ async function sweepWorker() {
   for (;;) {
     const idx = nextIdx++;
     if (idx >= roleRoutes.length) return;
-    const route = roleRoutes[idx];
+    const { route, width } = roleRoutes[idx];
     // Liveness first: when the dev server has died, every remaining route would
     // report route.unreachable -- 40 copies of one infrastructure failure dressed
     // up as app defects. One retry covers a restart-in-progress.
     if (!(await serverAlive())) {
-      report.aborted = 'server unreachable at route ' + (idx + 1) + '/' + roleRoutes.length + ' (' + route + ', role ' + currentRole + ') -- partial results kept; rerun with --resume to continue from here';
+      report.aborted = 'server unreachable at cell ' + (idx + 1) + '/' + roleRoutes.length + ' (' + route + ' @' + width + 'px, role ' + currentRole + ') -- partial results kept; rerun with --resume to continue from here';
       report.routes = records.concat(roleRecords.filter(Boolean));
       writeReport();
       console.error('sweep: ' + report.aborted);
       process.exit(2);
     }
-    let { record, unreachable } = await sweepRoute(route);
+    let { record, unreachable } = await sweepRoute(route, width);
     // One retry for a route that timed out or dropped: a transient hiccup that
     // passes on retry is FLAKY, which is a fact worth keeping, not a pass.
     if (unreachable) {
-      const again = await sweepRoute(route);
+      const again = await sweepRoute(route, width);
       if (!again.unreachable) {
         record = again.record;
         record.flaky = true;
@@ -791,10 +818,12 @@ async function sweepWorker() {
 let roleRecords = [];
 for (const role of ROLES) {
   currentRole = role.name;
-  const owned = routes.filter((r) => roleOwns(role, r));
-  const already = owned.filter((r) => RESUMED.has(role.name + ' ' + r));
-  roleRoutes = owned.filter((r) => !RESUMED.has(role.name + ' ' + r));
-  records.push(...already.map((r) => RESUMED.get(role.name + ' ' + r)));
+  // The matrix: every route this role owns, at every width. One cell each.
+  const owned = routes.filter((r) => roleOwns(role, r)).flatMap((r) => WIDTHS.map((w) => ({ route: r, width: w })));
+  const key = (c) => role.name + ' ' + c.route + ' @' + c.width;
+  const already = owned.filter((c) => RESUMED.has(key(c)));
+  roleRoutes = owned.filter((c) => !RESUMED.has(key(c)));
+  records.push(...already.map((c) => RESUMED.get(key(c))));
   if (!owned.length) {
     console.error('sweep: role "' + role.name + '" owns no routes -- check `owns` in verify.roles.json');
     continue;
@@ -863,6 +892,156 @@ if (journeyFile && !flag('no-journeys')) {
   }
 }
 
+/* ------------------------------------------------ forced states (opt-in) */
+
+// The branches nothing in normal development ever renders. A mock layer always
+// serves a populated happy path, so empty / 500 / 403 / malformed / slow are
+// written once and then never executed again by anyone -- which is why they rot,
+// and why this is the highest-yield pass that no DOM invariant on a happy page
+// can reach.
+//
+// Three measured facts shape the whole implementation:
+//
+// 1. `page.route()` DOES NOT WORK against an app with a mock service worker.
+//    Measured: `page.on('request')` saw 10 /v1/* calls on a route where
+//    `page.route("**/v1/**")` saw ZERO -- the worker answers inside the page, so
+//    nothing reaches Playwright's network layer. Unregistering it does not help
+//    either; the app re-registers on mount. Patching window.fetch/XHR in an init
+//    script runs BEFORE the app's JS and therefore before the worker sees
+//    anything, which is the only vantage point that works for both.
+// 2. NEVER force an auth endpoint. Breaking auth logs the session out and every
+//    later cell measures a login page while reporting clean.
+// 3. Force only the URLs the baseline sweep OBSERVED this route fetching.
+//    Pattern-matching "things that look like an API" breaks RSC payloads and
+//    asset loads, and the page then reports the wreckage as its own defect.
+//
+// The finding is read from the RENDERED TEXT, never from the response: a 500 that
+// paints a blank screen and a 500 that says "something went wrong" are the same
+// HTTP status and opposite products.
+const STATE_KINDS = {
+  empty:     { status: 200, body: '[]' },
+  error:     { status: 500, body: '{"error":"internal"}' },
+  forbidden: { status: 403, body: '{"error":"forbidden"}' },
+  malformed: { status: 200, body: '{"unexpected":true}' },
+  slow:      { status: 200, body: null, delayMs: 6000 },
+};
+// `--states` alone runs all five; `--states empty,error` picks. The next argv
+// entry is only a value if it is not itself a flag.
+const STATES = (() => {
+  if (!flag('states')) return [];
+  const v = arg('states');
+  const list = !v || v.startsWith('--') ? Object.keys(STATE_KINDS) : v.split(',').map((s) => s.trim());
+  return list.filter((s) => STATE_KINDS[s]);
+})();
+
+if (STATES.length) {
+  // Anything under an auth/session path stays untouched (fact 2 above), as does
+  // anything the app needs to boot.
+  const AUTH_PATH = /(^|\/)(auth|login|logout|session|sessions|signin|sign-in|token|refresh|csrf|me)(\/|$|\?)/i;
+  const baseline = report.routes.filter((r) => !r.route.startsWith('(') && !r.redirectedTo
+    && (r.apiPaths ?? []).some((p) => !AUTH_PATH.test(p)));
+  const seenRoute = new Set();
+  const cells = [];
+  for (const r of baseline) {
+    if (seenRoute.has(r.route)) continue;          // one width is enough for a state test
+    seenRoute.add(r.route);
+    cells.push(r);
+  }
+  report.states = { routes: cells.length, kinds: STATES, cells: cells.length * STATES.length };
+
+  for (const cell of cells) {
+    const targets = (cell.apiPaths ?? []).filter((p) => !AUTH_PATH.test(p));
+    const columns = [];
+    for (const kind of STATES) {
+      const spec = STATE_KINDS[kind];
+      const page = await context.newPage();
+      await page.addInitScript(({ targets, spec }) => {
+        const hit = (u) => { try { return targets.includes(new URL(u, location.origin).pathname); } catch { return false; } };
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const of = () => new Response(spec.body, { status: spec.status, headers: { 'content-type': 'application/json' } });
+        const origFetch = window.fetch.bind(window);
+        window.fetch = async (input, init) => {
+          const url = typeof input === 'string' ? input : (input && input.url) || '';
+          if (!hit(url)) return origFetch(input, init);
+          if (spec.delayMs) { await sleep(spec.delayMs); return origFetch(input, init); }
+          return of();
+        };
+        // XHR too: generated clients and older libraries still use it, and a state
+        // pass that only patches fetch silently measures the happy path for them.
+        const XO = XMLHttpRequest.prototype.open, XS = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.open = function (m, u, ...rest) { this.__fv_forced = hit(u); return XO.call(this, m, u, ...rest); };
+        XMLHttpRequest.prototype.send = function (...a) {
+          if (!this.__fv_forced || spec.delayMs) return XS.apply(this, a);
+          Object.defineProperty(this, 'status', { get: () => spec.status });
+          Object.defineProperty(this, 'responseText', { get: () => spec.body ?? '' });
+          Object.defineProperty(this, 'response', { get: () => spec.body ?? '' });
+          Object.defineProperty(this, 'readyState', { get: () => 4 });
+          setTimeout(() => { this.onreadystatechange?.(); this.onload?.(); this.dispatchEvent(new Event('load')); }, 0);
+        };
+      }, { targets, spec });
+
+      let read = null;
+      try {
+        await page.goto(BASE + cell.route, { waitUntil: 'domcontentloaded', timeout: NAV_MS });
+        await settleAndLand(page, cell.route);
+        if (spec.delayMs) await page.waitForTimeout(1500);   // measure DURING the wait, not after
+        read = await page.evaluate(() => {
+          const t = ((document.body && document.body.innerText) || '').replace(/\s+/g, ' ').trim();
+          const low = t.toLowerCase();
+          let h = 5381; for (let i = 0; i < Math.min(t.length, 400); i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
+          return {
+            textLen: t.length, fingerprint: h.toString(36),
+            saysError: /\b(error|went wrong|failed|unable to|try again|couldn.t load|problem)\b/.test(low),
+            saysEmpty: /\b(no |none|empty|nothing|0 results|not found yet|get started|add your first)\b/.test(low),
+            saysDenied: /\b(denied|forbidden|not authoriz|no access|permission)\b/.test(low),
+            hasSpinner: !!document.querySelector('[role=progressbar],[aria-busy=true],.animate-spin,[data-loading=true],[class*=skeleton i]'),
+            leaksRaw: /\{"(error|unexpected)"|\bTypeError\b|\bundefined is not\b|at [A-Za-z]+ \(http/.test(t),
+          };
+        });
+      } catch (e) {
+        read = { crashed: String(e).split('\n')[0].slice(0, 160) };
+      }
+      columns.push({ kind, ...read });
+      await page.close();
+    }
+
+    // Judge the columns together, because the interesting failures are relational.
+    const findings = [];
+    const ok = columns.filter((c) => !c.crashed);
+    for (const c of ok) {
+      if (c.kind === 'slow') {
+        if (!c.hasSpinner && c.textLen < 40)
+          findings.push({ kind: 'state.slow-blank', severity: 'P1', at: c.kind, detail: 'while its data was in flight this route rendered neither content nor a loading indicator -- a blank screen is what a slow network looks like to the user' });
+        continue;
+      }
+      if (c.textLen < 40)
+        findings.push({ kind: 'state.blank', severity: 'P1', at: c.kind, detail: 'forcing ' + c.kind + ' left the page blank (' + c.textLen + ' chars of text) -- a broken API renders nothing at all, with no way for the user to tell what happened' });
+      else if (c.hasSpinner && (c.kind === 'error' || c.kind === 'forbidden'))
+        findings.push({ kind: 'state.stuck-spinner', severity: 'P1', at: c.kind, detail: 'a loading indicator is still mounted after the request failed with ' + STATE_KINDS[c.kind].status + ' -- the page spins forever instead of reporting the failure' });
+      else if ((c.kind === 'error' || c.kind === 'malformed') && !c.saysError)
+        findings.push({ kind: 'state.silent-failure', severity: 'P1', at: c.kind, detail: 'the request failed and the surface says nothing about it -- it renders as though the data arrived, which is how a user acts on values that are not there' });
+      else if (c.kind === 'forbidden' && !c.saysDenied && !c.saysError)
+        findings.push({ kind: 'state.silent-failure', severity: 'P1', at: c.kind, detail: '403 rendered with no denial or error message -- the user cannot tell an empty result from one they are not allowed to see' });
+      else if (c.kind === 'empty' && !c.saysEmpty)
+        findings.push({ kind: 'state.no-empty-state', severity: 'P2', at: c.kind, detail: 'an empty response renders no empty state -- an empty list and a failed fetch look identical to the user' });
+      if (c.leaksRaw)
+        findings.push({ kind: 'state.leaks-raw', severity: 'P2', at: c.kind, detail: 'raw payload or stack text is visible in the DOM under ' + c.kind });
+    }
+    // THE integrity tell, and the reason this pass reports columns rather than a
+    // verdict: identical output across deliberately different inputs means the
+    // experiment never ran. Measured in the wild as six byte-identical columns --
+    // the interception was defeated by a service worker and every "PASS" in that
+    // table was about nothing.
+    const prints = new Set(ok.map((c) => c.fingerprint));
+    if (ok.length >= 3 && prints.size === 1) {
+      findings.length = 0;
+      findings.push({ kind: 'state.not-intercepted', severity: 'P2', at: 'all', detail: STATES.length + ' deliberately different responses produced byte-identical pages -- the forced state never reached the app, so nothing here was measured. Findings for this route are withheld rather than reported as clean.' });
+    }
+    report.routes.push({ route: '(states: ' + cell.route + ')', metrics: {}, findings, columns });
+    writeReport();
+  }
+}
+
 /* ------------------------------------------- mutation replay (opt-in, writes!) */
 
 // The runtime half of the syncRisks finding. Static analysis says "this write
@@ -917,6 +1096,13 @@ if (flag('mutate') && fs.existsSync(INVENTORY)) {
         findings.push({ kind: 'mutate.write-rejected', severity: 'P2', at: risk.route, detail: write.method + ' ' + write.url + ' -> ' + write.status + ' from a generically filled form -- not proof of a defect, but the risk stays unverified' });
       } else {
         const seg = lastSeg(risk.endpoint);
+        // Whether the app RENDERED the written value at all, captured now, before
+        // anything navigates. It is the precondition for the persistence check
+        // below: if the value never appeared, its absence after a reload says
+        // nothing, and a P0 nobody can reproduce costs more than the bug it was
+        // guessing at.
+        const renderedTheWrite = await page.evaluate((s) => ((document.body && document.body.innerText) || '').includes(s), sentinel);
+
         for (const staleRoute of risk.staleRoutes.filter((p) => !/[:[]/.test(p)).slice(0, 4)) {
           // Client-side navigation only: a full page load rebuilds every cache
           // and proves nothing about invalidation.
@@ -932,6 +1118,29 @@ if (flag('mutate') && fs.existsSync(INVENTORY)) {
             findings.push({ kind: 'sync.stale-after-write', severity: 'P0', at: staleRoute,
               detail: write.method + ' ' + risk.endpoint + ' succeeded on ' + risk.route + ', then client-side navigation to ' + staleRoute
                 + ' refetched nothing and does not show the new value -- the cross-page cache is stale (static finding ' + (risk.hook ?? risk.mutation) + ' confirmed at runtime)' });
+          }
+        }
+
+        // DID THE WRITE SURVIVE A RELOAD? Asked LAST, because a reload rebuilds
+        // every cache and would destroy the staleness measurement above -- but
+        // asked, because a 2xx is not persistence. Measured on a real repo: the
+        // mock service worker's final branch is
+        // `if (POST||PUT||PATCH||DELETE) return ok({ok:true})`, so every write it
+        // does not explicitly route reports success and silently discards the
+        // data. The request succeeded, the cache updated optimistically, the UI
+        // showed the new value, and it was gone. Neither typecheck, lint, unit
+        // tests, nor any DOM invariant on a happy page can see that -- only
+        // reading the value back through a full reload can, because the app's own
+        // cache is precisely the thing that must not be trusted here.
+        if (renderedTheWrite) {
+          await page.goto(BASE + risk.route, { waitUntil: 'domcontentloaded', timeout: NAV_MS }).catch(() => {});
+          await settleAndLand(page, risk.route);
+          await page.reload({ waitUntil: 'domcontentloaded', timeout: NAV_MS }).catch(() => {});
+          await settleAndLand(page, risk.route);
+          const survived = await page.evaluate((s) => ((document.body && document.body.innerText) || '').includes(s), sentinel);
+          if (!survived) {
+            findings.push({ kind: 'mutate.write-lost', severity: 'P0', at: risk.route,
+              detail: write.method + ' ' + risk.endpoint + ' returned ' + write.status + ' and the new value rendered, but after a full reload it is gone -- the write was accepted and never stored. A 2xx is not persistence.' });
           }
         }
       }
@@ -997,6 +1206,59 @@ report.summary = {
   findings: all.length, ...bySev,
 };
 if (ownedByNoRole.length) report.unowned = ownedByNoRole;
+
+/* ------------------------------------------------------- integrity gate */
+
+// A probe over lock screens reports CLEAN. That is the failure this whole tool
+// exists to prevent, and no individual finding shows it -- only the shape of the
+// run does. So the run grades ITSELF before its findings are allowed to mean
+// anything, and a run that fails here exits 2 (could not run), never 0.
+//
+// Measured, all three of these happened on real runs:
+//   - 45 tap-target findings across 45 routes, from two selectors, because the
+//     sweep ran unauthenticated and measured /login 45 times under 45 names.
+//   - a whole matrix of "PASS" over pages that had never rendered.
+//   - six byte-identical columns from an interception that never fired.
+const cells = report.routes.filter((r) => !r.route.startsWith('('));
+const measuredCells = cells.filter((r) => !r.redirectedTo && !r.skipped && r.textLen != null);
+const TEXT_FLOOR = Number(arg('text-floor', '40'));
+const bounced = report.unreached.filter((u) => /\b(login|signin|sign-in|auth)\b/.test(u.landedOn)).length;
+const belowFloor = measuredCells.filter((r) => r.textLen < TEXT_FLOOR).length;
+const prints = new Set(measuredCells.map((r) => r.fingerprint));
+// Distinct surfaces per measured cell. One page measured under many names is the
+// classic artifact; a real app's routes do not share their first 400 characters.
+// Deliberately loose (a third) and floored at 6 cells, because the cost of a
+// false INVALID is a blocked run and the cost of a miss is one noisy report.
+const distinctRatio = measuredCells.length ? prints.size / measuredCells.length : 1;
+const sameSurface = measuredCells.length >= 6 && distinctRatio < 0.34;
+// Proportional, not absolute. The source rule was "bounced == 0", written for a
+// run that held an auth state for all ten principals -- but two gated routes out
+// of fifty is a coverage note, and hard-failing on it blocks the fix loop, which
+// is the exact budget burn this skill keeps trying to stop. A quarter of the run
+// landing on the auth wall is a different animal: at that point "no findings"
+// is a claim about the login page. Both numbers are always printed either way.
+const SHARE = Number(arg('integrity-share', '0.25'));
+// Every check below is about a DISTRIBUTION, and a distribution needs a sample.
+// Under six cells these are spot checks (`--routes /a,/b`), where one blank page
+// is a finding to read, not grounds to void the run.
+const SAMPLE = 6;
+const mostlyBounced = cells.length >= SAMPLE && bounced > cells.length * SHARE;
+const mostlyBlank = measuredCells.length >= SAMPLE && belowFloor > measuredCells.length * SHARE;
+report.integrity = {
+  cellsPlanned: cells.length, cellsMeasured: measuredCells.length,
+  bouncedToLogin: bounced, cellsBelowTextFloor: belowFloor,
+  distinctSurfaces: prints.size, distinctRatio: Number(distinctRatio.toFixed(2)),
+  aborted: !!report.aborted, share: SHARE,
+  ok: !report.aborted && measuredCells.length > 0 && !mostlyBounced && !mostlyBlank && !sameSurface,
+  failed: [
+    report.aborted ? 'run aborted before every cell was swept' : null,
+    measuredCells.length === 0 ? 'zero cells were measured' : null,
+    mostlyBounced ? bounced + ' of ' + cells.length + ' cells bounced to a login page -- this run graded the auth wall, not the app' : null,
+    mostlyBlank ? belowFloor + ' of ' + measuredCells.length + ' measured cells rendered under ' + TEXT_FLOOR + ' characters of text -- the app was not up, or never rendered' : null,
+    sameSurface ? measuredCells.length + ' cells rendered only ' + prints.size + ' distinct surfaces -- one page measured under many names' : null,
+  ].filter(Boolean),
+};
+
 report.finished = new Date().toISOString();
 writeReport();
 
@@ -1025,6 +1287,17 @@ for (const [kind, n] of Object.entries(byKind).sort((a, b) => b[1] - a[1])) {
 }
 console.log('  -> ' + JSON_OUT);
 if (report.leak) console.log('\n  heap after GC across navigation: ' + report.leak.beforeMB + 'MB -> ' + report.leak.afterMB + 'MB (+' + report.leak.growthMB + 'MB)');
+
+const g = report.integrity;
+console.log('\n  integrity  ' + g.cellsMeasured + '/' + g.cellsPlanned + ' cells measured  ·  '
+  + g.bouncedToLogin + ' bounced to login  ·  ' + g.cellsBelowTextFloor + ' below the text floor  ·  '
+  + g.distinctSurfaces + ' distinct surfaces');
+if (!g.ok) {
+  console.error('\n  INVALID  this run did not measure the app:');
+  for (const f of g.failed) console.error('    - ' + f);
+  console.error('  Do not merge it, do not average it, and do not read "no findings" from it.\n');
+  process.exit(2);
+}
 console.log('');
 
 process.exit((bySev.P0 ?? 0) + (bySev.P1 ?? 0) > 0 ? 1 : 0);

@@ -623,6 +623,16 @@ const syncRisks = [];
 // small repos where the blast radius is easiest to state precisely.
 const AMBIENT_SHARE = 0.4;
 const AMBIENT_MIN_READERS = 10;
+// Ambient by NAME as well as by share. The share rule only catches these on a
+// large app: on a 21-route repo `auth` is read by 5 routes, clears neither
+// threshold, and files a P1 per auth mutation. Measured on a real repo: 4 of its
+// 7 P1 sync risks were POST /auth/login, /auth/mfa/enroll, /auth/reset/request
+// and /auth/reset/confirm -- every one a false positive, and they outranked the
+// one finding on that list worth reading. A session write does not leave a view
+// stale: it replaces the principal and the tree remounts underneath it. Kept
+// deliberately short -- `user`, `account` and `permissions` are ambient in some
+// apps and the primary entity in others, so they stay judged by share.
+const AMBIENT_NAMES = /^(auth|authentication|session|sessions|me|csrf|config|configuration|settings)$/i;
 // Loose spelling match: 'contact-list' covers 'contacts', 'contacts' covers
 // 'contact'. Prefer a miss to a false positive -- 'people' vs 'persons' is a
 // miss, and that is the right trade.
@@ -644,7 +654,8 @@ for (const m of byLoc.values()) {
   // outranked four genuine findings. So: past the threshold the blast radius is
   // reported as undetermined rather than as evidence -- a weaker claim, honestly
   // labelled, which is the trade this tool makes everywhere else.
-  const ambient = readersRaw && readersRaw.length >= AMBIENT_MIN_READERS && readersRaw.length > routeReport.length * AMBIENT_SHARE;
+  const ambient = (res && AMBIENT_NAMES.test(res))
+    || (readersRaw && readersRaw.length >= AMBIENT_MIN_READERS && readersRaw.length > routeReport.length * AMBIENT_SHARE);
   const readers = ambient ? null : readersRaw;
   const name = m.hook ? `${m.hook}()` : `${m.file}:${m.line}`;
   if (!m.invalidates.length) {
@@ -663,7 +674,9 @@ for (const m of byLoc.values()) {
       invalidates: [], staleRoutes: readers,
       detail: `${name} writes ${m.endpoint ?? m.writes ?? 'server state'} and invalidates no query`
         + (readers?.length ? `; ${readers.length} route(s) render it`
-          : ambient ? `; "${res}" is read by ${readersRaw.length} of ${routeReport.length} routes, so it is an ambient concern and the blast radius is not meaningful`
+          : ambient ? `; "${res}" is an ambient concern`
+              + (readersRaw?.length ? ` read by ${readersRaw.length} of ${routeReport.length} routes` : ' (session/config, not a rendered collection)')
+              + `, so the blast radius is not meaningful`
           : m.writes ? `; nothing found rendering "${m.writes}"` : '; could not determine what goes stale'),
     });
     continue;
@@ -693,6 +706,21 @@ for (const m of byLoc.values()) {
       detail: `${name} writes "${m.writes}" but invalidates only [${m.invalidates.join(', ')}] -- none of which any reader of "${m.writes}" queries under; ${readers.length} route(s) render it stale`,
     });
   }
+}
+// Same waiver convention as classify.mjs, and it matters most here: a sync risk
+// is the highest-severity static finding this tool files, so an unwaivable false
+// one is re-litigated on every run forever. Measured: a P1 proved false in a
+// written triage ("pushes to Mailchimp; no segment-list query exists in the app")
+// came back at P1 on the next run, with nowhere to record the verdict.
+// `verify-ignore: sync-risk` in a comment within 6 lines above the mutation
+// drops it -- and it is COUNTED, not vanished, so a silenced gate stays visible.
+const waivedRisks = [];
+for (let i = syncRisks.length - 1; i >= 0; i--) {
+  const [file, line] = String(syncRisks[i].mutation ?? '').split(':');
+  if (!file || !line) continue;
+  let L; try { L = fs.readFileSync(path.join(ROOT, file), 'utf8').split('\n'); } catch { continue; }
+  if (/verify-ignore:\s*sync-risk\b/.test(L.slice(Math.max(0, +line - 7), +line).join('\n')))
+    waivedRisks.push(...syncRisks.splice(i, 1));
 }
 syncRisks.sort((a, b) => a.severity.localeCompare(b.severity) || (b.staleRoutes?.length ?? -1) - (a.staleRoutes?.length ?? -1));
 
@@ -736,12 +764,14 @@ const payload = JSON.stringify({
     queryUsages: routeReport.reduce((n, r) => n + r.queries.length, 0),
     mutations: byLoc.size,
     syncRisks: syncRisks.length,
+    syncRisksWaived: waivedRisks.length,
     duplicateSources: duplicateSources.length,
   },
   routes: routeReport,
   matrix,
   resourceMatrix,
   syncRisks,
+  syncRisksWaived: waivedRisks,
   duplicateSources,
 }, null, 2) + '\n';
 
@@ -756,6 +786,7 @@ if (TO_STDOUT) {
   const p1 = JSON.parse(payload).syncRisks.filter((r) => r.severity === 'P1').length;
   console.log('\n  ' + ROOT);
   console.log('  ' + c.routes + ' routes  ' + c.queries + ' queries  ' + c.mutations + ' mutations');
-  console.log('  ' + c.syncRisks + ' sync risks (' + p1 + ' with a resolved blast radius)  ' + c.duplicateSources + ' duplicate cache keys');
+  console.log('  ' + c.syncRisks + ' sync risks (' + p1 + ' with a resolved blast radius)  ' + c.duplicateSources + ' duplicate cache keys'
+    + (c.syncRisksWaived ? '  (' + c.syncRisksWaived + ' waived by verify-ignore comments)' : ''));
   console.log('  -> ' + outFile + '\n');
 }

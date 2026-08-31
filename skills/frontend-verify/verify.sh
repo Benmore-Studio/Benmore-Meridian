@@ -3,6 +3,7 @@
 #
 #   verify.sh <repoRoot> [--base URL] [--auth state.json] [--width N] [--quiet]
 #                        [--mutate] [--ratchet] [--resume] [--prod] [--no-warm]
+#                        [--widths 390,1440] [--states [empty,error,...]]
 #
 #   verify.sh /path/to/repo                          static only, seconds, no install
 #   verify.sh /path/to/repo --base http://localhost:3000   + the runtime sweep
@@ -48,6 +49,14 @@ while [ $# -gt 0 ]; do
     # findings grade normally, --no-warm skips the precompile pass.
     --resume|--prod|--no-warm|--leak-check) PASSTHRU+=( "$1" ); shift ;;
     --nav-timeout|--warm-timeout|--settle) PASSTHRU+=( "$1" "${2:-}" ); shift 2 ;;
+    # --widths 390,1440   the cell matrix: every route at every width. Half the
+    #                     invariants here are width-dependent, so a one-width run
+    #                     grades an app nobody uses at one width.
+    # --states [kinds]    force empty/error/forbidden/malformed/slow on the data
+    #                     each route actually fetches, and grade what it renders.
+    #                     Bare --states runs all five.
+    --widths|--text-floor|--integrity-share) PASSTHRU+=( "$1" "${2:-}" ); shift 2 ;;
+    --states) PASSTHRU+=( "$1" ); case "${2:-}" in ''|--*) ;; *) PASSTHRU+=( "$2" ); shift ;; esac; shift ;;
     -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
     *) [ -z "$REPO" ] && REPO="$1" || true; shift ;;
   esac

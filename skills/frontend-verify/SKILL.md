@@ -74,6 +74,15 @@ captured by hand, `--width 390` for mobile, `--quiet` for hooks, `--ratchet`
 inside a fix loop, and `--mutate` (**destructive**, dev DB only) to prove sync
 risks at runtime by driving real forms.
 
+`--widths 390,1440` sweeps the cell matrix rather than one width. `--states`
+forces empty/500/403/malformed/slow on each route's own data and grades what it
+renders (`--states empty,error` to pick). Together with `--mutate` these are the
+three passes that find what a happy-path load cannot:
+
+```bash
+bash $S/verify.sh /abs/repo --base URL --prod --widths 390,1440 --states --mutate
+```
+
 `--resume` continues an aborted sweep instead of restarting it. `--prod` says
 the base URL is a production build, so timing findings grade normally — without
 it they are filed P3, because against a dev server the number measured is the
@@ -130,7 +139,9 @@ names the hook, the endpoint, and every route that goes stale when it runs.
 | `inventory.mjs` | routes, per-route data deps, mutations, entity→route matrix, sync risks (no invalidation AND wrong-key invalidation), duplicate cache keys | anything conditional at runtime |
 | `classify.mjs` | missing empty/error/loading branches, server state in client stores, stale closures, unaborted effect fetches, build-time env read at runtime, index keys, unsanitized HTML, unguarded submits | whether the code actually runs |
 | `sweep.mjs` + `probe.js` | console errors, failed requests, HTTP 4xx/5xx, hydration mismatch, chunk-load failure, CSP violations, DOM value leaks, stuck spinners, empty lists with no empty state, data fetched but zero rows rendered, horizontal scroll, tap targets, unlabeled controls and fields, long tasks, CLS, LCP, layout thrash, request waterfalls, heap retained across navigation | business intent |
-| `--mutate` replay | whether a real write through a real form leaves a blast-radius route stale under client-side navigation | which payload a form considers valid |
+| `--states` | what each surface renders when its own data comes back empty / 500 / 403 / malformed / slow — silent failures, stuck spinners, blank screens, missing empty states | anything behind a form or a click |
+| `--widths` | every width-dependent invariant at every width, as its own cell | — |
+| `--mutate` replay | whether a real write through a real form leaves a blast-radius route stale under client-side navigation, **and whether the write survives a reload at all** | which payload a form considers valid |
 | your roles (`verify.roles.json`) | which principal owns which route tree, so each lens grades only its own half and an unclaimed tree shows up as unowned | whether the app's own gate is correct |
 | your journeys (`verify.journeys.mjs`) | create/update/delete flows, dynamic routes, role gates — scripted once, then swept under every invariant above | — |
 | you | "this total must equal the sum of that column" | everything above, reliably |
@@ -269,6 +280,66 @@ only when the write succeeded AND no refetch happened AND the sentinel is
 absent. A validation-rejected submit is reported as unverified, never as a
 defect — the app's reaction to synthetic input is not a finding.
 
+## Sweep a production build, not the dev server
+
+The single largest cost and the single largest source of fictional findings in
+every long run measured. A dev server compiles each route on first request:
+8–23s each, measured (`/signature-templates` 22.3s, `/quarterly-reports` 18.3s).
+Across 36 routes that is **6–12 minutes of pure compilation per sweep**. Build
+once instead and the same 72-cell sweep takes **41 seconds**, routes serving in
+~2ms. Build the app the way its own e2e setup does — with mocks if that is how it
+runs offline — then point `--base` at it and pass `--prod` so timing findings
+grade normally:
+
+```bash
+pkill -f "next dev"; rm -rf apps/web/.next     # they share .next: PageNotFoundError /_document
+bun --filter web build:e2e && E2E_PORT=3000 bun --filter web start:e2e &
+curl -sf --retry 90 --retry-delay 1 --retry-all-errors http://localhost:3000/login
+bash $S/verify.sh /abs/repo --base http://localhost:3000 --prod
+```
+
+Compile time is not merely slow, it manufactures failures: under load the dev
+server served pages in 14–20s, service-worker registration blew its budget so
+**logins returned 404**, and `page.goto` hit hard timeouts — failure shapes
+indistinguishable from real product bugs. The warm pass below exists for when you
+cannot build; it is a mitigation, not the answer. Same reason `--parallel` needs
+a re-measurement before you trust it: 88 browser processes took one box to load
+25 and every number after that was about the box.
+
+## The integrity gate: prove the run measured the app
+
+A probe over lock screens reports **clean**. That is the failure this whole skill
+exists to prevent, and it is invisible in the findings — only in the shape.
+Record and check all four before reading a single finding:
+
+```
+swept == planned    ·   0 fatal-login    ·   0 bounced-to-login    ·   bytes > floor
+```
+
+The sweep now grades **itself** on exactly that, before its findings are allowed
+to mean anything, and writes the verdict to `report.integrity`. A run that fails
+**exits 2 — could not run — never 0.** Do not merge it, do not average it, and
+never read "no findings" from it.
+
+```
+integrity  51/51 cells measured  ·  0 bounced to login  ·  0 below the text floor  ·  47 distinct surfaces
+```
+
+The load-bearing one is the last: **distinct surfaces per measured cell.** A real
+app's routes do not share their first 400 characters, so when most cells
+fingerprint alike, one page was measured under many names. That single check
+catches both historical shapes — 45 routes that all landed on `/login`, and a
+whole matrix of PASS over pages that never rendered. Measured: one sweep filed
+45 `tap-target` findings across 45 routes from two selectors, because it ran
+unauthenticated. 48 findings, 3 real.
+
+The bounce and blank checks are **proportional** (`--integrity-share`, default a
+quarter) and only apply from six cells up. Two gated routes out of fifty is a
+coverage note, and hard-failing on it blocks the fix loop — which is the budget
+burn this skill exists to stop. A quarter of the run landing on the auth wall is
+a different animal: at that point "no findings" is a claim about the login page.
+Both numbers print either way.
+
 ## Warm before you measure
 
 Two races manufacture findings about the harness rather than the app, and the
@@ -305,6 +376,141 @@ worse than no gate, because it reports green. `networkidle` never arrives under
 long polling, websockets or background refetch. The sweep waits for the root to
 have text, then settles. Keep it that way.
 
+## Triaged once, not every run
+
+`verify-ignore: <rule-id>` in a comment on, or within 6 lines above, a flagged
+line drops that one rule at that one line — every static rule, plus `sync-risk`
+for the inventory's own P1s. Not the file, not the rule globally. Say WHERE the
+guarantee comes from in the same comment, so the waiver stays checkable at
+review, and note that waived findings are **counted and listed** in the report
+(`waived`, `syncRisksWaived`), never silently dropped.
+
+```ts
+// verify-ignore: sync-risk -- pushes to Mailchimp; no segment list exists in this app
+export function usePushAudienceSegment() { ... }
+```
+
+This is the difference between a gate and a chore. Without it a finding proved
+false in a written triage comes back at full severity on the very next run, with
+nowhere to record the verdict — measured, a marathon spent roughly **a quarter of
+its budget** re-triaging findings and hand-tuning the classifier mid-run instead
+of fixing the app. It lives in the source rather than in a central ignore file
+for the same reason the design-lab exclusion does not: a waiver next to the code
+moves with it and dies with it, while a path in a list outlives the line it was
+written for.
+
+Waive only what you have *proved*, with the proof in the comment. `.verifyignore`
+is still the right tool for whole trees; the ledger is still the right place for
+"open, unexplained".
+
+## Playwright: the library, not the CLI
+
+The sweep drives `playwright.chromium.launch()` directly, from a copy vendored in
+the skill. Use the `playwright-cli` skill for what it is good at — poking at a
+live page to **discover selectors** while writing `verify.journeys.mjs` — and not
+as the sweep's engine. Its `run-code` sandbox has gaps that each cost a real run:
+
+- no `process` — bake values into a generated per-role script instead
+- no `URL` — `page.url().replace(/^https?:\/\/[^/]+/, "").split("?")[0]`
+- no backticks and no `$` in any string passed as a shell argument, including
+  inside a comment that lands in a generator's template literal. This bit **three
+  separate times**.
+
+The durable output of a browsing session is the journey file, never the session.
+
+## Forced states — `--states`
+
+The highest-yield pass, and the one nothing else reaches. What each surface does
+on **empty / 500 / 403 / malformed / slow** is written once and then executed by
+nobody: a mock layer always serves a populated happy path, so those branches rot
+invisibly. `--states` runs all five; `--states empty,error` picks.
+
+It forces **only the URLs the baseline sweep watched that route fetch** — guessing
+at "things that look like an API" breaks RSC payloads and asset loads, and the
+page then reports the wreckage as its own defect. Three measured facts shape it:
+
+- **`page.route()` does not intercept an app with a mock service worker.**
+  `page.on('request')` saw 10 `/v1/*` calls on a route where `page.route("**/v1/**")`
+  saw **zero** — the worker answers inside the page, and unregistering it does not
+  help because the app re-registers on mount. So the forcing is a
+  `page.addInitScript` that patches `window.fetch` *and* `XMLHttpRequest` before
+  the app's JS runs, which is the only vantage point earlier than the worker.
+- **Auth paths are never forced.** Breaking auth logs the session out, and every
+  later cell measures a login page while reporting clean.
+- **Identical columns mean the experiment never ran.** Measured in the wild as six
+  **byte-identical** forced-state columns. When it happens the pass files
+  `state.not-intercepted` and *withholds* that route's other findings rather than
+  reporting them as clean.
+
+Everything is read from the **rendered text**, never the response: a 500 that
+renders a blank screen and a 500 that says "something went wrong" are the same
+HTTP status and opposite products. `state.silent-failure` is the one that matters
+most — the request failed and the surface says nothing, so it renders as though
+the data arrived and the user acts on values that are not there.
+
+## The cell matrix — `--widths`
+
+The unit of work is a **cell**: `(role, route, width)`. Half the invariants here
+are width-dependent — horizontal scroll, tap targets, covered elements — so a
+one-width run grades an app nobody uses at one width. `--widths 390,1440` sweeps
+both; the destination-already-measured dedup is per width, so the narrow pass
+cannot inherit the wide one's verdict. Measured: the single genuine finding in a
+48-finding sweep was a 183×16px link that only matters at 390px.
+
+## `--mutate` also asks whether the write survived a reload
+
+A 2xx is not persistence. Measured on a real repo: the mock service worker's last
+branch is `if (POST||PUT||PATCH||DELETE) return ok({ok:true})`, so **every write
+it does not explicitly route reports success and silently discards the data** —
+the request succeeded, the cache updated optimistically, the UI showed the new
+value, and it was gone. Neither typecheck, lint, unit tests, nor any DOM
+invariant on a happy page can see it. So after the staleness checks (which need
+the un-reloaded cache, and therefore go first), `--mutate` reloads the page and
+reads the sentinel back: absent ⇒ `mutate.write-lost`, P0. It is claimed only
+when the value visibly rendered before the reload — otherwise its absence
+afterwards says nothing.
+
+## Not built yet, and the traps that will eat the session that builds them
+
+Two passes remain manual. Both were attempted by hand and both cost a run to a
+harness bug rather than an app bug, so the method below is the deliverable —
+build them against it, not from first principles.
+
+**Control exercising** (clicking every control on a surface, ~1,500 of them on a
+real app, to find inert affordances):
+
+- **Never report "control not found" without having waited.** A bare `.click()`
+  races hydration and times out on a control that provably exists; the failure
+  reads `waiting for getByRole(...)`, which is indistinguishable from a missing
+  control. One measured near-miss filed a working "New task" button as broken.
+  Wait for `visible` first, and report "never appeared" and "appeared but was not
+  clickable" as different findings — they need different fixes.
+- **`.first()` grabs a hidden duplicate.** Responsive surfaces ship the desktop
+  and mobile renderings *both in the DOM*, one CSS-hidden. Measured: Playwright
+  reported `43 × locator resolved to hidden` on `main input[type=number]`. Every
+  locator must be `:visible`-scoped. (`probe.js` already filters this way, which
+  is why the `--widths` cells measure different nodes and not one node twice.)
+- An inert control and a lost write look identical on screen and need opposite
+  fixes. `--mutate`'s reload check is what separates them.
+
+**Dark mode.** The trap is the theme library, not the CSS. Under next-themes with
+`enableSystem={false}` — a common setup:
+
+- `emulateMedia({ colorScheme: 'dark' })` does **nothing**, because
+  `prefers-color-scheme` is never consulted. A pass that only emulates the media
+  query reports "dark renders identically to light" and is wrong about why.
+- Injecting a `.dark` class around hydration is **stripped**: the library
+  reapplies from storage after mount.
+- What works: seed `localStorage.theme` in an init script **before first
+  navigation** — the same lever `--states` uses. Better still, click the app's own
+  theme control when it has one, and fall back to seeding storage on chrome-less
+  routes (public token pages) that ship no toggle.
+- Grade it as **two** findings, never one. "Dark tokens apply" (html carries the
+  class, `color-scheme: dark`, body/background colours inverted) is inheritance
+  only; it does not prove per-element contrast or the absence of hardcoded light
+  values. Reporting the first as "dark is correct" is the same overclaim as
+  reporting a swept login wall as a clean app.
+
 ## Precision is the product
 
 Every rule here was tuned against real repos until its false-positive rate hit
@@ -323,8 +529,14 @@ that is not read is worse than no tool. When adding a rule:
 - Say how strong the claim is. "This write leaves route X stale" and "I could not
   determine what goes stale" are different assertions; filing both at one severity
   makes the strong one look as soft as the weak one. `unresolved: true` marks it.
-- A finding repeated across N routes is usually one finding about the surface all
-  N of them landed on. Check the denominator counts routes, not cells.
+- **Group by `(rule, selector)` before reading any count.** A finding repeated
+  across N routes is usually one finding about the surface all N of them landed
+  on, or one shared component. Three tools in one session each produced a
+  headline that was mostly artifact — 320 findings that were 28 distinct pairs
+  and then 6 real classes; 357 that were 335 duplicate copies of the repo; 48
+  that were 45 repeats of the login page — and in every case the tell was the
+  same one selector or one path repeated down the rows. Check the denominator
+  counts routes, not cells.
 - **A blast radius that covers most of the app is a denominator failure, not a
   big finding.** A resource read by 30 of 57 routes is not an entity, it is an
   ambient concern (`auth`, `session`, `me`, `config`), and "this write leaves 30
@@ -336,6 +548,24 @@ that is not read is worse than no tool. When adding a rule:
   silent is the whole problem — the report stays green and says less.
 - A read wrapped in a write primitive (a `GET` inside `useMutation`, to open a
   PDF or start a download) mutates nothing and has no blast radius.
+- **Vendored UI primitives ship the same false positive to every repo that has
+  them.** `<style dangerouslySetInnerHTML>` injects CSS text — there is no parser
+  to smuggle a `<script>` past, so "raw HTML injection, XSS sink" is a false
+  claim. That is shadcn/ui's `chart.tsx` verbatim, and it was a false **P0** in
+  2 of 2 real repos, same file, same line. Before adding a rule, run it on a repo
+  that ran `npx shadcn add` and look at what it says about `components/ui/`.
+- **Ambient by name, not only by share.** A session write does not leave a view
+  stale; it replaces the principal and the tree remounts. The share threshold
+  only catches that on a large app: on a 21-route repo `auth` is read by 5
+  routes, clears neither threshold, and files a P1 per auth mutation — measured,
+  **4 of that repo's 7 P1 sync risks** were `/auth/login`, `/auth/mfa/enroll` and
+  the two `/auth/reset/*` calls, and they outranked the one finding on the list
+  worth reading.
+- **A file:line that points at the wrong line is worse than no finding.** The
+  reader opens it, finds nothing, and stops opening the report. Blanking a
+  multi-line `/* */` to spaces once collapsed its newlines, so every finding
+  below a JSDoc header was reported N lines early — silently, on every rule at
+  once. The static selftest now checks reported lines against the file on disk.
 
 ## Structural tells that a run is an artifact
 
@@ -345,7 +575,8 @@ not by reading any individual finding:
 
 | Tell | What it means |
 |---|---|
-| Identical output across deliberately different inputs | The experiment never ran. The differential check in `selftest.sh` exists for exactly this. |
+| Identical output across deliberately different inputs | The experiment never ran. The differential check in `selftest.sh` exists for exactly this. Seen in the wild as six **byte-identical** forced-state columns: the interception never reached the app. |
+| Every page in the run weighs about the same | They are the same page. A login wall measured under N route names. |
 | One selector or surface repeated across N routes | N routes landed on the same page — auth redirect, not-found shell — and got measured under their own names. |
 | `modules: 1` on every route in the inventory | The import walk resolved nothing at hop 1. Aliases are wrong; the app is not "clean". |
 | `resourceMatrix` with a handful of keys on a repo with a hundred queries | The endpoint matcher missed the client's spelling, so no blast radius resolves and every sync risk demotes itself to "could not determine what goes stale". Caught in the wild: a lowercase-only verb regex resolved the endpoint of **zero** `apiClient.POST(...)` calls, leaving 1 matrix entry on a 145-query app. Grep the repo's HTTP calls and compare. |
@@ -367,15 +598,34 @@ check fails the suite if a 17th rule is added without a plant), the wrong-key
 and no-invalidation sync risks, the wrapper/monorepo/generics traversal shapes,
 the generated-client shapes (uppercase verbs resolving to a blast radius, a
 `GET` inside `useMutation` staying silent, an ambient resource refusing to file
-P1), the design-lab exclusion (and the same rule still firing in real source),
-and the known false positives that must stay silent. The runtime selftest plants
-20 finding kinds in the fixture, asserts the dedup invariants (one 404 = one
-finding; classified console texts do not double as `console.error`), runs a
-differential check (distinct inputs must yield distinct output), drives the
-journey and `--mutate` engines against a two-variant SPA — the stale variant
-must be flagged, the fixed one must not — and asserts role ownership end to end:
-each lens sweeps only its own subtree, an unreached route lands in `unreached`
-and **not** in the findings, and a route no role claims is counted as unowned.
+P1 by share **and** by name, on few readers), the design-lab exclusion (and the
+same rule still firing in real source), the `verify-ignore` waiver on two
+different rules plus a sync risk (waived, counted, and not leaking to the rest of
+the file), the reported `file:line` checked against the file on disk, and the
+known false positives that must stay silent — `<style>` CSS among them.
+
+The runtime selftest plants 20 finding kinds in the fixture, asserts the dedup
+invariants (one 404 = one finding; classified console texts do not double as
+`console.error`), runs a differential check (distinct inputs must yield distinct
+output), drives the journey and `--mutate` engines against a two-variant SPA —
+the stale variant must be flagged, the fixed one must not — and asserts role
+ownership end to end: each lens sweeps only its own subtree, an unreached route
+lands in `unreached` and **not** in the findings, and a route no role claims is
+counted as unowned. It then proves the three newest passes, each differentially:
+
+- **`--widths`** — 2 routes × 2 widths is 4 cells, each carrying its width, and
+  none of them skipped. The dedup is per width or the narrow pass inherits the
+  wide one's verdict and measures nothing.
+- **`--states`** — two variants of one page, identical on the happy path and
+  opposite when their data fails. The honest one renders an error and an empty
+  state and must stay silent; the mute one must be flagged for both. Every forced
+  response must change the page **from its own baseline render** — asserted that
+  way rather than against the other columns, because a page that fails identically
+  for 500/403/malformed is being consistent, which is not the same as an
+  interception that never fired.
+- **the integrity gate** — seven routes that all serve one page must come back
+  `ok: false`, name the reason, and **exit 2**. That is the same artifact as 45
+  routes that all landed on `/login`, and the suite fails if it reads as 0.
 
 One assertion there is about the suite itself: a run that wrote **no report** used
 to make every following `grep` return non-zero, which reads as "the bad string is
@@ -415,13 +665,19 @@ the entity matrix says where the result must appear, and a server-computed
 `total`/`count` field says what the UI number must equal. Asking the user to
 restate any of that in sentences is transcription, not intent.
 
-**Phase 0 — preconditions (refuse to skip).** App reachable at `--base`, dev
-DB confirmed (`--mutate` submits real forms). Clean branch — one commit per
-fix, revertible. If any route redirects to login, ask the user for dev
-credentials ONCE and pass `--login user:pass` — the sweep logs in through the
-app's real form and persists the state, so this never comes up again. A sweep
-that reaches 6/49 routes is a lap of the parking lot. Both selftests pass —
-calibrate the instruments before the flight. Big app? `--parallel 4`.
+**Phase 0 — preconditions (refuse to skip).** Serve a **production build**, not
+the dev server (see above — this is 41 seconds against 6–12 minutes, and it is
+the difference between measuring the app and measuring the compiler). App
+reachable at `--base`, dev DB confirmed (`--mutate` submits real forms). Clean
+branch — one commit per fix, revertible. If any route redirects to login, ask
+the user for dev credentials ONCE and pass `--login user:pass` — the sweep logs
+in through the app's real form and persists the state, so this never comes up
+again. Better still, **log in with the repo's own mechanism** if it has one: port
+the session helper its e2e suite already uses rather than inventing a second one.
+A sweep that reaches 6/49 routes is a lap of the parking lot, and one that
+reaches 45 login pages is worse — run the integrity gate before believing any of
+it. Both selftests pass — calibrate the instruments before the flight. Big app?
+`--parallel 4`, then confirm the finding count against a serial pass.
 
 Then **count the principals before the first sweep, not after the first
 confusing report.** If the app has more than one (a staff console and a customer
@@ -485,7 +741,9 @@ file, not the browsing session.
 **Phase 3 — the loop.** This is the hours part:
 
 ```
-run verify.sh <repo> --base <url> --auth .verify/auth.json --mutate --ratchet
+run verify.sh <repo> --base <url> --auth .verify/auth.json \
+      --prod --widths 390,1440 --states --mutate --ratchet
+  exit 2? → INVALID. Fix the harness, not the app. Nothing below is real.
   exit 0? → done.
   → pick the TOP finding (P0, then P1, then count) → fix the ROOT CAUSE
     (grep every caller first; one guard in the shared function beats N at
@@ -514,9 +772,11 @@ Two rules keep the loop honest, and both are enforced, not aspirational:
   `probe.js` or `sweep.mjs`, both selftests must pass — a "fix" that blinds a
   rule is caught by its planted instance. And prefer not to edit them mid-run
   at all: one marathon spent roughly a quarter of its budget tuning the
-  classifier instead of the app. A false positive during the loop goes to
-  `.verifyignore` or to the ledger as open; the rule change is its own task,
-  afterwards, with its own planted counter-example.
+  classifier instead of the app. A false positive during the loop gets a
+  `verify-ignore: <rule>` comment carrying its proof, or `.verifyignore` for a
+  whole tree, or a ledger row as open — there is no fourth bucket, and none of
+  the three is editing a detector. The rule change is its own task, afterwards,
+  with its own planted counter-example.
 - **`--ratchet`: total findings never increase.** A fix that trades one finding
   for two exits 1 with `RATCHET`, and the right response is revert-and-retry,
   not argue. The baseline (`.verify/ratchet.json`) tightens itself on every

@@ -474,6 +474,135 @@ console.log((ok ? "  ok    " : "  MISS  ") + "routes owned by no role counted as
 process.exit(ok ? 0 : 1);
 ' "$TMP/roles2.json" || fail=1
 
+# ---------------------------------------------------------------------------
+# CELL MATRIX. The unit of work is (role, route, width). Half the invariants are
+# width-dependent, so a one-width run grades an app nobody uses at one width.
+echo "--- width matrix"
+node "$SKILL/bin/sweep.mjs" --repo "$BARE" --base "http://127.0.0.1:$PORT" \
+  --routes /,/clean/ --widths 390,1440 --json "$TMP/wide.json" >/dev/null 2>&1
+node -e '
+const r = require(process.argv[1]); let bad = 0;
+const check = (l, ok, got) => { console.log((ok ? "  ok    " : "  MISS  ") + l + "  (" + got + ")"); if (!ok) bad = 1; };
+const cells = r.routes.filter((x) => !x.route.startsWith("("));
+check("2 routes x 2 widths = 4 cells", cells.length === 4, cells.length);
+check("every cell carries its width", cells.every((c) => c.width === 390 || c.width === 1440),
+      [...new Set(cells.map((c) => c.width))].join(","));
+// The dedup that skips an already-measured destination must be PER WIDTH, or the
+// narrow pass silently inherits the wide passs verdict and measures nothing.
+check("each width probed the surface itself, not a skip",
+      cells.filter((c) => !c.skipped).length === 4, cells.filter((c) => c.skipped).length + " skipped");
+check("integrity block present", !!r.integrity && r.integrity.cellsPlanned === 4, JSON.stringify(r.integrity && r.integrity.cellsPlanned));
+process.exit(bad);
+' "$TMP/wide.json" || fail=1
+
+# ---------------------------------------------------------------------------
+# FORCED STATES. Two variants of one page, identical on the happy path and
+# opposite when their data fails. A state pass that cannot tell them apart is
+# measuring nothing -- which is exactly what a mock service worker does to
+# page.route(), and why this patches window.fetch in an init script instead.
+echo "--- forced states (differential: silent variant flagged, honest one silent)"
+cat > "$TMP/states-server.mjs" <<'JS'
+import http from 'node:http';
+const [port, variant] = process.argv.slice(2);
+const honest = variant === 'good';
+const page = `<!doctype html><meta charset=utf-8><title>Widgets</title>
+<h1>Widget inventory for the current quarter</h1>
+<div id=out aria-busy=true role=progressbar>Loading the widget inventory</div>
+<script>
+fetch('/api/items').then(async (res) => {
+  const out = document.getElementById('out');
+  out.removeAttribute('aria-busy'); out.removeAttribute('role');
+  if (!res.ok) {
+    out.textContent = ${honest ? "'Something went wrong while loading widgets. Try again.'" : "''"};
+    return;
+  }
+  const data = await res.json();
+  if (!Array.isArray(data)) {
+    out.textContent = ${honest ? "'Something went wrong while loading widgets. Try again.'" : "''"};
+    return;
+  }
+  if (!data.length) { out.textContent = ${honest ? "'No widgets yet. Add your first one.'" : "''"}; return; }
+  out.textContent = data.map((d) => d.name).join(', ');
+});
+</script>`;
+http.createServer((req, res) => {
+  if (req.url.startsWith('/api/items')) {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify([{ name: 'Alpha widget' }, { name: 'Beta widget' }]));
+  }
+  res.writeHead(200, { 'content-type': 'text/html' });
+  res.end(page);
+}).listen(Number(port), '127.0.0.1');
+JS
+PORT5=$((PORT + 5)); PORT6=$((PORT + 6))
+node "$TMP/states-server.mjs" "$PORT5" silent & SRV5=$!
+node "$TMP/states-server.mjs" "$PORT6" good   & SRV6=$!
+trap 'kill $SRV $SRV2 $SRV3 $SRV4 $SRV5 $SRV6 2>/dev/null; rm -rf "$TMP"' EXIT
+node -e 'const t=Date.now();(function w(){fetch("http://127.0.0.1:"+process.argv[1]).then(()=>process.exit(0)).catch(()=>Date.now()-t>8000?process.exit(1):setTimeout(w,100))})()' "$PORT6" || true
+
+mkdir -p "$TMP/repo-states"
+for pair in "silent $PORT5" "good $PORT6"; do
+  set -- $pair
+  node "$SKILL/bin/sweep.mjs" --repo "$TMP/repo-states" --base "http://127.0.0.1:$2" \
+    --routes / --states --json "$TMP/states-$1.json" >/dev/null 2>&1
+done
+node -e '
+const silent = require(process.argv[1]), good = require(process.argv[2]);
+let bad = 0;
+const check = (l, ok, got) => { console.log((ok ? "  ok    " : "  MISS  ") + l + "  (" + got + ")"); if (!ok) bad = 1; };
+const col = (r) => (r.routes.find((x) => x.route.startsWith("(states:")) || {});
+const kinds = (r) => (col(r).findings || []).map((f) => f.kind);
+check("the pass ran at all", !!col(silent).columns && col(silent).columns.length === 5,
+      (col(silent).columns || []).length + " columns");
+// THE claim this pass rests on: the forced response REACHED THE APP. Asserted
+// against the baseline render of the same route, not against the other columns --
+// a page that fails identically for 500/403/malformed is behaving consistently,
+// which is not the same as an interception that never fired. Measured in the
+// wild, that failure looked like six byte-identical columns under a mock service
+// worker, and every PASS in that table was about nothing.
+const baseline = (r) => (r.routes.find((x) => x.route === "/") || {}).fingerprint;
+const forced = (r) => (col(r).columns || []).filter((c) => !c.crashed && c.kind !== "slow");
+for (const [name, r] of [["silent", silent], ["honest", good]]) {
+  const bl = baseline(r), cols = forced(r);
+  check(name + " variant: every forced response changed the page from its baseline",
+        !!bl && cols.length === 4 && cols.every((c) => c.fingerprint !== bl),
+        cols.filter((c) => c.fingerprint === bl).map((c) => c.kind).join(",") || "all 4 differ");
+}
+check("silent variant: failure that renders no message is flagged",
+      kinds(silent).includes("state.silent-failure"), kinds(silent).join(",") || "none");
+check("honest variant: a rendered error message is NOT flagged",
+      !kinds(good).includes("state.silent-failure"), kinds(good).join(",") || "none");
+check("silent variant: empty response with no empty state is flagged",
+      kinds(silent).includes("state.no-empty-state"), kinds(silent).join(",") || "none");
+check("honest variant: an empty state is NOT flagged",
+      !kinds(good).includes("state.no-empty-state"), kinds(good).join(",") || "none");
+check("neither run reported the interception as defeated",
+      !kinds(silent).concat(kinds(good)).includes("state.not-intercepted"), "clean");
+process.exit(bad);
+' "$TMP/states-silent.json" "$TMP/states-good.json" || fail=1
+
+# ---------------------------------------------------------------------------
+# INTEGRITY GATE. A probe over lock screens reports CLEAN, and no individual
+# finding shows it -- only the shape of the run does. Seven routes that all serve
+# one page is the same artifact as 45 routes that all landed on /login: the run
+# must come back INVALID and exit 2, never 0.
+echo "--- integrity gate"
+node "$SKILL/bin/sweep.mjs" --repo "$TMP/repo-states" --base "http://127.0.0.1:$PORT6" \
+  --routes /a,/b,/c,/d,/e,/f,/g --json "$TMP/fake.json" >"$TMP/fake.txt" 2>&1
+GATE_EXIT=$?
+node -e '
+const r = require(process.argv[1]); const code = Number(process.argv[2]); let bad = 0;
+const check = (l, ok, got) => { console.log((ok ? "  ok    " : "  MISS  ") + l + "  (" + got + ")"); if (!ok) bad = 1; };
+check("7 identical surfaces graded INVALID", r.integrity && r.integrity.ok === false,
+      JSON.stringify((r.integrity || {}).failed));
+check("and it names the reason", (r.integrity.failed || []).some((f) => /distinct surfaces/.test(f)),
+      (r.integrity.failed || [])[0] || "none");
+// The whole point: exit 2 is could-not-run. A run that measured one page seven
+// times must never be readable as a clean 0.
+check("exit code is 2, not 0", code === 2, code);
+process.exit(bad);
+' "$TMP/fake.json" "$GATE_EXIT" || fail=1
+
 echo
 if [ "$fail" -eq 0 ]; then echo "SELFTEST PASS"; else echo "SELFTEST FAIL"; fi
 exit "$fail"
