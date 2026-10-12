@@ -1,3 +1,4 @@
+import json
 import shutil
 from pathlib import Path
 
@@ -50,8 +51,58 @@ def test_get_plugin_status_returns_dict(tmp_path: Path) -> None:
         markers={
             "Superpowers": tmp_path / "plugins",
             "Double Shot Latte": tmp_path / "agents",
-        }
+        },
+        installed_file=tmp_path / "installed_plugins.json",
     )
     assert all(isinstance(v, bool) for v in result.values())
     assert not result["Superpowers"]
     assert not result["Double Shot Latte"]
+
+
+def _write_registry(path: Path, plugins: dict[str, list[dict[str, str]]]) -> Path:
+    path.write_text(json.dumps({"version": 2, "plugins": plugins}))
+    return path
+
+
+def test_plugin_status_reads_registry_from_any_marketplace(tmp_path: Path) -> None:
+    registry = _write_registry(
+        tmp_path / "installed_plugins.json",
+        {
+            "superpowers@superpowers-marketplace": [{"scope": "user"}],
+            "compound-engineering@compound-engineering-plugin": [{"scope": "user"}],
+        },
+    )
+    result = get_plugin_status(
+        markers={
+            "Superpowers": tmp_path / "missing-a",
+            "Double Shot Latte": tmp_path / "missing-b",
+        },
+        installed_file=registry,
+    )
+    assert result == {"Superpowers": True, "Double Shot Latte": True}
+
+
+def test_plugin_status_registry_overrides_stale_marker(tmp_path: Path) -> None:
+    marker = tmp_path / "agents-skills"
+    marker.mkdir()
+    registry = _write_registry(
+        tmp_path / "installed_plugins.json",
+        {"superpowers@claude-plugins-official": [{"scope": "user"}], "other@x": []},
+    )
+    result = get_plugin_status(
+        markers={"Superpowers": tmp_path / "missing", "Double Shot Latte": marker},
+        installed_file=registry,
+    )
+    assert result == {"Superpowers": True, "Double Shot Latte": False}
+
+
+def test_plugin_status_falls_back_to_markers_on_bad_registry(tmp_path: Path) -> None:
+    marker = tmp_path / "present"
+    marker.mkdir()
+    registry = tmp_path / "installed_plugins.json"
+    registry.write_text("{not json")
+    result = get_plugin_status(
+        markers={"Superpowers": marker, "Double Shot Latte": tmp_path / "missing"},
+        installed_file=registry,
+    )
+    assert result == {"Superpowers": True, "Double Shot Latte": False}
