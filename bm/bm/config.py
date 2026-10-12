@@ -40,6 +40,16 @@ REGISTRY_FILE: Path = BM_DIR / "registry.json"
 PROMPT_REGISTRY_FILE: Path = BM_DIR / "prompts.json"
 SUGGESTION_CACHE_FILE: Path = BM_DIR / "suggestions.json"
 
+# Claude Code's registry of installed plugins, keyed "<plugin>@<marketplace>".
+INSTALLED_PLUGINS_FILE: Path = PLUGINS_DIR / "installed_plugins.json"
+
+# Plugin name in the registry, independent of the marketplace it came from.
+PLUGIN_IDS: dict[str, str] = {
+    "Superpowers": "superpowers",
+    "Double Shot Latte": "compound-engineering",
+}
+
+# Fallback paths, used only when the registry file is missing or unreadable.
 PLUGIN_MARKERS: dict[str, Path] = {
     "Superpowers": PLUGINS_DIR / "cache" / "claude-plugins-official",
     "Double Shot Latte": AGENTS_SKILLS_DIR,
