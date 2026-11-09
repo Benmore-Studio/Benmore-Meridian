@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Changed
+
+- **`project-primer` — rewritten around the BEN-228 primer.** The skill now reads the client's signed agreements, email history and latest document versions before writing; adds optional "Where We Stand Going Into Kickoff", "What Changed in Your Latest Documents", regulatory-driver and client-feature-list sections; builds market context on the client's own research instead of redoing it; and requires sources for every agreement and figure. The screen-share presentation now ships as a tested template (`assets/primer-presentation-template.html`) with a mapping from each primer section to its card type. Removed the hardcoded technical-lead name from the footer and the stale `Active_Projects/` paths.
+
 ## v1.11.0 — 2026-06-29
 
 ### New Skills
