@@ -1,161 +1,250 @@
 ---
 name: project-primer
 description: >
-  Creates a pre-kickoff project primer for a Benmore Technologies client engagement.
-  Use when preparing to meet a new client for the first time — before the kickoff call.
-  Triggered by phrases like "create a primer", "write a primer for project", "pre-kickoff
-  primer", "client primer", or "prepare a primer for [client/project]".
-
-  Gathers sales team notes, researches the client's industry and market (with cited sources),
-  incorporates the user's complexity thoughts and value proposition hypotheses, writes a
-  structured PRIMER.md in the project's Discovery directory, then generates a polished
-  PRIMER_PRESENTATION.html using the embedded design system below.
+  Writes the pre-kickoff project primer for a Benmore client engagement: a client-facing
+  PRIMER.md and a screen-share PRIMER_PRESENTATION.html in the project's Discovery folder.
+  Use before the first kickoff call with a new client. Triggered by "create a primer",
+  "write a primer for BEN-XXX", "pre-kickoff primer", "client primer", "prep the kickoff",
+  or "prepare a primer for [client/project]". Reads the sales handoff, the client's own
+  documents, signed agreements and email history, restates what has already been agreed,
+  shows what changed in the client's latest documents, adds cited market and regulatory
+  context that builds on the client's own research, and turns the open scope decisions into
+  numbered kickoff questions with options.
 context: fork
 ---
 
 # Project Primer
 
-Produces two files before a client kickoff call:
-1. `Active_Projects/[ProjectDir]/Discovery/PRIMER.md` — structured markdown document
-2. `Active_Projects/[ProjectDir]/Discovery/PRIMER_PRESENTATION.html` — polished visual presentation
+The primer is what the client reads before kickoff, and what we screen-share during it. Its
+job is to make the client think "they understood us, they did the reading, and they know
+what has to be decided." It is not a sales document and not a scope agreement.
+
+The reference example is the BEN-228 primer (`~/Benmore/dev/228/Discovery/`, if you have it locally). When in
+doubt about tone, depth or structure, read it. Do not copy any of its content: it is
+confidential client material.
+
+Two outputs, both in `<project dir>/Discovery/`:
+
+1. `PRIMER.md`: the full written primer.
+2. `PRIMER_PRESENTATION.html`: the screen-share version, built from
+   `assets/primer-presentation-template.html`.
 
 ---
 
-## Workflow
+## Step 1: Find the project and gather everything that exists
 
-### Step 1 — Gather Inputs
+Locate the project directory. Projects live in `~/Benmore/dev/<BEN number>/` or
+`~/Benmore/dev/<BEN number>-<Name>/`. If none exists, create `~/Benmore/dev/<BEN number>/`
+and a `Discovery/` folder inside it. If there is no `.benmore-project` file in the project
+root, write the project's portal UUID into one (look it up with
+`bm benmore lookup <BEN number>`) so token usage is attributed.
 
-Ask in a **single message** for anything not already provided:
+Collect every source before writing anything. Read the latest version of each document in
+full, not a summary.
 
-- **Project directory** — e.g., `174-DrewLauten`
-- **Sales team notes** — emails, call notes, Slack summaries, description of the client's idea
-- **Supporting docs** — prototype links, decks, anything the client shared (optional)
-- **Your complexity thoughts** — hypotheses on value props, pain points, open questions to hash out at kickoff
+| Source                           | Where to find it                                                                            | What it gives the primer                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Sales handoff notes              | Pasted by the user, or `Discovery/sales_notes.md`                                           | Client background, priorities, expectations already set                        |
+| Client materials folder          | `client-materials/`, often with a `00 Agent-Readable Text/` subfolder and a README          | The client's own plans, protocols, business plan, patent drafts, feature lists |
+| Signed agreements                | `client-materials/.../01 Signed Agreements/`                                                | What the SOW actually covers, fees, credits, what does not apply               |
+| Email correspondence             | `client-materials/.../04 Email Correspondence/`                                             | Commitments and corrections made in writing, with dates                        |
+| Sales call notes and transcripts | `client-materials/.../05 Call Notes and Transcripts/`, or the portal                        | The client's own words, quotes, priorities                                     |
+| Portal project context           | `bm benmore context <BEN number>`                                                           | Team, earlier deliverables and recommendations, meetings                       |
+| Client Slack channel             | Slack MCP (`slack_read_channel`) with the channel ID from the portal. Never the Benmore API | Anything said after the handoff                                                |
 
-Do not ask for information already in the conversation. Do not ask questions one at a time.
+If the sales notes are pasted in chat, save them verbatim to `Discovery/sales_notes.md`
+first, with a one-line header saying where they came from and when.
 
-### Step 2 — Identify Industry & Market
+Ask the user, in one message, only for what you cannot find: usually the sales notes, the
+kickoff date and time, or their own complexity hypotheses. Do not ask for anything already
+on disk or in the conversation.
 
-From the notes, extract:
-- The **industry** (e.g., vacation rentals, fintech, legal tech, healthcare)
-- The **specific market segment** (e.g., short-term rental operators, solo attorneys)
-- **Adjacent markets** the product touches
+---
 
-### Step 3 — Research the Market
+## Step 2: Work out the facts before writing
 
-Use WebSearch to find **current, cited data**. Run at least 3–5 searches across:
+Build these lists in your head (or a scratch file) first. The primer is only as good as
+these.
 
-| Area | What to find |
-|---|---|
-| Market size | Global + US value, year, CAGR, projected value + year |
-| Trends | Key tailwinds driving the market right now |
-| Pain points | Industry surveys, operator reports, documented frustrations |
-| Competitors | Analogous platforms — name, founding year, focus, pricing |
-| User motivations | Behavioural data on the target user |
+1. **Agreed ground rules.** Every commercial or process point already communicated to the
+   client: what the SOW covers, how the build is priced, credits, what happens to early
+   price figures, compliance phasing, Discovery length and cadence, support terms, dates.
+   Record who said it, in what channel, on what date, and whether the client accepted it.
+   Only points the client has already seen belong in the primer. Internal notes, margins,
+   staffing and anything said only inside Benmore stay out.
+2. **Document versions.** If the client has sent several versions of a document, list what
+   each new version added and how it affects Phase 1 (High / Medium / Low, with a reason).
+   Note which files are the current source of truth.
+3. **The client's own research.** If they already did market, competitor or patent research,
+   that is the starting point. Build on it; do not redo it.
+4. **Phase 1 boundary.** What Benmore has recommended as the first build, and what is
+   explicitly later.
+5. **The client's own feature list,** in their words, if they sent one, with the current
+   read on each item.
+6. **Open decisions.** Every place where the scope could reasonably go two or three ways and
+   the answer changes cost or timeline.
+7. **Outstanding homework.** Access, documents or decisions the client still owes, and since
+   when.
 
-Cite every statistic with an inline markdown link `([Source Name](url))`. Do not fabricate numbers. Prioritize: industry reports (Fortune Business Insights, Mordor Intelligence, Statista, IBISWorld), government data (BLS, Census), credible trade publications.
+---
 
-### Step 4 — Write PRIMER.md
+## Step 3: Research, with citations
 
-Save to: `Active_Projects/[ProjectDir]/Discovery/PRIMER.md`
+Run web searches for current, citable data. Focus on what the client's own materials do
+not already cover:
 
-Follow this exact structure:
+- Size of the problem: government or regulator statistics first (BLS, Census, the relevant
+  agency), then credible industry reports and trade publications.
+- **Regulatory drivers,** when the product touches a regulated area: the rule, its citation,
+  its status (proposed or in effect, with dates), and what the product has to encode
+  because of it. Never present a proposed rule as law.
+- Evidence about the people the product serves.
+- Competitors and analogous platforms: name, founded, focus, published pricing.
 
-```
+Rules:
+
+- Cite every number inline as `([Source Name](url))`. If you cannot find a source, leave the
+  number out.
+- Say how old a figure is when it is more than two years old, and why it is still relevant.
+- When sources disagree widely (market-size estimates often do), say so and give one.
+- Flag anything you could not verify, e.g. "Founding years are approximate. Verify them
+  before any external use."
+
+---
+
+## Step 4: Write PRIMER.md
+
+Save to `<project dir>/Discovery/PRIMER.md`. Use the structure below. Sections marked
+_optional_ are included only when there is real material for them; never pad one.
+
+```markdown
 # [Product Name] — Pre-Kickoff Project Primer
+
 **Prepared by:** Benmore Technologies
-**Date:** [Today's date]
-**Client:** [Client full name]
+**Date:** [Month D, YYYY] ([kickoff today / kickoff on ...], [time in each attendee time zone])
+**Client:** [Full names, with credentials if they use them] ([Entity, if any])
 **Project Code:** BEN-[XXX]
 
 ---
 
 ## What We Understand You're Building
-[2–4 paragraphs. Plain language. Explain the product, who it's for, and the core value
-exchange. Describe the core loop as a numbered list of 3–5 steps. Write so the client
-reads it and nods. No jargon. No bullets in the opening paragraphs.]
 
-From [prototype / our conversation / the materials you shared], we can see the core loop clearly:
+[2-4 paragraphs of prose. Who it is for, what goes wrong for them today, what the product
+changes. Use the client's own vocabulary and frameworks, and quote them where a phrase
+captures it. Name what Phase 1 is and why it comes first.]
 
-1. **[Actor 1]** [action + what they provide/get]
-2. **[Actor 2]** [action + what they provide/get]
-3. [Continue through full cycle]
+From [our calls / the materials you shared], we can see the core loop clearly:
+
+1. **[Actor]** [does what, gets what]
+2. ...
+
+---
+
+## Where We Stand Going Into Kickoff (optional: when terms were already discussed)
+
+[One sentence: these were agreed in writing (who, when), restated so everyone starts from
+the same place.]
+
+- **[Point].** [What was agreed, with the figure and the source.]
+
+---
+
+## What Changed in Your Latest Documents (optional: when versioned documents exist)
+
+[Which files are now the source of truth.]
+
+| Version | What was added | Phase 1 relevance |
+| ------- | -------------- | ----------------- |
+
+[What is unchanged and still the Phase 1 core.]
 
 ---
 
 ## Industry & Market Context
 
-### [Primary Market Name]
-[Product] sits at the intersection of [N] markets, each with significant tailwinds.
+### [The market or category]
 
-**[Market 1]** [Stats with inline citations.] ([Source](url))
-**[Market 2]** [Stats with inline citations.] ([Source](url))
-**[Market 3]** [Stats with inline citations.] ([Source](url))
+[Build on the client's research; add outside data. Every number cited.]
 
-### [Secondary Theme — e.g. user motivations, operator pain point]
-[2–3 paragraphs on user-side context with citations.]
+### [Regulatory Drivers Phase 1 Has to Encode] (optional: regulated domains)
 
-### Existing [Alternatives / Competitors / Analogous Platforms]
-[1–2 framing sentences.]
+[One bold-led paragraph per rule: what it says, status, what the product must do.]
+
+### [The People You Are Protecting / Serving]
+
+[Evidence about the users, cited, tied back to what the client told us.]
+
+### Existing Alternatives
 
 | Platform | Founded | Focus | Pricing |
-|----------|---------|-------|---------|
-| **[Name]** | [Year] | [Description] | [Price] |
+| -------- | ------- | ----- | ------- |
 
-**The key gap these platforms leave:** [What none of them do that this product would do.]
-This is [Client Name]'s opportunity.
+**The key gap these platforms leave:** [what none of them do]. This is [Product]'s
+opportunity.
 
 ---
 
 ## What We Think the Core Value Propositions Are
 
-### For [User Type 1]
-- **[Benefit]** — [1-sentence explanation]
-- **[Benefit]** — [1-sentence explanation]
+### For [User type, e.g. the people using it day to day]
 
-### For [User Type 2]
-- **[Benefit]** — [1-sentence explanation]
-- **[Benefit]** — [1-sentence explanation]
+- **[Benefit].** [One sentence.]
+
+### For [The buyer]
+
+### For [Any third group the product touches]
+
+---
+
+## Your [Feature List / N Features], Mapped to Phases (optional: when the client sent one)
+
+| #   | Feature (your [date] list) | Current read |
+| --- | -------------------------- | ------------ |
 
 ---
 
 ## Open Questions We Want to Discuss With You
 
-[Intro sentence about using the kickoff call to align before scoping.]
+We'd like to use the kickoff call to align on these before we size anything. Each answer
+moves Phase 1 timeline and cost in a predictable direction.
 
 ### Tier 1 — Core Functionality Decisions
 
-**1. [Question title]**
-[Context + options + why it matters for scope.]
-- [Option A]
-- [Option B]
+**1. [Question as the client would ask it]**
+[Why it matters, what each answer costs.]
 
-[Continue for 4–6 Tier 1 questions drawn from the user's complexity thoughts.]
+- [Option, smallest first]
+- [Option]
+- [Option, largest]
+
+[4-6 Tier 1 questions.]
 
 ### Tier 2 — Complexity & Scope Decisions
 
-**[N]. [Question title]**
-[Same pattern. 2–4 questions.]
+**[N]. [Question]**
+[2-4 Tier 2 questions, same pattern.]
 
 ---
 
 ## Our Initial Read on Complexity
 
-[1–2 sentences characterising the product type and core design challenge.]
+[2-3 sentences: what kind of system this is and where the work and risk sit. Say roughly how
+the effort splits (e.g. back end vs interface) if you can defend it.]
 
-[Bullet list of 4–6 design dimensions that will shape timeline and cost.]
+- **[Dimension].** [Why it is hard and what it touches.]
 
-None of these are blockers — they're design decisions. But they'll significantly shape timeline and cost.
+None of these are blockers. They're design decisions, and each one will significantly shape
+timeline and cost.
 
 ---
 
 ## What We'd Like to Accomplish in Our Kickoff Call
 
-1. [Goal]
-2. [Goal]
-3. [Goal]
-4. [Goal]
-5. [Goal]
+1. [Confirm ground rules and set a meeting cadence]
+2. [Agree on Phase 1 and work through the top Tier 1 questions, named]
+3. [Confirm which documents are the source of truth]
+4. **Access and homework:** [each outstanding item, and since when]
+5. [Next meeting or working session, and the first deliverable we'll bring back]
 
 ---
 
@@ -163,230 +252,75 @@ None of these are blockers — they're design decisions. But they'll significant
 
 After our kickoff call, we'll produce:
 
-- [ ] Technical Requirements Document
-- [ ] MVP Features List (with clear in/out of scope line)
-- [ ] User Flow Diagrams ([actor 1] journey + [actor 2] journey)
-- [ ] Quote, Associated Fees & Timeline
+- [ ] Technical Requirements Document ([what it will cover for this project])
+- [ ] Market Analysis ([built on their research, if they have some])
+- [ ] MVP Features List ([starting from what], with a clear in/out of scope line)
+- [ ] User Flow Diagrams ([the specific journeys])
+- [ ] Quote, Associated Fees & Timeline for Phase 1
 
-[1–2 closing sentences on what's compelling about the opportunity.]
+[If SOW template items do not apply (e.g. no existing codebase to assess), say so in one
+sentence and why.]
+
+[Closing paragraph, 2-3 sentences: why the opportunity is compelling, tied to the evidence
+above, and what Discovery is for.]
 
 ---
 
-*Prepared by Benmore Technologies — [benmoretechnologies.com](https://benmoretechnologies.com)*
-*Technical Lead: Aditya Niture*
+_Prepared by Benmore Technologies — [benmoretechnologies.com](https://benmoretechnologies.com)_
 ```
 
-Writing rules:
-- Confident, clear, no jargon — written for the client, not internal use
-- All stats cited inline
-- Open questions drawn from the user's complexity thoughts (Step 1), not generic filler
+Do not put a named individual in the footer or the header. The primer is from Benmore.
 
-### Step 5 — Generate HTML Presentation
+### Writing rules
 
-After writing PRIMER.md, generate `PRIMER_PRESENTATION.html` in the same directory using the design system below. The HTML must be fully self-contained (no external dependencies except Google Fonts and CDN-hosted Mermaid/Chart.js).
-
----
-
-## HTML Design System
-
-Use this design system to turn the PRIMER.md into a polished one-pager.
-
-### Visual Identity
-Dark navy glassmorphism. Multi-tone navy gradient background, color-coded content cards, subtle glow accents. No emojis — use `→` and `•` only.
-
-### Color Palette
-
-| Element | Value |
-|---|---|
-| Background | `linear-gradient(135deg, #0a1628 0%, #1a2744 25%, #0f2d4a 50%, #1a3a5c 75%, #0d1a2d 100%)` |
-| Primary text | `#ffffff` |
-| Secondary text | `rgba(255,255,255,0.85)` |
-| Muted text | `rgba(255,255,255,0.5)` |
-| Accent blue | `#60a5fa` |
-| Accent blue light | `#93c5fd` |
-| Success green | `#34d399` |
-| Warning amber | `#fbbf24` |
-| Error red | `#f87171` |
-| Special purple | `#a78bfa` |
-| Card background | `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)` |
-| Card border | `rgba(255,255,255,0.08)` |
-
-### Typography
-- Font: `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
-- H1: 2.75rem, 700, gradient text fill, letter-spacing -0.02em
-- Section headers: 0.85rem, 600, uppercase, letter-spacing 0.1em, accent blue
-- Card headers: 1.15rem, 600, color varies by card type
-- Body: 1rem, 400, line-height 1.7
-
-### Card Type Rules
-
-Select card type automatically based on content:
-
-| Card Class | Color | Use When |
-|---|---|---|
-| `.card` | Blue | General info, descriptions, default |
-| `.feature-card` | Green | Features, benefits, capabilities, deliverables |
-| `.warning-card` | Amber | Warnings, requirements, important notes |
-| `.error-card` | Red | Risks, blockers, critical issues, what NOT to do |
-| `.special-card` | Purple | Future features, AI, roadmap, advanced topics |
-| `.highlight-card` | Blue accent + left border | Key takeaways, summaries, TL;DR |
-| `.role-card` | Blue tinted + badge | People, roles, user types, personas |
-
-### HTML Template
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>[Document Title]</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({ startOnLoad: true, theme: 'dark', themeVariables: { primaryColor: '#1e3a5f', primaryTextColor: '#ffffff', primaryBorderColor: '#60a5fa', lineColor: '#60a5fa', secondaryColor: '#0f2744', background: '#0a1628', fontFamily: 'Inter, sans-serif', fontSize: '13px' } });
-    </script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0a1628 0%, #1a2744 25%, #0f2d4a 50%, #1a3a5c 75%, #0d1a2d 100%); background-attachment: fixed; min-height: 100vh; padding: 60px 30px; color: #ffffff; line-height: 1.7; }
-        .container { max-width: 1200px; margin: 0 auto; }
-
-        /* Header */
-        .header { text-align: center; margin-bottom: 50px; padding-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); position: relative; }
-        .header::before { content: ''; position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, rgba(96,165,250,0.1) 0%, transparent 70%); pointer-events: none; }
-        .project-badge { display: inline-block; padding: 5px 14px; background: linear-gradient(135deg, rgba(167,139,250,0.2), rgba(167,139,250,0.08)); border: 1px solid rgba(167,139,250,0.3); border-radius: 20px; font-size: 0.75rem; font-weight: 600; color: #a78bfa; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 20px; }
-        h1 { font-size: 2.75rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 12px; background: linear-gradient(135deg, #ffffff 0%, #60a5fa 50%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .subtitle { font-size: 1rem; color: rgba(255,255,255,0.5); }
-        .meta-row { display: flex; justify-content: center; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
-        .meta-item { font-size: 0.85rem; color: rgba(255,255,255,0.5); }
-        .meta-item .label { color: rgba(255,255,255,0.3); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; margin-right: 6px; }
-        .meta-item .value { color: rgba(255,255,255,0.75); font-weight: 500; }
-
-        /* Sections */
-        .section { margin-bottom: 40px; }
-        .section-header { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #60a5fa; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
-        .section-header::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(96,165,250,0.4) 0%, rgba(96,165,250,0.1) 50%, transparent 100%); }
-
-        /* Grids */
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-        @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } h1 { font-size: 2rem; } }
-
-        /* Base Card */
-        .card { background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 28px 32px; margin-bottom: 16px; backdrop-filter: blur(10px); position: relative; overflow: hidden; }
-        .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(96,165,250,0.3), transparent); }
-        .card h3 { font-size: 1.15rem; font-weight: 600; color: #60a5fa; margin-bottom: 14px; }
-        .card h4 { font-size: 1rem; font-weight: 500; color: #93c5fd; margin-bottom: 10px; margin-top: 16px; }
-        .card p { color: rgba(255,255,255,0.85); margin-bottom: 12px; }
-        .card p:last-child { margin-bottom: 0; }
-        .card ul { padding-left: 18px; color: rgba(255,255,255,0.85); }
-        .card ul li { margin-bottom: 8px; }
-
-        /* Feature Card (Green) */
-        .feature-card { background: linear-gradient(135deg, rgba(52,211,153,0.08), rgba(16,185,129,0.03)); border: 1px solid rgba(52,211,153,0.2); border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
-        .feature-card h3 { color: #34d399; font-size: 1.15rem; font-weight: 600; margin-bottom: 14px; }
-        .feature-card p, .feature-card ul { color: rgba(255,255,255,0.85); }
-        .feature-card ul { padding-left: 18px; }
-        .feature-card ul li { margin-bottom: 8px; }
-
-        /* Warning Card (Amber) */
-        .warning-card { background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(245,158,11,0.03)); border: 1px solid rgba(251,191,36,0.2); border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
-        .warning-card h3 { color: #fbbf24; font-size: 1.15rem; font-weight: 600; margin-bottom: 14px; }
-        .warning-card p, .warning-card ul { color: rgba(255,255,255,0.85); }
-        .warning-card ul { padding-left: 18px; }
-        .warning-card ul li { margin-bottom: 8px; }
-
-        /* Error Card (Red) */
-        .error-card { background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(220,38,38,0.03)); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
-        .error-card h3 { color: #f87171; font-size: 1.15rem; font-weight: 600; margin-bottom: 14px; }
-        .error-card p, .error-card ul { color: rgba(255,255,255,0.85); }
-        .error-card ul { padding-left: 18px; }
-        .error-card ul li { margin-bottom: 8px; }
-
-        /* Special Card (Purple) */
-        .special-card { background: linear-gradient(135deg, rgba(167,139,250,0.1), rgba(139,92,246,0.05)); border: 1px solid rgba(167,139,250,0.25); border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; }
-        .special-card h3 { color: #a78bfa; font-size: 1.15rem; font-weight: 600; margin-bottom: 14px; }
-        .special-card p, .special-card ul { color: rgba(255,255,255,0.85); }
-        .special-card ul { padding-left: 18px; }
-        .special-card ul li { margin-bottom: 8px; }
-
-        /* Highlight Card */
-        .highlight-card { background: linear-gradient(135deg, rgba(96,165,250,0.12), rgba(96,165,250,0.05)); border-left: 3px solid #60a5fa; border-radius: 0 12px 12px 0; padding: 24px 28px; margin-bottom: 16px; }
-        .highlight-card h3 { color: #60a5fa; font-size: 1.15rem; font-weight: 600; margin-bottom: 14px; }
-        .highlight-card p, .highlight-card ul { color: rgba(255,255,255,0.85); }
-        .highlight-card ul { padding-left: 18px; }
-        .highlight-card ul li { margin-bottom: 8px; }
-
-        /* Role Card */
-        .role-card { background: linear-gradient(135deg, rgba(96,165,250,0.08), rgba(30,58,95,0.3)); border: 1px solid rgba(96,165,250,0.2); border-radius: 12px; padding: 24px; margin-bottom: 16px; position: relative; }
-        .role-card .role-badge { position: absolute; top: -10px; left: 20px; background: linear-gradient(135deg, #3b82f6, #1e40af); padding: 4px 14px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-        .role-card h3 { margin-top: 8px; color: #93c5fd; font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; }
-        .role-card p, .role-card ul { color: rgba(255,255,255,0.85); }
-        .role-card ul { padding-left: 18px; }
-        .role-card ul li { margin-bottom: 6px; }
-
-        /* Stat Boxes */
-        .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
-        @media (max-width: 768px) { .stat-row { grid-template-columns: 1fr; } }
-        .stat-box { background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px 24px; text-align: center; position: relative; overflow: hidden; }
-        .stat-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(96,165,250,0.4), transparent); }
-        .stat-box .stat-value { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; background: linear-gradient(135deg, #ffffff, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .stat-box .stat-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
-        .stat-box .stat-sub { font-size: 0.75rem; color: rgba(255,255,255,0.35); margin-top: 4px; }
-
-        /* Table */
-        table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-        th { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(255,255,255,0.4); padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
-        td { padding: 12px 14px; font-size: 0.9rem; color: rgba(255,255,255,0.8); border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: top; }
-        td strong { color: #ffffff; }
-        tr:last-child td { border-bottom: none; }
-
-        /* Diagram */
-        .diagram-container { background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 28px; margin-bottom: 16px; overflow-x: auto; }
-
-        /* Checklist */
-        .checklist { list-style: none; padding: 0; }
-        .checklist li { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.8); font-size: 0.95rem; }
-        .checklist li:last-child { border-bottom: none; }
-        .checklist li::before { content: '→'; color: #60a5fa; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
-
-        /* Footer */
-        .footer { text-align: center; margin-top: 60px; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.07); }
-        .footer p { font-size: 0.85rem; color: rgba(255,255,255,0.3); }
-        .footer a { color: #60a5fa; text-decoration: none; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <!-- Build header, sections, and cards here based on PRIMER.md content -->
-    <!-- Use .project-badge for BEN-XXX, h1 for product name, .subtitle for tagline -->
-    <!-- Use .meta-row + .meta-item for Client / Date / Lead / Prepared by -->
-    <!-- Use .stat-row + .stat-box for key market stats (3 per row) -->
-    <!-- Use .diagram-container + mermaid block for the core loop if applicable -->
-    <!-- Use table inside .card for competitor comparison -->
-    <!-- Use .role-card for each user type value proposition -->
-    <!-- Use .warning-card for complexity/trust issues -->
-    <!-- Use .error-card for risks and critical decisions -->
-    <!-- Use .special-card for future scope / phase 2 items -->
-    <!-- Use .feature-card for deliverables and next steps -->
-    <!-- Use .highlight-card for the opening "what we understand" summary -->
-    <!-- Close with .footer -->
-</div>
-</body>
-</html>
-```
-
-When generating the HTML, replace the comment block with real sections and populated cards drawn directly from the PRIMER.md content. Every section of the markdown maps to HTML sections and appropriately typed cards.
+- Written to the client: "you" and "we". It must read well to the client, so nothing
+  internal (other clients, margins, internal disagreements, staff availability).
+- Plain, specific sentences. Numbers, dates and names over adjectives. No hype words,
+  no emojis.
+- Attribute agreements and facts: "our Oct 27 email", "your Oct 23 list",
+  "your business plan v2". This is what makes the primer trustworthy.
+- Use the client's terms and frameworks exactly as they write them.
+- Quote the client sparingly, where their phrase says it best.
+- Open questions come from the real scope decisions found in Step 2 and the user's own
+  complexity thoughts, never generic filler. Each one lists concrete options, smallest
+  first.
+- Separate clearly what is decided, what is proposed, and what is unknown. Never state a
+  price, date or scope item as settled unless the client has already accepted it.
 
 ---
 
-## Output
+## Step 5: Build PRIMER_PRESENTATION.html
 
-Confirm both files to the user when complete:
+Copy `assets/primer-presentation-template.html` to
+`<project dir>/Discovery/PRIMER_PRESENTATION.html` and fill it in. Keep the CSS as it is.
 
-| File | Path |
-|---|---|
-| `PRIMER.md` | `Active_Projects/XXX-ClientName/Discovery/PRIMER.md` |
-| `PRIMER_PRESENTATION.html` | `Active_Projects/XXX-ClientName/Discovery/PRIMER_PRESENTATION.html` |
+The presentation is the screen-share version, so it is shorter than the markdown and
+focuses on the product and the decisions. Map it like this:
+
+| PRIMER.md section                                | In the presentation                                                                                         |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| What We Understand                               | `highlight-card` + a Mermaid core-loop diagram                                                              |
+| The client's framework or module map, if any     | `grid-3` of cards; the Phase 1 module as `special-card`                                                     |
+| Value propositions                               | One `role-card` per user type                                                                               |
+| Phase 1 contents                                 | Two `feature-card`s (one per side of the product) + a `highlight-card` for any cross-cutting guarantee      |
+| Client feature list                              | Table with phase tags (`tag-high`, `tag-med`, `tag-low`, `tag-open`)                                        |
+| Secondary journeys                               | "Key Flows": one card and Mermaid diagram each                                                              |
+| Open questions                                   | The biggest scope question as `error-card`; the rest as `warning-card`s; keep the numbers from the markdown |
+| Next steps                                       | `feature-card` for deliverables, `special-card` for later phases, closing `highlight-card`                  |
+| Where We Stand, What Changed, Market, Complexity | Leave out. They stay in the written primer                                                                  |
+
+Rules:
+
+- No emojis. Use `→` and `•` only where a symbol is needed.
+- Every placeholder replaced; delete optional sections and cards that have no content.
+- Mermaid labels: keep them short, use `<br/>` for line breaks, and quote every label.
+- Open the file in a browser (or render it with Playwright) and check that every Mermaid
+  diagram renders and nothing overflows at phone width before calling it done.
+
+---
+
+## Step 6: Hand back
+
+Tell the user both paths, list any facts you could not verify or sources you could not
+reach, and list the open questions in one line each so they can check the framing before
+the call.

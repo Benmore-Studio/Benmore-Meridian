@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{PRODUCT}} Kickoff</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "dark",
+        themeVariables: {
+          primaryColor: "#1e3a5f",
+          primaryTextColor: "#ffffff",
+          primaryBorderColor: "#60a5fa",
+          lineColor: "#60a5fa",
+          secondaryColor: "#0f2744",
+          background: "#0a1628",
+          fontFamily: "Inter, sans-serif",
+          fontSize: "13px",
+        },
+      });
+    </script>
+    <style>
+      html {
+        background: #0a1628;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          sans-serif;
+        background: linear-gradient(
+          135deg,
+          #0a1628 0%,
+          #1a2744 25%,
+          #0f2d4a 50%,
+          #1a3a5c 75%,
+          #0d1a2d 100%
+        );
+        background-attachment: fixed;
+        min-height: 100vh;
+        padding: 60px 30px;
+        color: #ffffff;
+        line-height: 1.7;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      a {
+        color: #93c5fd;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 50px;
+        padding-bottom: 40px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+      }
+      .header::before {
+        content: "";
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(
+          circle,
+          rgba(96, 165, 250, 0.1) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      .project-badge {
+        display: inline-block;
+        padding: 5px 14px;
+        background: linear-gradient(
+          135deg,
+          rgba(167, 139, 250, 0.2),
+          rgba(167, 139, 250, 0.08)
+        );
+        border: 1px solid rgba(167, 139, 250, 0.3);
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #a78bfa;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+      h1 {
+        font-size: 2.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 12px;
+        background: linear-gradient(
+          135deg,
+          #ffffff 0%,
+          #60a5fa 50%,
+          #94a3b8 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .subtitle {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .meta-row {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+      }
+      .meta-item {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .meta-item .label {
+        color: rgba(255, 255, 255, 0.3);
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        margin-right: 6px;
+      }
+      .meta-item .value {
+        color: rgba(255, 255, 255, 0.75);
+        font-weight: 500;
+      }
+      .section {
+        margin-bottom: 40px;
+      }
+      .section-header {
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #60a5fa;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .section-header::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          rgba(96, 165, 250, 0.4) 0%,
+          rgba(96, 165, 250, 0.1) 50%,
+          transparent 100%
+        );
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+      }
+      @media (max-width: 768px) {
+        body {
+          padding: 40px 16px;
+        }
+        .grid-2,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+      }
+      .card {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.05) 0%,
+          rgba(255, 255, 255, 0.02) 100%
+        );
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 28px 32px;
+        margin-bottom: 16px;
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(96, 165, 250, 0.3),
+          transparent
+        );
+      }
+      .card h3 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #60a5fa;
+        margin-bottom: 14px;
+      }
+      .card h4 {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #93c5fd;
+        margin-bottom: 10px;
+        margin-top: 16px;
+      }
+      .card p {
+        color: rgba(255, 255, 255, 0.85);
+        margin-bottom: 12px;
+      }
+      .card p:last-child {
+        margin-bottom: 0;
+      }
+      .card ul {
+        padding-left: 18px;
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .card ul li {
+        margin-bottom: 8px;
+      }
+      .feature-card {
+        background: linear-gradient(
+          135deg,
+          rgba(52, 211, 153, 0.08),
+          rgba(16, 185, 129, 0.03)
+        );
+        border: 1px solid rgba(52, 211, 153, 0.2);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+      }
+      .feature-card h3 {
+        color: #34d399;
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+      .feature-card p,
+      .feature-card ul {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .feature-card ul {
+        padding-left: 18px;
+      }
+      .feature-card ul li {
+        margin-bottom: 8px;
+      }
+      .warning-card {
+        background: linear-gradient(
+          135deg,
+          rgba(251, 191, 36, 0.08),
+          rgba(245, 158, 11, 0.03)
+        );
+        border: 1px solid rgba(251, 191, 36, 0.2);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+      }
+      .warning-card h3 {
+        color: #fbbf24;
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+      .warning-card p,
+      .warning-card ul {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .warning-card p {
+        margin-bottom: 10px;
+      }
+      .warning-card ul {
+        padding-left: 18px;
+      }
+      .warning-card ul li {
+        margin-bottom: 8px;
+      }
+      .error-card {
+        background: linear-gradient(
+          135deg,
+          rgba(239, 68, 68, 0.08),
+          rgba(220, 38, 38, 0.03)
+        );
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+      }
+      .error-card h3 {
+        color: #f87171;
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+      .error-card p,
+      .error-card ul {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .error-card p {
+        margin-bottom: 10px;
+      }
+      .error-card ul {
+        padding-left: 18px;
+      }
+      .error-card ul li {
+        margin-bottom: 8px;
+      }
+      .special-card {
+        background: linear-gradient(
+          135deg,
+          rgba(167, 139, 250, 0.1),
+          rgba(139, 92, 246, 0.05)
+        );
+        border: 1px solid rgba(167, 139, 250, 0.25);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+      }
+      .special-card h3 {
+        color: #a78bfa;
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+      .special-card p,
+      .special-card ul {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .special-card ul {
+        padding-left: 18px;
+      }
+      .special-card ul li {
+        margin-bottom: 8px;
+      }
+      .highlight-card {
+        background: linear-gradient(
+          135deg,
+          rgba(96, 165, 250, 0.12),
+          rgba(96, 165, 250, 0.05)
+        );
+        border-left: 3px solid #60a5fa;
+        border-radius: 0 12px 12px 0;
+        padding: 24px 28px;
+        margin-bottom: 16px;
+      }
+      .highlight-card h3 {
+        color: #60a5fa;
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+      .highlight-card p,
+      .highlight-card ul {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .highlight-card p {
+        margin-bottom: 12px;
+      }
+      .highlight-card p:last-child {
+        margin-bottom: 0;
+      }
+      .highlight-card ul {
+        padding-left: 18px;
+      }
+      .highlight-card ul li {
+        margin-bottom: 8px;
+      }
+      .role-card {
+        background: linear-gradient(
+          135deg,
+          rgba(96, 165, 250, 0.08),
+          rgba(30, 58, 95, 0.3)
+        );
+        border: 1px solid rgba(96, 165, 250, 0.2);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 16px;
+        margin-top: 10px;
+        position: relative;
+      }
+      .role-card .role-badge {
+        position: absolute;
+        top: -10px;
+        left: 20px;
+        background: linear-gradient(135deg, #3b82f6, #1e40af);
+        padding: 4px 14px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .role-card h3 {
+        margin-top: 8px;
+        color: #93c5fd;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+      .role-card p,
+      .role-card ul {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .role-card ul {
+        padding-left: 18px;
+      }
+      .role-card ul li {
+        margin-bottom: 6px;
+      }
+      .stat-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      @media (max-width: 768px) {
+        .stat-row {
+          grid-template-columns: 1fr;
+        }
+      }
+      .stat-box {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.05),
+          rgba(255, 255, 255, 0.02)
+        );
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 20px 24px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .stat-box::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(96, 165, 250, 0.4),
+          transparent
+        );
+      }
+      .stat-box .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        background: linear-gradient(135deg, #ffffff, #60a5fa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .stat-box .stat-label {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.5);
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .stat-box .stat-sub {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.35);
+        margin-top: 4px;
+      }
+      .stat-box .stat-sub a {
+        color: rgba(147, 197, 253, 0.7);
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 4px;
+      }
+      th {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: rgba(255, 255, 255, 0.4);
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      td {
+        padding: 12px 14px;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.8);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        vertical-align: top;
+      }
+      td strong {
+        color: #ffffff;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .tag {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+      .tag-high {
+        background: rgba(52, 211, 153, 0.15);
+        color: #34d399;
+      }
+      .tag-med {
+        background: rgba(251, 191, 36, 0.15);
+        color: #fbbf24;
+      }
+      .tag-low {
+        background: rgba(148, 163, 184, 0.15);
+        color: #cbd5e1;
+      }
+      .tag-open {
+        background: rgba(248, 113, 113, 0.15);
+        color: #f87171;
+      }
+      .diagram-container {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.03),
+          rgba(255, 255, 255, 0.01)
+        );
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 28px;
+        margin-bottom: 16px;
+        overflow-x: auto;
+      }
+      .checklist {
+        list-style: none;
+        padding: 0;
+      }
+      .checklist li {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.95rem;
+      }
+      .checklist li:last-child {
+        border-bottom: none;
+      }
+      .checklist li::before {
+        content: "→";
+        color: #60a5fa;
+        font-weight: 600;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .q-num {
+        color: #60a5fa;
+        font-weight: 700;
+        margin-right: 6px;
+      }
+      .sources {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.45);
+        margin-top: 10px;
+      }
+      .footer {
+        text-align: center;
+        margin-top: 60px;
+        padding-top: 30px;
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+      }
+      .footer p {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.3);
+      }
+      .footer a {
+        color: #60a5fa;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      PRIMER_PRESENTATION template. Everything in {{BRACES}} is a placeholder.
+      Delete any optional section that does not apply. Do not leave a placeholder
+      or an empty card in the final file. Keep the CSS above unchanged.
+    -->
+    <div class="container">
+      <!-- HEADER -->
+      <div class="header">
+        <div class="project-badge">BEN-{{NUMBER}} &middot; Kickoff</div>
+        <h1>{{PRODUCT}}</h1>
+        <p class="subtitle">{{ONE-LINE DESCRIPTION OF THE PRODUCT}}</p>
+        <div class="meta-row">
+          <div class="meta-item">
+            <span class="label">Client</span
+            ><span class="value">{{CLIENT NAMES}}</span>
+          </div>
+          <!-- Optional: include only when the client has a legal entity name -->
+          <div class="meta-item">
+            <span class="label">Entity</span
+            ><span class="value">{{ENTITY}}</span>
+          </div>
+          <div class="meta-item">
+            <span class="label">Kickoff</span
+            ><span class="value">{{MON DD, YYYY}} &middot; {{TIME TZ}}</span>
+          </div>
+          <div class="meta-item">
+            <span class="label">Prepared by</span
+            ><span class="value">Benmore Technologies</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WHAT WE UNDERSTAND: highlight card + core-loop diagram -->
+      <div class="section">
+        <div class="section-header">What We Understand You're Building</div>
+        <div class="highlight-card">
+          <h3>{{THE PRODUCT'S PROMISE IN ONE SENTENCE}}</h3>
+          <p>{{THE PROBLEM TODAY, 2-3 SENTENCES}}</p>
+          <p>{{WHAT THE PRODUCT CHANGES, 2-3 SENTENCES}}</p>
+          <p><strong>{{WHAT PHASE 1 IS}}</strong> {{WHY IT COMES FIRST}}</p>
+        </div>
+        <div class="diagram-container">
+          <pre class="mermaid">
+flowchart LR
+    A["ACTOR 1<br/>ACTION"] --> B["SYSTEM STEP"]
+    B --> C{"DECISION"}
+    C -->|CHOICE| D["OUTCOME"]
+    C -->|CHOICE| E["OUTCOME"]
+          </pre>
+        </div>
+      </div>
+
+      <!-- OPTIONAL: THE CLIENT'S OWN FRAMEWORK OR MODULE MAP.
+           Include only when the client has named one. -->
+      <div class="section">
+        <div class="section-header">{{THE CLIENT'S FRAMEWORK NAME}}</div>
+        <div class="grid-3">
+          <!-- special-card marks the Phase 1 focus; feature-card for the rest -->
+          <div class="special-card">
+            <h3>{{Module}}</h3>
+            <p>{{One sentence in the client's terms}}</p>
+            <span class="tag tag-high">Phase 1 focus</span>
+          </div>
+          <div class="feature-card">
+            <h3>{{Module}}</h3>
+            <p>{{One sentence}}</p>
+            <span class="tag tag-low">Later phase</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WHO USES IT: one role-card per user type (2 or 3) -->
+      <div class="section">
+        <div class="section-header">Who Uses It and What They Get</div>
+        <div class="grid-3">
+          <div class="role-card">
+            <span class="role-badge">{{Role}}</span>
+            <h3>{{Who they are}}</h3>
+            <ul>
+              <li><strong>{{Benefit}}</strong>: {{short explanation}}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHASE 1 CONTENTS -->
+      <div class="section">
+        <div class="section-header">Phase 1: {{PHASE 1 NAME}}</div>
+        <div class="grid-2">
+          <div class="feature-card">
+            <h3>For {{user type}}</h3>
+            <ul>
+              <li><strong>{{Feature}}</strong>: {{what it does}}</li>
+            </ul>
+          </div>
+          <div class="feature-card">
+            <h3>For {{other user type}}</h3>
+            <ul>
+              <li><strong>{{Feature}}</strong>: {{what it does}}</li>
+            </ul>
+          </div>
+        </div>
+        <!-- Optional: one highlight-card for a cross-cutting guarantee
+             (privacy, compliance, offline, etc.) -->
+        <div class="highlight-card">
+          <h3>{{Cross-cutting guarantee}}</h3>
+          <p>{{Two sentences}}</p>
+        </div>
+      </div>
+
+      <!-- OPTIONAL: THE CLIENT'S FEATURE LIST, MAPPED TO PHASES.
+           Include when the client sent their own list. -->
+      <div class="section">
+        <div class="section-header">Your Features, Mapped to Phases</div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <tr>
+                <th>#</th>
+                <th>Feature ({{date of their list}})</th>
+                <th>Current read</th>
+              </tr>
+              <!-- tag-high = Phase 1, tag-med = Phase 1 with depth to set,
+                   tag-low = likely later, tag-open = needs scoping -->
+              <tr>
+                <td>1</td>
+                <td>{{Feature in their words}}</td>
+                <td><span class="tag tag-high">Phase 1</span></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTIONAL: KEY FLOWS. One card + diagram per secondary journey. -->
+      <div class="section">
+        <div class="section-header">Key Flows</div>
+        <div class="card">
+          <h3>{{Flow name}}</h3>
+          <div class="diagram-container">
+            <pre class="mermaid">
+flowchart LR
+    A["STEP"] --> B["STEP"]
+            </pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPEN QUESTIONS: the single biggest scope question in an error-card,
+           the rest as warning-cards. Keep the numbering from PRIMER.md. -->
+      <div class="section">
+        <div class="section-header">Questions to Settle in Discovery</div>
+        <div class="error-card">
+          <h3><span class="q-num">{{N}}</span>{{Biggest open scope question}}</h3>
+          <p>{{Why it matters for cost and timeline}}</p>
+          <ul>
+            <li>{{Option}}</li>
+            <li>{{Option}}</li>
+          </ul>
+        </div>
+        <div class="grid-2">
+          <div class="warning-card">
+            <h3><span class="q-num">{{N}}</span>{{Question}}</h3>
+            <p>{{Context and options in 2-3 sentences}}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- NEXT STEPS -->
+      <div class="section">
+        <div class="section-header">Next Steps from Benmore</div>
+        <div class="grid-2">
+          <div class="feature-card">
+            <h3>Discovery deliverables</h3>
+            <ul>
+              <li>{{Deliverable, tailored to this project}}</li>
+            </ul>
+          </div>
+          <div class="special-card">
+            <h3>Later phases</h3>
+            <ul>
+              <li><strong>{{Phase}}:</strong> {{what it holds}}</li>
+            </ul>
+          </div>
+        </div>
+        <div class="highlight-card">
+          <p>{{The closing paragraph from PRIMER.md}}</p>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>
+          Prepared by Benmore Technologies &middot;
+          <a href="https://benmoretechnologies.com">benmoretechnologies.com</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
